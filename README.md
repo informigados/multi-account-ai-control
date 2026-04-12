@@ -71,6 +71,11 @@ Set the required values in `.env`:
 - `APP_MASTER_KEY` (32-byte base64 or 64-char hex)
 - `SESSION_SECRET` (at least 32 chars)
 
+Optional (password reset by email):
+
+- `APP_BASE_URL` (default: `http://localhost:3000`)
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
+
 Optional default admin seed values:
 
 - `DEFAULT_ADMIN_EMAIL` (default: `admin@local`)
@@ -130,10 +135,8 @@ npm run build
 multi-account-ai-control/
 ├─ apps/web
 ├─ prisma
-├─ docs
 ├─ desktop
 ├─ scripts
-├─ docs/ROADMAP.md
 ├─ CONTRIBUTING.md
 ├─ SECURITY.md
 └─ package.json

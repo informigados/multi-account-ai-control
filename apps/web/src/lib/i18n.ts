@@ -79,15 +79,39 @@ type AppDictionary = {
 		errorLoginFailed: string;
 		submit: string;
 		submitting: string;
+		forgotPassword: string;
+		resetRequestTitle: string;
+		resetRequestDescription: string;
+		resetRequestEmailLabel: string;
+		resetRequestSubmit: string;
+		resetRequestSubmitting: string;
+		resetRequestSuccess: string;
+		resetRequestError: string;
+		resetTitle: string;
+		resetSubtitle: string;
+		resetPasswordLabel: string;
+		resetConfirmPasswordLabel: string;
+		resetPasswordPlaceholder: string;
+		resetSubmit: string;
+		resetSubmitting: string;
+		resetSuccess: string;
+		resetBackToLogin: string;
+		resetMissingToken: string;
+		resetPasswordsMismatch: string;
+		resetErrorGeneric: string;
 	};
 	idleLock: {
 		title: string;
 		subtitle: string;
+		subtitleNoPassword: string;
+		timeoutLabel: string;
 		passwordPlaceholder: string;
 		errorExpired: string;
 		errorGeneric: string;
 		unlock: string;
 		unlocking: string;
+		continue: string;
+		continuing: string;
 		logout: string;
 	};
 	settings: {
@@ -138,6 +162,20 @@ type AppDictionary = {
 		auditRetentionSaved: string;
 		auditRetentionLoadError: string;
 		auditRetentionUpdateError: string;
+		idleLockCardTitle: string;
+		idleLockCardDescription: string;
+		idleLockModeLabel: string;
+		idleLockModeDisabled: string;
+		idleLockModeEnabled: string;
+		idleLockTimeoutLabel: string;
+		idleLockTimeoutHint: string;
+		idleLockUnlockLabel: string;
+		idleLockUnlockPassword: string;
+		idleLockUnlockContinue: string;
+		idleLockSave: string;
+		idleLockSaved: string;
+		idleLockLoadError: string;
+		idleLockUpdateError: string;
 	};
 };
 
@@ -213,15 +251,43 @@ const dictionaryByLocale: Record<AppLocale, AppDictionary> = {
 			errorLoginFailed: "Falha no login. Tente novamente.",
 			submit: "Entrar",
 			submitting: "Entrando...",
+			forgotPassword: "Esqueci minha senha",
+			resetRequestTitle: "Recuperar acesso por e-mail",
+			resetRequestDescription:
+				"Informe seu e-mail para receber um link seguro de redefinição.",
+			resetRequestEmailLabel: "E-mail da conta",
+			resetRequestSubmit: "Enviar link de recuperação",
+			resetRequestSubmitting: "Enviando...",
+			resetRequestSuccess:
+				"Se o e-mail existir, um link de redefinição foi enviado.",
+			resetRequestError:
+				"Não foi possível enviar o e-mail de redefinição no momento.",
+			resetTitle: "Redefinir senha",
+			resetSubtitle: "Defina uma nova senha para retomar o acesso ao sistema.",
+			resetPasswordLabel: "Nova senha",
+			resetConfirmPasswordLabel: "Confirmar nova senha",
+			resetPasswordPlaceholder: "Mínimo de 12 caracteres",
+			resetSubmit: "Salvar nova senha",
+			resetSubmitting: "Salvando...",
+			resetSuccess: "Senha redefinida com sucesso. Faça login novamente.",
+			resetBackToLogin: "Voltar para login",
+			resetMissingToken: "Token de redefinição ausente ou inválido.",
+			resetPasswordsMismatch: "As senhas não conferem.",
+			resetErrorGeneric: "Falha ao redefinir senha.",
 		},
 		idleLock: {
 			title: "Sessão bloqueada",
 			subtitle: "Digite sua senha novamente para desbloquear este workspace.",
+			subtitleNoPassword:
+				"Sessão pausada por inatividade. Continue para retomar o workspace.",
+			timeoutLabel: "Bloqueio após {minutes} min de inatividade",
 			passwordPlaceholder: "Senha da conta",
 			errorExpired: "Sessão expirada ou credenciais inválidas.",
 			errorGeneric: "Falha ao desbloquear sessão.",
 			unlock: "Desbloquear",
 			unlocking: "Desbloqueando...",
+			continue: "Continuar sessão",
+			continuing: "Validando sessão...",
 			logout: "Sair",
 		},
 		settings: {
@@ -276,6 +342,21 @@ const dictionaryByLocale: Record<AppLocale, AppDictionary> = {
 			auditRetentionSaved: "Política de retenção atualizada.",
 			auditRetentionLoadError: "Falha ao carregar política de retenção.",
 			auditRetentionUpdateError: "Falha ao atualizar política de retenção.",
+			idleLockCardTitle: "Proteção por inatividade",
+			idleLockCardDescription:
+				"Ative bloqueio automático do workspace após período de inatividade.",
+			idleLockModeLabel: "Status da proteção",
+			idleLockModeDisabled: "Desativada",
+			idleLockModeEnabled: "Ativada",
+			idleLockTimeoutLabel: "Minutos de inatividade para bloquear",
+			idleLockTimeoutHint: "Intervalo permitido: {min} a {max} minutos.",
+			idleLockUnlockLabel: "Ao desbloquear sessão",
+			idleLockUnlockPassword: "Pedir senha para continuar",
+			idleLockUnlockContinue: "Continuar sem senha",
+			idleLockSave: "Salvar proteção",
+			idleLockSaved: "Proteção por inatividade atualizada.",
+			idleLockLoadError: "Falha ao carregar proteção de inatividade.",
+			idleLockUpdateError: "Falha ao atualizar proteção de inatividade.",
 		},
 	},
 	en: {
@@ -349,15 +430,42 @@ const dictionaryByLocale: Record<AppLocale, AppDictionary> = {
 			errorLoginFailed: "Login failed. Please try again.",
 			submit: "Sign in",
 			submitting: "Signing in...",
+			forgotPassword: "Forgot password",
+			resetRequestTitle: "Recover access by email",
+			resetRequestDescription:
+				"Enter your account email to receive a secure reset link.",
+			resetRequestEmailLabel: "Account email",
+			resetRequestSubmit: "Send reset link",
+			resetRequestSubmitting: "Sending...",
+			resetRequestSuccess:
+				"If the email exists, a password reset link has been sent.",
+			resetRequestError: "Unable to send password reset email right now.",
+			resetTitle: "Reset password",
+			resetSubtitle: "Set a new password to recover access to the system.",
+			resetPasswordLabel: "New password",
+			resetConfirmPasswordLabel: "Confirm new password",
+			resetPasswordPlaceholder: "At least 12 characters",
+			resetSubmit: "Save new password",
+			resetSubmitting: "Saving...",
+			resetSuccess: "Password reset completed. Please sign in again.",
+			resetBackToLogin: "Back to login",
+			resetMissingToken: "Missing or invalid reset token.",
+			resetPasswordsMismatch: "Passwords do not match.",
+			resetErrorGeneric: "Failed to reset password.",
 		},
 		idleLock: {
 			title: "Session locked",
 			subtitle: "Re-enter your password to unlock this workspace.",
+			subtitleNoPassword:
+				"Session paused due to inactivity. Continue to resume workspace access.",
+			timeoutLabel: "Locks after {minutes} min of inactivity",
 			passwordPlaceholder: "Account password",
 			errorExpired: "Session expired or invalid credentials.",
 			errorGeneric: "Failed to unlock session.",
 			unlock: "Unlock",
 			unlocking: "Unlocking...",
+			continue: "Continue session",
+			continuing: "Validating session...",
 			logout: "Logout",
 		},
 		settings: {
@@ -412,6 +520,21 @@ const dictionaryByLocale: Record<AppLocale, AppDictionary> = {
 			auditRetentionSaved: "Retention policy updated.",
 			auditRetentionLoadError: "Failed to load retention policy.",
 			auditRetentionUpdateError: "Failed to update retention policy.",
+			idleLockCardTitle: "Idle protection",
+			idleLockCardDescription:
+				"Enable automatic workspace lock after inactivity.",
+			idleLockModeLabel: "Protection status",
+			idleLockModeDisabled: "Disabled",
+			idleLockModeEnabled: "Enabled",
+			idleLockTimeoutLabel: "Idle minutes before lock",
+			idleLockTimeoutHint: "Allowed interval: {min} to {max} minutes.",
+			idleLockUnlockLabel: "When unlocking session",
+			idleLockUnlockPassword: "Require password to continue",
+			idleLockUnlockContinue: "Continue without password",
+			idleLockSave: "Save protection",
+			idleLockSaved: "Idle protection updated.",
+			idleLockLoadError: "Failed to load idle protection.",
+			idleLockUpdateError: "Failed to update idle protection.",
 		},
 	},
 };

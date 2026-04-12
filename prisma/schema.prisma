@@ -75,6 +75,7 @@ model User {
 
   notes        Note[]
   activityLogs ActivityLog[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 model Provider {
@@ -197,4 +198,18 @@ model AppSetting {
   key       String   @unique
   valueJson Json
   updatedAt DateTime @updatedAt
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
 }

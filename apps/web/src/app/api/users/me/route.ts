@@ -30,15 +30,6 @@ export async function PATCH(request: NextRequest) {
 	}
 
 	const payload = parseResult.data;
-	if (user.isSystemAdmin && payload.locale !== undefined) {
-		return NextResponse.json(
-			{
-				message: "Protected admin allows only email and password updates.",
-			},
-			{ status: 400 },
-		);
-	}
-
 	const data: {
 		email?: string;
 		passwordHash?: string;

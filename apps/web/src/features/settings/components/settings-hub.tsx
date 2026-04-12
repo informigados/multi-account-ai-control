@@ -2,6 +2,15 @@
 
 import { Button } from "@/components/ui/button";
 import { type AppLocale, getDictionary } from "@/lib/i18n";
+import {
+	BellRing,
+	Globe2,
+	LockKeyhole,
+	Mail,
+	ShieldCheck,
+	UserCog,
+	Users,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Role = "admin" | "operator";
@@ -58,6 +67,12 @@ type AuditRetentionConfig = {
 	days: AuditRetentionDays | null;
 };
 
+type IdleLockConfig = {
+	enabled: boolean;
+	timeoutMinutes: number;
+	requirePasswordOnUnlock: boolean;
+};
+
 const initialCreateUserState: CreateUserState = {
 	username: "",
 	email: "",
@@ -68,6 +83,13 @@ const initialCreateUserState: CreateUserState = {
 };
 
 const auditRetentionDaysOptions: AuditRetentionDays[] = [30, 60, 90, 180, 360];
+const idleLockTimeoutMinMinutes = 1;
+const idleLockTimeoutMaxMinutes = 240;
+const defaultIdleLockConfig: IdleLockConfig = {
+	enabled: false,
+	timeoutMinutes: 10,
+	requirePasswordOnUnlock: true,
+};
 
 function normalizeAuditRetentionDays(value: unknown): AuditRetentionDays {
 	if (
@@ -78,6 +100,17 @@ function normalizeAuditRetentionDays(value: unknown): AuditRetentionDays {
 	}
 
 	return auditRetentionDaysOptions[0];
+}
+
+function normalizeIdleLockTimeout(value: unknown) {
+	if (typeof value !== "number" || Number.isNaN(value)) {
+		return defaultIdleLockConfig.timeoutMinutes;
+	}
+
+	return Math.min(
+		idleLockTimeoutMaxMinutes,
+		Math.max(idleLockTimeoutMinMinutes, Math.trunc(value)),
+	);
 }
 
 function toUserDraft(user: ManagedUser): UserDraft {
@@ -98,9 +131,6 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 		profilePasswordHint: isPtBr
 			? "Use no mínimo 12 caracteres para manter o padrão de segurança."
 			: "Use at least 12 characters to keep the security standard.",
-		profileLocaleHint: isPtBr
-			? "O admin protegido mantém idioma fixo para estabilidade operacional."
-			: "Protected admin keeps fixed locale for operational stability.",
 		createPasswordHint: isPtBr
 			? "Senha inicial obrigatória (mínimo de 12 caracteres)."
 			: "Initial password is required (minimum 12 characters).",
@@ -132,6 +162,12 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 		failedUpdateAuditRetention: isPtBr
 			? "Falha ao atualizar política de retenção."
 			: "Failed to update retention policy.",
+		failedLoadIdleLock: isPtBr
+			? "Falha ao carregar proteção de inatividade."
+			: "Failed to load idle lock configuration.",
+		failedUpdateIdleLock: isPtBr
+			? "Falha ao atualizar proteção de inatividade."
+			: "Failed to update idle lock configuration.",
 	};
 
 	const [profileEmail, setProfileEmail] = useState(currentUser.email);
@@ -169,6 +205,13 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 	const [auditRetentionError, setAuditRetentionError] = useState<string | null>(
 		null,
 	);
+	const [idleLock, setIdleLock] = useState<IdleLockConfig>(
+		defaultIdleLockConfig,
+	);
+	const [isLoadingIdleLock, setIsLoadingIdleLock] = useState(false);
+	const [isSavingIdleLock, setIsSavingIdleLock] = useState(false);
+	const [idleLockFeedback, setIdleLockFeedback] = useState<string | null>(null);
+	const [idleLockError, setIdleLockError] = useState<string | null>(null);
 
 	const localeOptions = useMemo(
 		() => [
@@ -271,6 +314,57 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 		ui.failedLoadAuditRetention,
 	]);
 
+	const loadIdleLock = useCallback(async () => {
+		if (!isAdmin) {
+			return;
+		}
+
+		setIsLoadingIdleLock(true);
+		setIdleLockError(null);
+		setIdleLockFeedback(null);
+
+		try {
+			const response = await fetch("/api/settings/idle-lock", {
+				method: "GET",
+			});
+			if (!response.ok) {
+				const payload = (await response.json()) as { message?: string };
+				throw new Error(
+					payload.message ??
+						t.settings.idleLockLoadError ??
+						ui.failedLoadIdleLock,
+				);
+			}
+
+			const payload = (await response.json()) as {
+				config?: {
+					enabled?: boolean;
+					timeoutMinutes?: number;
+					requirePasswordOnUnlock?: boolean;
+				};
+			};
+
+			setIdleLock({
+				enabled: Boolean(payload.config?.enabled),
+				timeoutMinutes: normalizeIdleLockTimeout(
+					payload.config?.timeoutMinutes,
+				),
+				requirePasswordOnUnlock:
+					typeof payload.config?.requirePasswordOnUnlock === "boolean"
+						? payload.config.requirePasswordOnUnlock
+						: true,
+			});
+		} catch (error) {
+			setIdleLockError(
+				error instanceof Error
+					? error.message
+					: (t.settings.idleLockLoadError ?? ui.failedLoadIdleLock),
+			);
+		} finally {
+			setIsLoadingIdleLock(false);
+		}
+	}, [isAdmin, t.settings.idleLockLoadError, ui.failedLoadIdleLock]);
+
 	useEffect(() => {
 		void loadUsers();
 	}, [loadUsers]);
@@ -278,6 +372,10 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 	useEffect(() => {
 		void loadAuditRetention();
 	}, [loadAuditRetention]);
+
+	useEffect(() => {
+		void loadIdleLock();
+	}, [loadIdleLock]);
 
 	async function saveProfile(event: React.FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -288,7 +386,7 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 		const body: { email?: string; password?: string; locale?: Locale } = {};
 		if (profileEmail !== currentUser.email) body.email = profileEmail;
 		if (profilePassword.length > 0) body.password = profilePassword;
-		if (!currentUser.isSystemAdmin && profileLocale !== currentUser.locale) {
+		if (profileLocale !== currentUser.locale) {
 			body.locale = profileLocale;
 		}
 
@@ -497,10 +595,76 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 		}
 	}
 
+	async function saveIdleLock(event: React.FormEvent<HTMLFormElement>) {
+		event.preventDefault();
+		if (!isAdmin) {
+			return;
+		}
+
+		setIsSavingIdleLock(true);
+		setIdleLockError(null);
+		setIdleLockFeedback(null);
+
+		const body = {
+			enabled: idleLock.enabled,
+			timeoutMinutes: normalizeIdleLockTimeout(idleLock.timeoutMinutes),
+			requirePasswordOnUnlock: idleLock.requirePasswordOnUnlock,
+		};
+
+		try {
+			const response = await fetch("/api/settings/idle-lock", {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify(body),
+			});
+			if (!response.ok) {
+				const payload = (await response.json()) as { message?: string };
+				throw new Error(
+					payload.message ??
+						t.settings.idleLockUpdateError ??
+						ui.failedUpdateIdleLock,
+				);
+			}
+
+			const payload = (await response.json()) as {
+				config?: {
+					enabled?: boolean;
+					timeoutMinutes?: number;
+					requirePasswordOnUnlock?: boolean;
+				};
+			};
+
+			setIdleLock({
+				enabled: Boolean(payload.config?.enabled),
+				timeoutMinutes: normalizeIdleLockTimeout(
+					payload.config?.timeoutMinutes,
+				),
+				requirePasswordOnUnlock:
+					typeof payload.config?.requirePasswordOnUnlock === "boolean"
+						? payload.config.requirePasswordOnUnlock
+						: true,
+			});
+			setIdleLockFeedback(t.settings.idleLockSaved);
+		} catch (error) {
+			setIdleLockError(
+				error instanceof Error
+					? error.message
+					: (t.settings.idleLockUpdateError ?? ui.failedUpdateIdleLock),
+			);
+		} finally {
+			setIsSavingIdleLock(false);
+		}
+	}
+
 	return (
 		<section className="grid min-w-0 gap-5">
 			<article className="min-w-0 rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
-				<h2 className="text-lg font-semibold">{t.settings.profileCardTitle}</h2>
+				<h2 className="inline-flex items-center gap-2 text-lg font-semibold">
+					<span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+						<UserCog className="h-4 w-4" />
+					</span>
+					{t.settings.profileCardTitle}
+				</h2>
 				<p className="mt-1 text-sm text-muted-foreground">
 					{t.settings.profileCardDescription}
 				</p>
@@ -508,9 +672,10 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 				<form className="mt-4 space-y-3" onSubmit={saveProfile}>
 					<div className="space-y-1.5">
 						<label
-							className="text-sm text-muted-foreground"
+							className="inline-flex items-center gap-1.5 text-sm text-muted-foreground"
 							htmlFor="profile-email"
 						>
+							<Mail className="h-3.5 w-3.5" />
 							{t.settings.emailLabel}
 						</label>
 						<input
@@ -524,9 +689,10 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 					</div>
 					<div className="space-y-1.5">
 						<label
-							className="text-sm text-muted-foreground"
+							className="inline-flex items-center gap-1.5 text-sm text-muted-foreground"
 							htmlFor="profile-password"
 						>
+							<LockKeyhole className="h-3.5 w-3.5" />
 							{t.settings.passwordLabel}
 						</label>
 						<input
@@ -543,9 +709,10 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 					</div>
 					<div className="space-y-1.5">
 						<label
-							className="text-sm text-muted-foreground"
+							className="inline-flex items-center gap-1.5 text-sm text-muted-foreground"
 							htmlFor="profile-locale"
 						>
+							<Globe2 className="h-3.5 w-3.5" />
 							{t.settings.languageLabel}
 						</label>
 						<select
@@ -554,8 +721,7 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 							onChange={(event) =>
 								setProfileLocale(event.target.value as Locale)
 							}
-							disabled={currentUser.isSystemAdmin}
-							className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm outline-none ring-primary transition focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70"
+							className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm outline-none ring-primary transition focus:ring-2"
 						>
 							{localeOptions.map((option) => (
 								<option key={option.value} value={option.value}>
@@ -563,11 +729,6 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 								</option>
 							))}
 						</select>
-						{currentUser.isSystemAdmin ? (
-							<p className="text-xs text-muted-foreground">
-								{ui.profileLocaleHint}
-							</p>
-						) : null}
 					</div>
 
 					<Button type="submit" disabled={isSavingProfile}>
@@ -589,7 +750,138 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 
 			{isAdmin ? (
 				<article className="min-w-0 rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
-					<h2 className="text-lg font-semibold">
+					<h2 className="inline-flex items-center gap-2 text-lg font-semibold">
+						<span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+							<BellRing className="h-4 w-4" />
+						</span>
+						{t.settings.idleLockCardTitle}
+					</h2>
+					<p className="mt-1 text-sm text-muted-foreground">
+						{t.settings.idleLockCardDescription}
+					</p>
+
+					<form className="mt-4 space-y-3" onSubmit={saveIdleLock}>
+						<div className="space-y-1.5">
+							<label
+								className="text-sm text-muted-foreground"
+								htmlFor="idle-lock-mode"
+							>
+								{t.settings.idleLockModeLabel}
+							</label>
+							<select
+								id="idle-lock-mode"
+								value={idleLock.enabled ? "enabled" : "disabled"}
+								onChange={(event) =>
+									setIdleLock((previous) => ({
+										...previous,
+										enabled: event.target.value === "enabled",
+									}))
+								}
+								disabled={isLoadingIdleLock || isSavingIdleLock}
+								className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm outline-none ring-primary transition focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70"
+							>
+								<option value="disabled">
+									{t.settings.idleLockModeDisabled}
+								</option>
+								<option value="enabled">
+									{t.settings.idleLockModeEnabled}
+								</option>
+							</select>
+						</div>
+
+						<div className="space-y-1.5">
+							<label
+								className="text-sm text-muted-foreground"
+								htmlFor="idle-lock-timeout-minutes"
+							>
+								{t.settings.idleLockTimeoutLabel}
+							</label>
+							<input
+								id="idle-lock-timeout-minutes"
+								type="number"
+								min={idleLockTimeoutMinMinutes}
+								max={idleLockTimeoutMaxMinutes}
+								step={1}
+								value={idleLock.timeoutMinutes}
+								onChange={(event) =>
+									setIdleLock((previous) => ({
+										...previous,
+										timeoutMinutes: normalizeIdleLockTimeout(
+											Number(event.target.value),
+										),
+									}))
+								}
+								disabled={
+									!idleLock.enabled || isLoadingIdleLock || isSavingIdleLock
+								}
+								className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm outline-none ring-primary transition focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70"
+							/>
+							<p className="text-xs text-muted-foreground">
+								{t.settings.idleLockTimeoutHint
+									.replace("{min}", String(idleLockTimeoutMinMinutes))
+									.replace("{max}", String(idleLockTimeoutMaxMinutes))}
+							</p>
+						</div>
+
+						<div className="space-y-1.5">
+							<label
+								className="text-sm text-muted-foreground"
+								htmlFor="idle-lock-require-password"
+							>
+								{t.settings.idleLockUnlockLabel}
+							</label>
+							<select
+								id="idle-lock-require-password"
+								value={
+									idleLock.requirePasswordOnUnlock ? "password" : "continue"
+								}
+								onChange={(event) =>
+									setIdleLock((previous) => ({
+										...previous,
+										requirePasswordOnUnlock: event.target.value === "password",
+									}))
+								}
+								disabled={
+									!idleLock.enabled || isLoadingIdleLock || isSavingIdleLock
+								}
+								className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm outline-none ring-primary transition focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70"
+							>
+								<option value="password">
+									{t.settings.idleLockUnlockPassword}
+								</option>
+								<option value="continue">
+									{t.settings.idleLockUnlockContinue}
+								</option>
+							</select>
+						</div>
+
+						<Button
+							type="submit"
+							disabled={isLoadingIdleLock || isSavingIdleLock}
+						>
+							{isSavingIdleLock ? t.settings.saving : t.settings.idleLockSave}
+						</Button>
+					</form>
+
+					{idleLockFeedback ? (
+						<p className="mt-3 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
+							{idleLockFeedback}
+						</p>
+					) : null}
+					{idleLockError ? (
+						<p className="mt-3 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
+							{idleLockError}
+						</p>
+					) : null}
+				</article>
+			) : null}
+
+			{isAdmin ? (
+				<article className="min-w-0 rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
+					<h2 className="inline-flex items-center gap-2 text-lg font-semibold">
+						<span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+							<ShieldCheck className="h-4 w-4" />
+						</span>
 						{t.settings.auditRetentionCardTitle}
 					</h2>
 					<p className="mt-1 text-sm text-muted-foreground">
@@ -696,7 +988,12 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 
 			{isAdmin ? (
 				<article className="min-w-0 rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
-					<h2 className="text-lg font-semibold">{t.settings.usersCardTitle}</h2>
+					<h2 className="inline-flex items-center gap-2 text-lg font-semibold">
+						<span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+							<Users className="h-4 w-4" />
+						</span>
+						{t.settings.usersCardTitle}
+					</h2>
 					<p className="mt-1 text-sm text-muted-foreground">
 						{t.settings.usersCardDescription}
 					</p>
@@ -889,6 +1186,7 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 										const isSaving = savingRows[user.id] ?? false;
 										const isDeleting = deletingRows[user.id] ?? false;
 										const disableProtectedFields = user.isSystemAdmin;
+										const disableProtectedLocale = false;
 
 										return (
 											<tr key={user.id} className="border-t border-border/80">
@@ -936,7 +1234,7 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 																},
 															}))
 														}
-														disabled={disableProtectedFields}
+														disabled={disableProtectedLocale}
 														className="h-9 rounded-md border border-border bg-card px-2 text-sm outline-none ring-primary transition focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70"
 													>
 														<option value="operator">

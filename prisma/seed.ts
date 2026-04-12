@@ -88,6 +88,25 @@ async function main() {
     },
   });
 
+  await prisma.appSetting.upsert({
+    where: { key: "security.idle_lock" },
+    update: {
+      valueJson: {
+        enabled: false,
+        timeoutMinutes: 10,
+        requirePasswordOnUnlock: true,
+      },
+    },
+    create: {
+      key: "security.idle_lock",
+      valueJson: {
+        enabled: false,
+        timeoutMinutes: 10,
+        requirePasswordOnUnlock: true,
+      },
+    },
+  });
+
   const defaultAdminUsername = "admin";
   const defaultAdminEmail =
     process.env.DEFAULT_ADMIN_EMAIL?.trim() || "admin@local";

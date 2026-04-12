@@ -72,12 +72,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 		if (
 			payload.username !== undefined ||
 			payload.role !== undefined ||
-			payload.isActive !== undefined ||
-			payload.locale !== undefined
+			payload.isActive !== undefined
 		) {
 			return NextResponse.json(
 				{
-					message: "Protected admin allows only email and password updates.",
+					message:
+						"Protected admin allows only email, password, and locale updates.",
 				},
 				{ status: 400 },
 			);

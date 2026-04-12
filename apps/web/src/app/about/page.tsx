@@ -167,9 +167,7 @@ export default async function AboutPage() {
 								<div>
 									<p className="font-medium">INformigados</p>
 									<p className="text-xs text-muted-foreground">
-										{isPtBr
-											? "Design e Arquitetura"
-											: "Design and Architecture"}
+										{isPtBr ? "Empresa Desenvolvedora" : "Development Company"}
 									</p>
 								</div>
 							</div>
@@ -202,15 +200,25 @@ export default async function AboutPage() {
 								<div>
 									<p className="font-medium">Alex Brito</p>
 									<p className="text-xs text-muted-foreground">
-										{isPtBr ? "Engenharia de Software" : "Software Engineering"}
+										{isPtBr
+											? "Profissional Desenvolvedor"
+											: "Professional Developer"}
 									</p>
 								</div>
 							</div>
 							<a
-								href="https://alexbritodev.github.io/"
+								href="https://github.com/alexbritodev"
 								target="_blank"
 								rel="noreferrer"
 								className="mt-1 inline-block text-sm text-primary hover:underline"
+							>
+								github.com/alexbritodev
+							</a>
+							<a
+								href="https://alexbritodev.github.io/"
+								target="_blank"
+								rel="noreferrer"
+								className="mt-1 block text-xs text-muted-foreground hover:underline"
 							>
 								alexbritodev.github.io
 							</a>
