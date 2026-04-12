@@ -7,7 +7,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const DEFAULT_IDLE_TIMEOUT_MINUTES = 10;
-const DEFAULT_IDLE_TIMEOUT_MS = DEFAULT_IDLE_TIMEOUT_MINUTES * 60 * 1000;
 const LOCK_STATE_KEY = "maac:idle-locked";
 const LOCK_NOW_EVENT = "maac:lock-now";
 

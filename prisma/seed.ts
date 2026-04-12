@@ -130,6 +130,7 @@ async function main() {
       data: {
         username: defaultAdminUsername,
         email: defaultAdminEmail,
+        passwordHash,
         role: UserRole.admin,
         locale: UserLocale.pt_BR,
         isActive: true,
