@@ -1,4 +1,5 @@
 import { presentActivityLog } from "@/features/audit/log-presenter";
+import { pruneActivityLogsByRetentionPolicy } from "@/lib/audit/retention";
 import { requireApiUser } from "@/lib/auth/require-auth";
 import { db } from "@/lib/db";
 import { type NextRequest, NextResponse } from "next/server";
@@ -54,6 +55,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
 			{ status: 404 },
 		);
 	}
+
+	await pruneActivityLogsByRetentionPolicy();
 
 	const logs = await db.activityLog.findMany({
 		where: {

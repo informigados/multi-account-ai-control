@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
+import { pruneActivityLogsByRetentionPolicy } from "./retention";
 
 export type ActivityLogInput = {
 	actorUserId?: string | null;
@@ -11,6 +12,8 @@ export type ActivityLogInput = {
 };
 
 export async function writeActivityLog(input: ActivityLogInput) {
+	await pruneActivityLogsByRetentionPolicy();
+
 	return db.activityLog.create({
 		data: {
 			actorUserId: input.actorUserId ?? null,

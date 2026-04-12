@@ -127,6 +127,17 @@ type AppDictionary = {
 		deleteSuccess: string;
 		forbidden: string;
 		cannotDeleteSelf: string;
+		auditRetentionCardTitle: string;
+		auditRetentionCardDescription: string;
+		auditRetentionModeLabel: string;
+		auditRetentionModeDisabled: string;
+		auditRetentionModeEnabled: string;
+		auditRetentionDaysLabel: string;
+		auditRetentionHint: string;
+		auditRetentionSave: string;
+		auditRetentionSaved: string;
+		auditRetentionLoadError: string;
+		auditRetentionUpdateError: string;
 	};
 };
 
@@ -252,6 +263,19 @@ const dictionaryByLocale: Record<AppLocale, AppDictionary> = {
 			deleteSuccess: "Usuário excluído com sucesso.",
 			forbidden: "Apenas administradores podem gerenciar usuários.",
 			cannotDeleteSelf: "Você não pode excluir seu próprio usuário.",
+			auditRetentionCardTitle: "Retenção de logs de auditoria",
+			auditRetentionCardDescription:
+				"Controle a exclusão automática para evitar crescimento excessivo do histórico.",
+			auditRetentionModeLabel: "Exclusão automática",
+			auditRetentionModeDisabled: "Desativada",
+			auditRetentionModeEnabled: "Ativada",
+			auditRetentionDaysLabel: "Excluir logs com mais de",
+			auditRetentionHint:
+				"Quando ativado, os logs antigos serão removidos automaticamente conforme a janela selecionada.",
+			auditRetentionSave: "Salvar retenção",
+			auditRetentionSaved: "Política de retenção atualizada.",
+			auditRetentionLoadError: "Falha ao carregar política de retenção.",
+			auditRetentionUpdateError: "Falha ao atualizar política de retenção.",
 		},
 	},
 	en: {
@@ -375,6 +399,19 @@ const dictionaryByLocale: Record<AppLocale, AppDictionary> = {
 			deleteSuccess: "User deleted successfully.",
 			forbidden: "Only administrators can manage users.",
 			cannotDeleteSelf: "You cannot delete your own user.",
+			auditRetentionCardTitle: "Audit log retention",
+			auditRetentionCardDescription:
+				"Control automatic deletion to avoid excessive growth of audit history.",
+			auditRetentionModeLabel: "Automatic deletion",
+			auditRetentionModeDisabled: "Disabled",
+			auditRetentionModeEnabled: "Enabled",
+			auditRetentionDaysLabel: "Delete logs older than",
+			auditRetentionHint:
+				"When enabled, old logs are automatically removed according to the selected window.",
+			auditRetentionSave: "Save retention",
+			auditRetentionSaved: "Retention policy updated.",
+			auditRetentionLoadError: "Failed to load retention policy.",
+			auditRetentionUpdateError: "Failed to update retention policy.",
 		},
 	},
 };

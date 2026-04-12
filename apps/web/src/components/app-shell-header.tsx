@@ -1,7 +1,6 @@
 "use client";
 
 import { ThemeToggle } from "@/components/theme-toggle";
-import { LockSessionButton } from "@/features/auth/components/lock-session-button";
 import { LogoutButton } from "@/features/auth/components/logout-button";
 import { type AppLocale, getDictionary } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -95,7 +94,6 @@ export function AppShellHeader({
 
 				<div className="hidden items-center gap-2 md:flex">
 					<ThemeToggle />
-					<LockSessionButton label={t.shell.actions.lock} />
 					<LogoutButton label={t.shell.actions.logout} />
 				</div>
 
@@ -150,67 +148,60 @@ export function AppShellHeader({
 				))}
 			</nav>
 
-			<button
-				type="button"
-				aria-label={t.shell.actions.closeMenu}
-				className={cn(
-					"fixed inset-0 z-40 bg-black/45 transition md:hidden",
-					menuOpen
-						? "pointer-events-auto opacity-100"
-						: "pointer-events-none opacity-0",
-				)}
-				onClick={() => setMenuOpen(false)}
-			/>
-			<aside
-				className={cn(
-					"fixed bottom-0 right-0 top-0 z-50 w-[82vw] max-w-[340px] border-l border-border bg-card p-5 shadow-2xl transition-transform md:hidden",
-					menuOpen ? "translate-x-0" : "translate-x-full",
-				)}
-			>
-				<div className="flex items-center justify-between">
-					<div className="flex items-center gap-2">
-						<img
-							src="/favicon.svg"
-							alt="Multi Account AI Control"
-							className="h-5 w-5 shrink-0"
-						/>
-						<p className="text-sm font-semibold">{t.shell.productName}</p>
-					</div>
+			{menuOpen ? (
+				<>
 					<button
 						type="button"
-						className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
+						aria-label={t.shell.actions.closeMenu}
+						className="fixed inset-0 z-40 bg-black/45 md:hidden"
 						onClick={() => setMenuOpen(false)}
-					>
-						X
-					</button>
-				</div>
-				<p className="mt-2 text-sm text-muted-foreground">
-					{t.shell.loggedInAs} {username}
-				</p>
+					/>
+					<aside className="fixed inset-y-0 right-0 z-50 w-[min(82vw,340px)] max-w-full overflow-y-auto border-l border-border bg-card p-5 shadow-2xl md:hidden">
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-2">
+								<img
+									src="/favicon.svg"
+									alt="Multi Account AI Control"
+									className="h-5 w-5 shrink-0"
+								/>
+								<p className="text-sm font-semibold">{t.shell.productName}</p>
+							</div>
+							<button
+								type="button"
+								className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
+								onClick={() => setMenuOpen(false)}
+							>
+								X
+							</button>
+						</div>
+						<p className="mt-2 text-sm text-muted-foreground">
+							{t.shell.loggedInAs} {username}
+						</p>
 
-				<nav className="mt-4 flex flex-col gap-2">
-					{navItems.map((item) => (
-						<Link
-							key={item.href}
-							href={item.href}
-							onClick={() => setMenuOpen(false)}
-							className={cn(
-								"rounded-md px-3 py-2 text-sm transition",
-								currentPath === item.href
-									? "bg-primary text-primary-foreground"
-									: "bg-muted text-foreground hover:bg-muted/80",
-							)}
-						>
-							{t.shell.nav[item.labelKey]}
-						</Link>
-					))}
-				</nav>
+						<nav className="mt-4 flex flex-col gap-2">
+							{navItems.map((item) => (
+								<Link
+									key={item.href}
+									href={item.href}
+									onClick={() => setMenuOpen(false)}
+									className={cn(
+										"rounded-md px-3 py-2 text-sm transition",
+										currentPath === item.href
+											? "bg-primary text-primary-foreground"
+											: "bg-muted text-foreground hover:bg-muted/80",
+									)}
+								>
+									{t.shell.nav[item.labelKey]}
+								</Link>
+							))}
+						</nav>
 
-				<div className="mt-6 space-y-2">
-					<LockSessionButton label={t.shell.actions.lock} />
-					<LogoutButton label={t.shell.actions.logout} />
-				</div>
-			</aside>
+						<div className="mt-6 space-y-2">
+							<LogoutButton label={t.shell.actions.logout} />
+						</div>
+					</aside>
+				</>
+			) : null}
 		</header>
 	);
 }

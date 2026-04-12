@@ -1,4 +1,5 @@
 import { presentActivityLog } from "@/features/audit/log-presenter";
+import { pruneActivityLogsByRetentionPolicy } from "@/lib/audit/retention";
 import { requireApiUser } from "@/lib/auth/require-auth";
 import { db } from "@/lib/db";
 import { logQuerySchema } from "@/schemas/log";
@@ -36,6 +37,8 @@ export async function GET(request: NextRequest) {
 		dateFrom,
 		dateTo,
 	} = parseResult.data;
+
+	await pruneActivityLogsByRetentionPolicy();
 
 	const where: Prisma.ActivityLogWhereInput = {
 		AND: [

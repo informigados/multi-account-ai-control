@@ -79,6 +79,15 @@ async function main() {
     },
   });
 
+  await prisma.appSetting.upsert({
+    where: { key: "audit.log.retention" },
+    update: { valueJson: { enabled: false, days: null } },
+    create: {
+      key: "audit.log.retention",
+      valueJson: { enabled: false, days: null },
+    },
+  });
+
   const defaultAdminUsername = "admin";
   const defaultAdminEmail =
     process.env.DEFAULT_ADMIN_EMAIL?.trim() || "admin@local";

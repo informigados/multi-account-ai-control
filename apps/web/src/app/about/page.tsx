@@ -144,7 +144,7 @@ export default async function AboutPage() {
 								{isPtBr ? "Status" : "Status"}
 							</p>
 							<p className="mt-1 font-medium">
-								{isPtBr ? "Pronto para produção" : "Production ready"}
+								{isPtBr ? "Em produção" : "In production"}
 							</p>
 						</div>
 					</div>
@@ -207,12 +207,12 @@ export default async function AboutPage() {
 								</div>
 							</div>
 							<a
-								href="https://github.com/alexbritodev"
+								href="https://alexbritodev.github.io/"
 								target="_blank"
 								rel="noreferrer"
 								className="mt-1 inline-block text-sm text-primary hover:underline"
 							>
-								github.com/alexbritodev
+								alexbritodev.github.io
 							</a>
 						</article>
 					</div>
@@ -226,7 +226,7 @@ export default async function AboutPage() {
 								: "Future contributions can be highlighted here with credits and participation history."}
 						</p>
 						<a
-							href="https://github.com/informigados/"
+							href="https://github.com/informigados/multi-account-ai-control/"
 							target="_blank"
 							rel="noreferrer"
 							className="mt-3 inline-flex h-9 items-center justify-center rounded-md border border-border bg-card px-4 text-sm transition hover:bg-muted"

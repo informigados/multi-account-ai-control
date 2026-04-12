@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Role = "admin" | "operator";
 type Locale = "pt_BR" | "en";
+type AuditRetentionDays = 30 | 60 | 90 | 180 | 360;
 
 type AuthUser = {
 	id: string;
@@ -52,6 +53,11 @@ type SettingsHubProps = {
 	locale: AppLocale;
 };
 
+type AuditRetentionConfig = {
+	enabled: boolean;
+	days: AuditRetentionDays | null;
+};
+
 const initialCreateUserState: CreateUserState = {
 	username: "",
 	email: "",
@@ -60,6 +66,19 @@ const initialCreateUserState: CreateUserState = {
 	locale: "pt_BR",
 	isActive: true,
 };
+
+const auditRetentionDaysOptions: AuditRetentionDays[] = [30, 60, 90, 180, 360];
+
+function normalizeAuditRetentionDays(value: unknown): AuditRetentionDays {
+	if (
+		typeof value === "number" &&
+		auditRetentionDaysOptions.includes(value as AuditRetentionDays)
+	) {
+		return value as AuditRetentionDays;
+	}
+
+	return auditRetentionDaysOptions[0];
+}
 
 function toUserDraft(user: ManagedUser): UserDraft {
 	return {
@@ -107,6 +126,12 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 		failedDeleteUser: isPtBr
 			? "Falha ao excluir usuário."
 			: "Failed to delete user.",
+		failedLoadAuditRetention: isPtBr
+			? "Falha ao carregar política de retenção."
+			: "Failed to load retention policy.",
+		failedUpdateAuditRetention: isPtBr
+			? "Falha ao atualizar política de retenção."
+			: "Failed to update retention policy.",
 	};
 
 	const [profileEmail, setProfileEmail] = useState(currentUser.email);
@@ -129,6 +154,21 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 	const [isCreatingUser, setIsCreatingUser] = useState(false);
 	const [savingRows, setSavingRows] = useState<Record<string, boolean>>({});
 	const [deletingRows, setDeletingRows] = useState<Record<string, boolean>>({});
+	const [auditRetention, setAuditRetention] = useState<AuditRetentionConfig>({
+		enabled: false,
+		days: null,
+	});
+	const [auditRetentionOptions, setAuditRetentionOptions] = useState<
+		AuditRetentionDays[]
+	>(auditRetentionDaysOptions);
+	const [isLoadingAuditRetention, setIsLoadingAuditRetention] = useState(false);
+	const [isSavingAuditRetention, setIsSavingAuditRetention] = useState(false);
+	const [auditRetentionFeedback, setAuditRetentionFeedback] = useState<
+		string | null
+	>(null);
+	const [auditRetentionError, setAuditRetentionError] = useState<string | null>(
+		null,
+	);
 
 	const localeOptions = useMemo(
 		() => [
@@ -171,9 +211,73 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 		}
 	}, [isAdmin, t.settings.forbidden, t.settings.loadError]);
 
+	const loadAuditRetention = useCallback(async () => {
+		if (!isAdmin) {
+			return;
+		}
+
+		setIsLoadingAuditRetention(true);
+		setAuditRetentionError(null);
+		setAuditRetentionFeedback(null);
+
+		try {
+			const response = await fetch("/api/settings/audit-retention", {
+				method: "GET",
+			});
+			if (!response.ok) {
+				const payload = (await response.json()) as { message?: string };
+				throw new Error(
+					payload.message ??
+						t.settings.auditRetentionLoadError ??
+						ui.failedLoadAuditRetention,
+				);
+			}
+
+			const payload = (await response.json()) as {
+				config?: { enabled?: boolean; days?: number | null };
+				options?: number[];
+			};
+
+			const nextOptions = Array.isArray(payload.options)
+				? payload.options
+						.map((value) => normalizeAuditRetentionDays(value))
+						.filter(
+							(value, index, array) =>
+								array.findIndex((item) => item === value) === index,
+						)
+				: auditRetentionDaysOptions;
+			const normalizedOptions =
+				nextOptions.length > 0 ? nextOptions : auditRetentionDaysOptions;
+			setAuditRetentionOptions(normalizedOptions);
+
+			const normalizedDays = normalizeAuditRetentionDays(payload.config?.days);
+			const enabled = Boolean(payload.config?.enabled);
+			setAuditRetention({
+				enabled,
+				days: enabled ? normalizedDays : null,
+			});
+		} catch (error) {
+			setAuditRetentionError(
+				error instanceof Error
+					? error.message
+					: (t.settings.auditRetentionLoadError ?? ui.failedLoadAuditRetention),
+			);
+		} finally {
+			setIsLoadingAuditRetention(false);
+		}
+	}, [
+		isAdmin,
+		t.settings.auditRetentionLoadError,
+		ui.failedLoadAuditRetention,
+	]);
+
 	useEffect(() => {
 		void loadUsers();
 	}, [loadUsers]);
+
+	useEffect(() => {
+		void loadAuditRetention();
+	}, [loadAuditRetention]);
 
 	async function saveProfile(event: React.FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -337,6 +441,62 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 		}
 	}
 
+	async function saveAuditRetention(event: React.FormEvent<HTMLFormElement>) {
+		event.preventDefault();
+		if (!isAdmin) {
+			return;
+		}
+
+		setIsSavingAuditRetention(true);
+		setAuditRetentionError(null);
+		setAuditRetentionFeedback(null);
+
+		const retentionDaysDefault = auditRetentionOptions[0] ?? 30;
+		const body = {
+			enabled: auditRetention.enabled,
+			days: auditRetention.enabled
+				? (auditRetention.days ?? retentionDaysDefault)
+				: null,
+		};
+
+		try {
+			const response = await fetch("/api/settings/audit-retention", {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify(body),
+			});
+			if (!response.ok) {
+				const payload = (await response.json()) as { message?: string };
+				throw new Error(
+					payload.message ??
+						t.settings.auditRetentionUpdateError ??
+						ui.failedUpdateAuditRetention,
+				);
+			}
+
+			const payload = (await response.json()) as {
+				config?: { enabled?: boolean; days?: number | null };
+			};
+
+			const normalizedDays = normalizeAuditRetentionDays(payload.config?.days);
+			const enabled = Boolean(payload.config?.enabled);
+			setAuditRetention({
+				enabled,
+				days: enabled ? normalizedDays : null,
+			});
+			setAuditRetentionFeedback(t.settings.auditRetentionSaved);
+		} catch (error) {
+			setAuditRetentionError(
+				error instanceof Error
+					? error.message
+					: (t.settings.auditRetentionUpdateError ??
+							ui.failedUpdateAuditRetention),
+			);
+		} finally {
+			setIsSavingAuditRetention(false);
+		}
+	}
+
 	return (
 		<section className="grid min-w-0 gap-5">
 			<article className="min-w-0 rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
@@ -426,6 +586,113 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 					</p>
 				) : null}
 			</article>
+
+			{isAdmin ? (
+				<article className="min-w-0 rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
+					<h2 className="text-lg font-semibold">
+						{t.settings.auditRetentionCardTitle}
+					</h2>
+					<p className="mt-1 text-sm text-muted-foreground">
+						{t.settings.auditRetentionCardDescription}
+					</p>
+
+					<form className="mt-4 space-y-3" onSubmit={saveAuditRetention}>
+						<div className="space-y-1.5">
+							<label
+								className="text-sm text-muted-foreground"
+								htmlFor="audit-retention-mode"
+							>
+								{t.settings.auditRetentionModeLabel}
+							</label>
+							<select
+								id="audit-retention-mode"
+								value={auditRetention.enabled ? "enabled" : "disabled"}
+								onChange={(event) =>
+									setAuditRetention((previous) => ({
+										...previous,
+										enabled: event.target.value === "enabled",
+										days:
+											event.target.value === "enabled"
+												? (previous.days ??
+													auditRetentionOptions[0] ??
+													auditRetentionDaysOptions[0])
+												: null,
+									}))
+								}
+								disabled={isLoadingAuditRetention || isSavingAuditRetention}
+								className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm outline-none ring-primary transition focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70"
+							>
+								<option value="disabled">
+									{t.settings.auditRetentionModeDisabled}
+								</option>
+								<option value="enabled">
+									{t.settings.auditRetentionModeEnabled}
+								</option>
+							</select>
+						</div>
+
+						<div className="space-y-1.5">
+							<label
+								className="text-sm text-muted-foreground"
+								htmlFor="audit-retention-days"
+							>
+								{t.settings.auditRetentionDaysLabel}
+							</label>
+							<select
+								id="audit-retention-days"
+								value={String(
+									auditRetention.days ??
+										auditRetentionOptions[0] ??
+										auditRetentionDaysOptions[0],
+								)}
+								onChange={(event) =>
+									setAuditRetention((previous) => ({
+										...previous,
+										days: normalizeAuditRetentionDays(
+											Number(event.target.value),
+										),
+									}))
+								}
+								disabled={
+									!auditRetention.enabled ||
+									isLoadingAuditRetention ||
+									isSavingAuditRetention
+								}
+								className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm outline-none ring-primary transition focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70"
+							>
+								{auditRetentionOptions.map((days) => (
+									<option key={days} value={days}>
+										{isPtBr ? `${days} dias` : `${days} days`}
+									</option>
+								))}
+							</select>
+							<p className="text-xs text-muted-foreground">
+								{t.settings.auditRetentionHint}
+							</p>
+						</div>
+
+						<Button
+							type="submit"
+							disabled={isLoadingAuditRetention || isSavingAuditRetention}
+						>
+							{isSavingAuditRetention
+								? t.settings.saving
+								: t.settings.auditRetentionSave}
+						</Button>
+					</form>
+
+					{auditRetentionFeedback ? (
+						<p className="mt-3 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
+							{auditRetentionFeedback}
+						</p>
+					) : null}
+					{auditRetentionError ? (
+						<p className="mt-3 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
+							{auditRetentionError}
+						</p>
+					) : null}
+				</article>
+			) : null}
 
 			{isAdmin ? (
 				<article className="min-w-0 rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
