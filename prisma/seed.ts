@@ -57,7 +57,7 @@ async function main() {
         description: provider.description,
         isActive: true,
       },
-      create: provider,
+      create: { ...provider, isActive: true },
     });
   }
 
@@ -119,25 +119,43 @@ async function main() {
 
   const existingSystemAdmin = await prisma.user.findFirst({
     where: { isSystemAdmin: true },
-    select: { id: true },
+    select: { id: true, passwordHash: true },
   });
 
-  const passwordHash = await bcrypt.hash(defaultAdminPassword, 12);
-
   if (existingSystemAdmin) {
+    const passwordMatches = await bcrypt.compare(
+      defaultAdminPassword,
+      existingSystemAdmin.passwordHash,
+    );
+
+    const updateData: {
+      username: string;
+      email: string;
+      role: UserRole;
+      locale: UserLocale;
+      isActive: boolean;
+      isSystemAdmin: boolean;
+      passwordHash?: string;
+    } = {
+      username: defaultAdminUsername,
+      email: defaultAdminEmail,
+      role: UserRole.admin,
+      locale: UserLocale.pt_BR,
+      isActive: true,
+      isSystemAdmin: true,
+    };
+
+    if (!passwordMatches) {
+      updateData.passwordHash = await bcrypt.hash(defaultAdminPassword, 12);
+    }
+
     await prisma.user.update({
       where: { id: existingSystemAdmin.id },
-      data: {
-        username: defaultAdminUsername,
-        email: defaultAdminEmail,
-        passwordHash,
-        role: UserRole.admin,
-        locale: UserLocale.pt_BR,
-        isActive: true,
-        isSystemAdmin: true,
-      },
+      data: updateData,
     });
   } else {
+    const passwordHash = await bcrypt.hash(defaultAdminPassword, 12);
+
     await prisma.user.upsert({
       where: { username: defaultAdminUsername },
       update: {
