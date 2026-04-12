@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Multi Account AI Control",
+  "version": "0.1.0",
+  "identifier": "com.multiaccountaicontrol.desktop",
+  "build": {
+    "beforeDevCommand": "npm --workspace apps/web run dev",
+    "beforeBuildCommand": "npm --workspace apps/web run build",
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "../../apps/web/.next"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Multi Account AI Control",
+        "width": 1400,
+        "height": 900,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": false,
+    "targets": "all"
+  }
+}

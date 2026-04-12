@@ -1,0 +1,146 @@
+import { AppShellHeader } from "@/components/app-shell-header";
+import { PageGuide } from "@/components/page-guide";
+import { presentAccount } from "@/features/accounts/account-presenter";
+import { DashboardCommandCenter } from "@/features/usage/components/dashboard-command-center";
+import { presentUsageSnapshot } from "@/features/usage/usage-presenter";
+import { getServerSessionUser } from "@/lib/auth/require-auth";
+import { db } from "@/lib/db";
+import { getDictionary } from "@/lib/i18n";
+import { redirect } from "next/navigation";
+
+export default async function Home() {
+	const user = await getServerSessionUser();
+	if (!user) {
+		redirect("/login");
+	}
+	const t = getDictionary(user.locale);
+	const isPtBr = user.locale === "pt_BR";
+
+	const now = new Date();
+	const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+	const [
+		statusGroups,
+		providersCount,
+		nearResetCount,
+		accounts,
+		recentSnapshots,
+	] = await Promise.all([
+		db.account.groupBy({
+			by: ["status"],
+			where: { archivedAt: null },
+			_count: { _all: true },
+		}),
+		db.provider.count({ where: { isActive: true } }),
+		db.account.count({
+			where: {
+				archivedAt: null,
+				nextResetAt: {
+					gte: now,
+					lte: next24h,
+				},
+			},
+		}),
+		db.account.findMany({
+			where: { archivedAt: null },
+			orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
+			take: 12,
+			include: {
+				provider: {
+					select: {
+						id: true,
+						name: true,
+						slug: true,
+						color: true,
+					},
+				},
+				usageSnapshots: {
+					orderBy: { measuredAt: "desc" },
+					take: 1,
+				},
+			},
+		}),
+		db.usageSnapshot.findMany({
+			orderBy: { measuredAt: "desc" },
+			take: 10,
+			include: {
+				account: {
+					select: {
+						id: true,
+						displayName: true,
+						identifier: true,
+						provider: {
+							select: {
+								id: true,
+								name: true,
+								slug: true,
+								color: true,
+							},
+						},
+					},
+				},
+			},
+		}),
+	]);
+	const statusCounts = new Map(
+		statusGroups.map((entry) => [entry.status, entry._count._all]),
+	);
+	const totalAccounts = Array.from(statusCounts.values()).reduce(
+		(acc, count) => acc + count,
+		0,
+	);
+	const activeAccounts = statusCounts.get("active") ?? 0;
+	const warningAccounts = statusCounts.get("warning") ?? 0;
+	const exhaustedAccounts = statusCounts.get("exhausted") ?? 0;
+	const errorAccounts = statusCounts.get("error") ?? 0;
+
+	return (
+		<main className="min-h-screen">
+			<div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 pb-16 pt-8 md:px-10">
+				<AppShellHeader
+					username={user.username}
+					locale={user.locale}
+					currentPath="/"
+				/>
+				<div>
+					<h1 className="text-3xl font-semibold md:text-4xl">
+						{t.pages.dashboard.title}
+					</h1>
+					<p className="mt-2 text-sm text-muted-foreground">
+						{t.pages.dashboard.description}
+					</p>
+				</div>
+				<PageGuide
+					title={isPtBr ? "Guia Rápido do Dashboard" : "Dashboard Quick Guide"}
+					items={
+						isPtBr
+							? [
+									"Os cards superiores resumem risco operacional em tempo real por status e janela de reset.",
+									"Barras de uso: até 69% (normal), 70-89% (atenção), 90%+ (crítico).",
+									"Use 'Atualizar uso' nos cards de conta para registrar medições sem sair da tela.",
+								]
+							: [
+									"Top cards summarize real-time operational risk by status and reset window.",
+									"Usage bars: up to 69% (normal), 70-89% (warning), 90%+ (critical).",
+									"Use 'Update usage' in account cards to register measurements without leaving this screen.",
+								]
+					}
+				/>
+				<DashboardCommandCenter
+					summary={{
+						totalAccounts,
+						activeAccounts,
+						warningAccounts,
+						exhaustedAccounts,
+						providersCount,
+						nearResetCount,
+						errorAccounts,
+					}}
+					accounts={accounts.map(presentAccount)}
+					recentSnapshots={recentSnapshots.map(presentUsageSnapshot)}
+					locale={user.locale}
+				/>
+			</div>
+		</main>
+	);
+}

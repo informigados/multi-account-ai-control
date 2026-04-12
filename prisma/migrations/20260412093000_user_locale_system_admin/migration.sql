@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN "locale" TEXT NOT NULL DEFAULT 'pt_BR';
+ALTER TABLE "User" ADD COLUMN "isSystemAdmin" BOOLEAN NOT NULL DEFAULT false;

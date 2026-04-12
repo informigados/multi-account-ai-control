@@ -1,0 +1,53 @@
+# dependencies
+node_modules/
+
+# internal docs
+docs/
+
+# test source/internal suites
+apps/web/test/
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+
+# next
+.next/
+out/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# env
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# local data
+*.db
+*.db-journal
+backups/*.enc
+
+# caches
+.npm-cache/
+.appdata/
+
+# misc
+dist/
+coverage/
+coverage-*/
+.nyc_output/
+test-results/
+reports/
+playwright-report/
+junit.xml
+*.junit.xml
+*.lcov
+vitest-results*
+vitest-report*
+*.tsbuildinfo

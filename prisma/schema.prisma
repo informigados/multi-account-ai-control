@@ -1,0 +1,200 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  admin
+  operator
+}
+
+enum UserLocale {
+  pt_BR
+  en
+}
+
+enum ProviderConnectorType {
+  manual
+  api
+  cookie_session
+  web_automation
+  custom_script
+}
+
+enum AccountStatus {
+  active
+  warning
+  limited
+  exhausted
+  disabled
+  error
+  archived
+}
+
+enum NoteType {
+  general
+  warning
+  operational
+  ownership
+}
+
+enum UsageSourceType {
+  manual
+  import
+  connector
+}
+
+enum ImportFileType {
+  csv
+  json
+}
+
+enum ImportStatus {
+  pending
+  success
+  failed
+  partial
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(admin)
+  locale       UserLocale @default(pt_BR)
+  isActive     Boolean  @default(true)
+  isSystemAdmin Boolean @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  lastLoginAt  DateTime?
+
+  notes        Note[]
+  activityLogs ActivityLog[]
+}
+
+model Provider {
+  id            String                @id @default(uuid())
+  name          String
+  slug          String                @unique
+  icon          String?
+  color         String?
+  description   String?
+  connectorType ProviderConnectorType @default(manual)
+  isActive      Boolean               @default(true)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  accounts      Account[]
+
+  @@index([isActive])
+  @@index([name])
+}
+
+model Account {
+  id                  String        @id @default(uuid())
+  providerId          String
+  displayName         String
+  identifier          String
+  planName            String?
+  accountType         String?
+  status              AccountStatus @default(active)
+  priority            Int           @default(5)
+  tagsJson            Json?
+  notesText           String?
+  encryptedSecretBlob String?
+  resetIntervalMinutes Int?
+  nextResetAt         DateTime?
+  lastSyncAt          DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  archivedAt          DateTime?
+
+  provider            Provider      @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  usageSnapshots      UsageSnapshot[]
+  notes               Note[]
+
+  @@unique([providerId, identifier])
+  @@index([providerId])
+  @@index([status])
+  @@index([nextResetAt])
+  @@index([archivedAt])
+}
+
+model UsageSnapshot {
+  id               String          @id @default(uuid())
+  accountId        String
+  sourceType       UsageSourceType @default(manual)
+  totalQuota       Float?
+  usedQuota        Float?
+  remainingQuota   Float?
+  usedPercent      Float?
+  remainingPercent Float?
+  requestCount     Int?
+  tokenCount       Int?
+  creditBalance    Float?
+  modelBreakdownJson Json?
+  measuredAt       DateTime        @default(now())
+  resetAt          DateTime?
+  comments         String?
+
+  account          Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, measuredAt])
+  @@index([resetAt])
+}
+
+model Note {
+  id         String   @id @default(uuid())
+  accountId  String
+  noteType   NoteType @default(general)
+  content    String
+  createdBy  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  account    Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  author     User?    @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([accountId, createdAt])
+}
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  actorUserId String?
+  entityType  String
+  entityId    String?
+  eventType   String
+  message     String
+  metadataJson Json?
+  createdAt   DateTime @default(now())
+
+  actor       User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([eventType, createdAt])
+  @@index([createdAt])
+}
+
+model Import {
+  id          String         @id @default(uuid())
+  fileName    String
+  fileType    ImportFileType
+  importedBy  String?
+  importedAt  DateTime       @default(now())
+  status      ImportStatus   @default(pending)
+  summaryJson Json?
+
+  @@index([status, importedAt])
+}
+
+model AppSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  valueJson Json
+  updatedAt DateTime @updatedAt
+}
