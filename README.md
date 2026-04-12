@@ -1,11 +1,11 @@
 # 🚀 Multi Account AI Control
 
-[![Release](https://img.shields.io/badge/release-1.0.0-blue)](https://github.com/informigados/multi-account-ai-control/releases)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 ![Node](https://img.shields.io/badge/node-%3E%3D20-339933?logo=node.js&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=000)
 ![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?logo=prisma&logoColor=white)
+[![Release](https://img.shields.io/badge/release-1.0.0-blue)](https://github.com/informigados/multi-account-ai-control/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 A **local-first** operations panel for managing multiple AI accounts with strong security, traceability, and day-to-day productivity.
 
