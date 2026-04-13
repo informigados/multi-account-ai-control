@@ -111,7 +111,7 @@ function escapeForRegexCharacterClass(value: string): string {
 }
 
 function parseSaltRounds(rawValue: string | undefined): number | undefined {
-  if (!rawValue || rawValue.length === 0) {
+  if (!rawValue) {
     return undefined;
   }
 
@@ -162,6 +162,8 @@ function normalizeLocaleEnvValue(value: string | undefined): string | undefined 
     return undefined;
   }
 
+  // Reject values composed only of underscores (for example "__"),
+  // including values that become underscores after "-" normalization.
   if (normalizedValue.replace(/_/g, "").length === 0) {
     return undefined;
   }
@@ -546,8 +548,9 @@ async function main() {
 }
 
 main()
-  .catch(async () => {
-    console.error("Seed failed.");
+  .catch(async (error: unknown) => {
+    const errorType = error instanceof Error ? error.name : "NonErrorRejection";
+    console.error(`Seed failed (error type: ${errorType}).`);
     console.error("Troubleshooting steps:");
     for (const step of SEED_TROUBLESHOOTING_STEPS) {
       console.error(step);
