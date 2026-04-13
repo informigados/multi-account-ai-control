@@ -784,19 +784,40 @@ async function main() {
         : {}),
     };
 
-    await prisma.user.update({
-      where: { id: existingSystemAdminId },
-      data: updateData,
-    });
+    try {
+      await prisma.user.update({
+        where: { id: existingSystemAdminId },
+        data: updateData,
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const safeErrorMessage = redactSensitiveValues(errorMessage);
+      const safeAdminUsername = redactSensitiveValues(defaultAdminUsername);
+      throw new Error(
+        `Failed to update bootstrap system admin (id='${existingSystemAdminId}', username='${safeAdminUsername}'): ${safeErrorMessage}`,
+      );
+    }
   } else {
     const passwordHash = await hashAdminPassword(defaultAdminPassword);
 
-    await prisma.user.create({
-      data: {
-        ...adminBaseData,
-        passwordHash,
-      },
-    });
+    try {
+      await prisma.user.create({
+        data: {
+          ...adminBaseData,
+          passwordHash,
+        },
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const safeErrorMessage = redactSensitiveValues(errorMessage);
+      const safeAdminUsername = redactSensitiveValues(defaultAdminUsername);
+      const safeAdminEmail = redactSensitiveValues(defaultAdminEmail);
+      throw new Error(
+        `Failed to create bootstrap system admin (username='${safeAdminUsername}', email='${safeAdminEmail}'): ${safeErrorMessage}`,
+      );
+    }
   }
 }
 
