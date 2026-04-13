@@ -231,23 +231,24 @@ async function main() {
     select: { id: true },
   });
 
-  if (
-    existingUserByEmail &&
-    existingUserByEmail.id !== existingUserByUsername?.id
-  ) {
+  const emailBelongsToDifferentUser =
+    existingUserByEmail !== null &&
+    (existingUserByUsername === null ||
+      existingUserByEmail.id !== existingUserByUsername.id);
+  if (emailBelongsToDifferentUser) {
     throw new Error(
       `Cannot bootstrap system admin: email '${defaultAdminEmail}' already exists for a different user (id='${existingUserByEmail.id}'). Resolve this conflict manually.`,
     );
   }
 
-  const usernameUserIsSystemAdmin =
+  const existingUserIsSystemAdmin =
     existingUserByUsername?.isSystemAdmin === true;
   // Only update when the bootstrap username already belongs to a system admin.
   // If there is no matching system-admin username, create a new one below.
   // Note: if `existingUserByUsername` exists but is not a system admin, we
   // throw above as a conflict.
   const targetSystemAdminId =
-    usernameUserIsSystemAdmin
+    existingUserIsSystemAdmin
       ? existingUserByUsername.id
       : undefined;
 
