@@ -204,8 +204,8 @@ async function main() {
 
   validateAdminPasswordOrThrow(defaultAdminPassword);
 
-  const [existingSystemAdmin, existingAdminUsernameUser] = await Promise.all([
-    prisma.user.findFirst({
+  const [existingSystemAdmins, existingAdminUsernameUser] = await Promise.all([
+    prisma.user.findMany({
       where: { isSystemAdmin: true },
       orderBy: { id: "asc" },
       select: { id: true },
@@ -216,32 +216,20 @@ async function main() {
     }),
   ]);
 
-  const usernameUserExists = existingAdminUsernameUser !== null;
-  const usernameUserIsSystemAdmin =
-    existingAdminUsernameUser !== null &&
-    existingAdminUsernameUser.isSystemAdmin;
-  const existingSystemAdminHasDifferentId =
-    usernameUserIsSystemAdmin &&
-    existingSystemAdmin !== null &&
-    existingAdminUsernameUser.id !== existingSystemAdmin.id;
-
-  const hasUsernameConflict =
-    usernameUserExists && !usernameUserIsSystemAdmin;
-  const hasSystemAdminConflict = existingSystemAdminHasDifferentId;
-
-  if (hasUsernameConflict) {
+  if (existingAdminUsernameUser && !existingAdminUsernameUser.isSystemAdmin) {
     throw new Error(
       `Cannot bootstrap system admin: username '${defaultAdminUsername}' already exists for a non-system-admin user (id='${existingAdminUsernameUser.id}'). Resolve this conflict manually.`,
     );
   }
 
-  if (hasSystemAdminConflict) {
-    throw new Error(
-      `Cannot bootstrap system admin: username '${defaultAdminUsername}' is tied to a different system admin user (id='${existingAdminUsernameUser.id}'). Resolve this conflict manually.`,
-    );
-  }
+  // Prefer the system admin that already owns the bootstrap username.
+  // Otherwise, fall back to the oldest system admin ID for deterministic updates.
+  const targetSystemAdminId =
+    existingAdminUsernameUser?.isSystemAdmin === true
+      ? existingAdminUsernameUser.id
+      : existingSystemAdmins[0]?.id;
 
-  if (existingSystemAdmin) {
+  if (targetSystemAdminId) {
     // Always reconcile bootstrap profile fields (username/email/role/locale/state)
     // for the system admin. Password hash rotation is optional and only happens
     // when explicitly requested via SEED_UPDATE_ADMIN_PASSWORD.
@@ -256,7 +244,7 @@ async function main() {
     }
 
     await prisma.user.update({
-      where: { id: existingSystemAdmin.id },
+      where: { id: targetSystemAdminId },
       data: updateData,
     });
   } else {
