@@ -7,6 +7,7 @@ import {
 } from "@prisma/client";
 
 const prisma = new PrismaClient();
+const BCRYPT_SALT_ROUNDS = 12;
 
 const providerSeeds = [
   {
@@ -200,23 +201,31 @@ async function main() {
     }),
   ]);
 
+  const adminUsernameUser = existingAdminUsernameUser;
+  const usernameUserExists = adminUsernameUser !== null;
+  const usernameUserIsSystemAdmin =
+    usernameUserExists && adminUsernameUser.isSystemAdmin;
+  const noExistingSystemAdmin = existingSystemAdmin === null;
+  const usernameSystemAdminIsDifferentUser =
+    usernameUserIsSystemAdmin &&
+    !noExistingSystemAdmin &&
+    adminUsernameUser.id !== existingSystemAdmin.id;
+
   const hasUsernameConflict =
-    existingAdminUsernameUser !== null && !existingAdminUsernameUser.isSystemAdmin;
+    usernameUserExists && !usernameUserIsSystemAdmin;
   const hasSystemAdminConflict =
-    existingAdminUsernameUser !== null &&
-    existingAdminUsernameUser.isSystemAdmin &&
-    (existingSystemAdmin === null ||
-      existingAdminUsernameUser.id !== existingSystemAdmin.id);
+    usernameUserIsSystemAdmin &&
+    (noExistingSystemAdmin || usernameSystemAdminIsDifferentUser);
 
   if (hasUsernameConflict) {
     throw new Error(
-      `Cannot bootstrap system admin: username '${defaultAdminUsername}' already exists for a non-system-admin user (id='${existingAdminUsernameUser.id}'). Resolve this conflict manually.`,
+      `Cannot bootstrap system admin: username '${defaultAdminUsername}' already exists for a non-system-admin user (id='${adminUsernameUser.id}'). Resolve this conflict manually.`,
     );
   }
 
   if (hasSystemAdminConflict) {
     throw new Error(
-      `Cannot bootstrap system admin: username '${defaultAdminUsername}' is tied to a different system admin user (id='${existingAdminUsernameUser.id}'). Resolve this conflict manually.`,
+      `Cannot bootstrap system admin: username '${defaultAdminUsername}' is tied to a different system admin user (id='${adminUsernameUser.id}'). Resolve this conflict manually.`,
     );
   }
 
@@ -225,7 +234,10 @@ async function main() {
       ...adminBaseData,
     };
     if (shouldUpdateAdminPassword) {
-      updateData.passwordHash = await bcrypt.hash(defaultAdminPassword, 12);
+      updateData.passwordHash = await bcrypt.hash(
+        defaultAdminPassword,
+        BCRYPT_SALT_ROUNDS,
+      );
     }
 
     await prisma.user.update({
@@ -233,7 +245,10 @@ async function main() {
       data: updateData,
     });
   } else {
-    const passwordHash = await bcrypt.hash(defaultAdminPassword, 12);
+    const passwordHash = await bcrypt.hash(
+      defaultAdminPassword,
+      BCRYPT_SALT_ROUNDS,
+    );
 
     await prisma.user.create({
       data: {
