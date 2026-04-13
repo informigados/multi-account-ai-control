@@ -13,7 +13,7 @@ const prisma = new PrismaClient();
 const MIN_ADMIN_PASSWORD_LENGTH = 12;
 // RFC 5321: maximum mailbox length is 254 characters.
 const MAX_EMAIL_LENGTH = 254;
-const DEFAULT_SEED_ADMIN_LOCALE: UserLocale = UserLocale.pt_BR;
+const DEFAULT_SEED_ADMIN_LOCALE: UserLocale = resolveDefaultSeedAdminLocale();
 const DEFAULT_BCRYPT_SALT_ROUNDS = 12;
 // At most two users can be returned by username/email lookup:
 // one matching username and another matching email (or one matching both).
@@ -152,23 +152,56 @@ function sanitizeCredentialEnvValue(
   return trimmedValue;
 }
 
-function resolveSeedAdminLocale(): UserLocale {
-  const allowedLocales = Object.values(UserLocale) as string[];
-  const defaultLocaleFromEnv = process.env.SEED_ADMIN_DEFAULT_LOCALE?.trim();
-  const normalizedDefaultLocale = defaultLocaleFromEnv?.replace(/-/g, "_");
-  const fallbackLocale = normalizedDefaultLocale ?? DEFAULT_SEED_ADMIN_LOCALE;
-  if (!allowedLocales.includes(fallbackLocale)) {
+function normalizeLocaleEnvValue(value: string | undefined): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalizedValue = value.trim().replace(/-/g, "_");
+  if (normalizedValue.length === 0) {
+    return undefined;
+  }
+
+  if (normalizedValue.replace(/_/g, "").length === 0) {
+    return undefined;
+  }
+
+  return normalizedValue;
+}
+
+function resolveDefaultSeedAdminLocale(): UserLocale {
+  const allowedLocales = Object.values(UserLocale) as UserLocale[];
+  const normalizedDefaultLocale = normalizeLocaleEnvValue(
+    process.env.SEED_ADMIN_DEFAULT_LOCALE,
+  );
+
+  if (normalizedDefaultLocale) {
+    if (allowedLocales.includes(normalizedDefaultLocale as UserLocale)) {
+      return normalizedDefaultLocale as UserLocale;
+    }
+
     throw new Error(
       `SEED_ADMIN_DEFAULT_LOCALE must be one of: ${allowedLocales.join(", ")}.`,
     );
   }
 
-  const localeFromEnv = process.env.SEED_ADMIN_LOCALE?.trim();
-  if (!localeFromEnv) {
+  const [firstLocale] = allowedLocales;
+  if (!firstLocale) {
+    throw new Error("UserLocale enum must contain at least one locale.");
+  }
+
+  return firstLocale;
+}
+
+function resolveSeedAdminLocale(): UserLocale {
+  const allowedLocales = Object.values(UserLocale) as string[];
+  const fallbackLocale = DEFAULT_SEED_ADMIN_LOCALE;
+
+  const normalizedLocale = normalizeLocaleEnvValue(process.env.SEED_ADMIN_LOCALE);
+  if (!normalizedLocale) {
     return fallbackLocale as UserLocale;
   }
 
-  const normalizedLocale = localeFromEnv.replace(/-/g, "_");
   if (allowedLocales.includes(normalizedLocale)) {
     return normalizedLocale as UserLocale;
   }
@@ -320,13 +353,6 @@ function getConflictingEmailOwnerId(
   }
 
   return null;
-}
-
-function sanitizeErrorSummary(error: unknown): string {
-  const summary = error instanceof Error ? error.message : String(error);
-  return summary
-    .replace(/'[^']*'/g, "'[redacted]'")
-    .replace(/\b(password|token|secret|key)\s*[:=]\s*\S+/gi, "$1=[redacted]");
 }
 
 async function main() {
@@ -520,9 +546,8 @@ async function main() {
 }
 
 main()
-  .catch(async (error) => {
-    const safeErrorSummary = sanitizeErrorSummary(error);
-    console.error(`Seed failed: ${safeErrorSummary}`);
+  .catch(async () => {
+    console.error("Seed failed.");
     console.error("Troubleshooting steps:");
     for (const step of SEED_TROUBLESHOOTING_STEPS) {
       console.error(step);
