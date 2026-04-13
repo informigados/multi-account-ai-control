@@ -58,7 +58,7 @@ const providerSeeds = [
     slug: "other",
     connectorType: ProviderConnectorType.manual,
     color: "#6B7280",
-    description: "Catch-all provider for misc accounts.",
+    description: "Catch-all provider for miscellaneous accounts.",
   },
 ];
 
@@ -221,6 +221,7 @@ async function main() {
 
   const existingUserByUsername = await prisma.user.findUnique({
     where: { username: defaultAdminUsername },
+    // Only ID and role flag are needed for conflict checks and update targeting.
     select: { id: true, isSystemAdmin: true },
   });
 
@@ -235,24 +236,27 @@ async function main() {
     select: { id: true },
   });
 
-  const isEmailConflict =
-    existingUserByEmail !== null &&
-    (existingUserByUsername === null ||
-      existingUserByEmail.id !== existingUserByUsername.id);
+  // Email is a conflict when it already exists and is not owned by
+  // the same user resolved by the bootstrap username lookup.
+  const emailExists = existingUserByEmail !== null;
+  const usernameMissing = existingUserByUsername === null;
+  const emailBelongsToDifferentUser =
+    emailExists &&
+    !usernameMissing &&
+    existingUserByEmail.id !== existingUserByUsername.id;
+  const isEmailConflict = emailExists && (usernameMissing || emailBelongsToDifferentUser);
   if (isEmailConflict) {
     throw new Error(
       `Cannot bootstrap system admin: email '${defaultAdminEmail}' already exists for a different user (id='${existingUserByEmail.id}'). Resolve this conflict manually.`,
     );
   }
 
-  const existingUserIsSystemAdmin =
-    existingUserByUsername?.isSystemAdmin === true;
   // Only update when the bootstrap username already belongs to a system admin.
   // If there is no matching system-admin username, create a new one below.
   // Note: if `existingUserByUsername` exists but is not a system admin, we
   // throw above as a conflict.
   const existingSystemAdminId =
-    existingUserIsSystemAdmin
+    existingUserByUsername?.isSystemAdmin === true
       ? existingUserByUsername.id
       : undefined;
 
