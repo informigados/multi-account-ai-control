@@ -7,10 +7,40 @@ import {
   UserRole,
 } from "@prisma/client";
 
-const prisma = new PrismaClient();
+type GlobalWithPrisma = typeof globalThis & { __seedPrisma?: PrismaClient };
+
+function getPrismaClient(): PrismaClient {
+  const globalWithPrisma = globalThis as GlobalWithPrisma;
+  if (!globalWithPrisma.__seedPrisma) {
+    globalWithPrisma.__seedPrisma = new PrismaClient();
+  }
+  return globalWithPrisma.__seedPrisma;
+}
+
+const prisma = getPrismaClient();
 // Minimum length requirement helps reduce weak-password risk and
 // aligns with modern baseline guidance.
 const MIN_ADMIN_PASSWORD_LENGTH = 12;
+// Common weak passwords that should never be accepted, even if they pass
+// composition checks.
+const COMMON_WEAK_PASSWORDS = new Set<string>([
+  "password",
+  "password123",
+  "admin",
+  "admin123",
+  "qwerty",
+  "qwerty123",
+  "letmein",
+  "welcome",
+  "changeme",
+  "iloveyou",
+  "abc123",
+  "123456",
+  "12345678",
+  "123456789",
+]);
+const MIN_SEQUENTIAL_RUN_LENGTH = 4;
+const REPEATED_CHAR_RUN_REGEX = /(.)\1{3,}/;
 // RFC 5321: maximum mailbox length is 254 characters.
 const MAX_EMAIL_LENGTH = 254;
 const DEFAULT_SEED_ADMIN_LOCALE: UserLocale = resolveDefaultSeedAdminLocale();
@@ -18,6 +48,7 @@ const DEFAULT_BCRYPT_SALT_ROUNDS = 12;
 // At most two users can be returned by username/email lookup:
 // one matching username and another matching email (or one matching both).
 const MAX_COMBINED_USERNAME_EMAIL_MATCHES = 2;
+const USER_CONFLICT_QUERY_LIMIT = MAX_COMBINED_USERNAME_EMAIL_MATCHES + 1;
 // RFC 5322-inspired "atext" subset used for dot-atom local-part validation.
 const EMAIL_LOCAL_PART_ATEXT_CLASS = "A-Za-z0-9!#$%&'*+/=?^_`{|}~-";
 const EMAIL_LOCAL_PART_PATTERN = new RegExp(
@@ -106,6 +137,52 @@ const SENSITIVE_ENV_NAME_PATTERN =
 
 function parseBooleanFlag(value: string | undefined): boolean {
   return value?.trim().toLowerCase() === "true";
+}
+
+function isAsciiDigit(charCode: number): boolean {
+  return charCode >= 48 && charCode <= 57;
+}
+
+function isAsciiLetter(charCode: number): boolean {
+  return charCode >= 97 && charCode <= 122;
+}
+
+function hasSequentialRun(value: string, minRunLength: number): boolean {
+  if (value.length < minRunLength) {
+    return false;
+  }
+
+  let ascendingRunLength = 1;
+  let descendingRunLength = 1;
+
+  for (let index = 1; index < value.length; index += 1) {
+    const previousCode = value.charCodeAt(index - 1);
+    const currentCode = value.charCodeAt(index);
+    const isSameClass =
+      (isAsciiDigit(previousCode) && isAsciiDigit(currentCode)) ||
+      (isAsciiLetter(previousCode) && isAsciiLetter(currentCode));
+
+    if (isSameClass && currentCode === previousCode + 1) {
+      ascendingRunLength += 1;
+    } else {
+      ascendingRunLength = 1;
+    }
+
+    if (isSameClass && currentCode === previousCode - 1) {
+      descendingRunLength += 1;
+    } else {
+      descendingRunLength = 1;
+    }
+
+    if (
+      ascendingRunLength >= minRunLength ||
+      descendingRunLength >= minRunLength
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function escapeForRegexCharacterClass(value: string): string {
@@ -258,6 +335,25 @@ function validateAdminPasswordOrThrow(password: string): void {
       : "";
     throw new Error(
       `Admin password is missing required character types: ${missingRequirements.join(", ")}.${allowedSpecialCharsHint}`,
+    );
+  }
+
+  const normalizedPassword = password.toLowerCase();
+  if (COMMON_WEAK_PASSWORDS.has(normalizedPassword)) {
+    throw new Error(
+      "Admin password is too common and insecure. Choose a less predictable password.",
+    );
+  }
+
+  if (REPEATED_CHAR_RUN_REGEX.test(normalizedPassword)) {
+    throw new Error(
+      "Admin password cannot contain runs of 4 or more repeated characters.",
+    );
+  }
+
+  if (hasSequentialRun(normalizedPassword, MIN_SEQUENTIAL_RUN_LENGTH)) {
+    throw new Error(
+      `Admin password cannot contain sequential letter/number runs of length ${MIN_SEQUENTIAL_RUN_LENGTH} or more.`,
     );
   }
 }
@@ -526,8 +622,11 @@ async function main() {
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
+        const safeProviderSlug = redactSensitiveValues(provider.slug);
+        const safeProviderName = redactSensitiveValues(provider.name);
+        const safeErrorMessage = redactSensitiveValues(errorMessage);
         throw new Error(
-          `Failed to seed provider '${provider.slug}' (${provider.name}): ${errorMessage}`,
+          `Failed to seed provider '${safeProviderSlug}' (${safeProviderName}): ${safeErrorMessage}`,
         );
       }
     }),
@@ -586,10 +685,12 @@ async function main() {
     prisma.user.findMany({
       where: { username: defaultAdminUsername },
       select: USER_CONFLICT_CHECK_SELECT,
+      take: USER_CONFLICT_QUERY_LIMIT,
     }),
     prisma.user.findMany({
       where: { email: defaultAdminEmail },
       select: USER_CONFLICT_CHECK_SELECT,
+      take: USER_CONFLICT_QUERY_LIMIT,
     }),
   ]);
   const matchingUsers = buildMatchingUsersList(usernameMatches, emailMatches);
