@@ -8,11 +8,13 @@ import {
 
 const prisma = new PrismaClient();
 const DEFAULT_BCRYPT_SALT_ROUNDS = 12;
-const parsedBcryptSaltRounds = Number.parseInt(
-  process.env.BCRYPT_SALT_ROUNDS ?? "",
-  10,
-);
+const rawBcryptSaltRounds = process.env.BCRYPT_SALT_ROUNDS?.trim();
+const parsedBcryptSaltRounds =
+  rawBcryptSaltRounds && rawBcryptSaltRounds.length > 0
+    ? Number.parseInt(rawBcryptSaltRounds, 10)
+    : undefined;
 const BCRYPT_SALT_ROUNDS =
+  parsedBcryptSaltRounds !== undefined &&
   Number.isInteger(parsedBcryptSaltRounds) &&
   parsedBcryptSaltRounds >= 4 &&
   parsedBcryptSaltRounds <= 31
@@ -198,25 +200,25 @@ async function main() {
 
   if (!defaultAdminPassword) {
     throw new Error(
-      "DEFAULT_ADMIN_PASSWORD must be set to a non-empty value before running seeds.",
+      "DEFAULT_ADMIN_PASSWORD environment variable must be set and non-empty before running seeds.",
     );
   }
 
   validateAdminPasswordOrThrow(defaultAdminPassword);
 
-  const existingAdminUsernameUser = await prisma.user.findUnique({
+  const existingUserByUsername = await prisma.user.findUnique({
     where: { username: defaultAdminUsername },
     select: { id: true, isSystemAdmin: true },
   });
 
-  if (existingAdminUsernameUser && !existingAdminUsernameUser.isSystemAdmin) {
+  if (existingUserByUsername && !existingUserByUsername.isSystemAdmin) {
     throw new Error(
-      `Cannot bootstrap system admin: username '${defaultAdminUsername}' already exists for a non-system-admin user (id='${existingAdminUsernameUser.id}'). Resolve this conflict manually.`,
+      `Cannot bootstrap system admin: username '${defaultAdminUsername}' already exists for a non-system-admin user (id='${existingUserByUsername.id}'). Resolve this conflict manually.`,
     );
   }
 
   const usernameUserIsSystemAdmin =
-    existingAdminUsernameUser?.isSystemAdmin === true;
+    existingUserByUsername?.isSystemAdmin === true;
   let existingSystemAdmin: { id: string } | null = null;
 
   if (!usernameUserIsSystemAdmin) {
@@ -229,12 +231,12 @@ async function main() {
 
   // Prefer the system admin that already owns the bootstrap username.
   // Otherwise, fall back to the oldest system admin ID for deterministic updates.
-  // Note: if `existingAdminUsernameUser` exists but is not a system admin, we
+  // Note: if `existingUserByUsername` exists but is not a system admin, we
   // throw above as a conflict, so this fallback only applies when no username
   // match exists.
   const targetSystemAdminId =
     usernameUserIsSystemAdmin
-      ? existingAdminUsernameUser.id
+      ? existingUserByUsername.id
       : existingSystemAdmin?.id;
 
   if (targetSystemAdminId) {
@@ -243,13 +245,15 @@ async function main() {
     // when explicitly requested via SEED_UPDATE_ADMIN_PASSWORD.
     const updateData: AdminUpdateData = {
       ...adminBaseData,
+      ...(shouldUpdateAdminPassword
+        ? {
+            passwordHash: await bcrypt.hash(
+              defaultAdminPassword,
+              BCRYPT_SALT_ROUNDS,
+            ),
+          }
+        : {}),
     };
-    if (shouldUpdateAdminPassword) {
-      updateData.passwordHash = await bcrypt.hash(
-        defaultAdminPassword,
-        BCRYPT_SALT_ROUNDS,
-      );
-    }
 
     await prisma.user.update({
       where: { id: targetSystemAdminId },
