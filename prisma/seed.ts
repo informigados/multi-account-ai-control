@@ -46,6 +46,26 @@ const providerSeeds = [
   },
 ];
 
+type AdminBaseData = {
+  username: string;
+  email: string;
+  role: UserRole;
+  locale: UserLocale;
+  isActive: boolean;
+  isSystemAdmin: boolean;
+};
+
+function buildAdminBaseData(username: string, email: string): AdminBaseData {
+  return {
+    username,
+    email,
+    role: UserRole.admin,
+    locale: UserLocale.pt_BR,
+    isActive: true,
+    isSystemAdmin: true,
+  };
+}
+
 async function main() {
   for (const provider of providerSeeds) {
     await prisma.provider.upsert({
@@ -112,15 +132,36 @@ async function main() {
     process.env.DEFAULT_ADMIN_EMAIL?.trim() || "admin@local";
   const defaultAdminPassword =
     process.env.DEFAULT_ADMIN_PASSWORD?.trim() || "ChangeThisNow!123";
+  const adminBaseData = buildAdminBaseData(
+    defaultAdminUsername,
+    defaultAdminEmail,
+  );
 
   if (defaultAdminPassword.length < 12) {
     throw new Error("DEFAULT_ADMIN_PASSWORD must have at least 12 characters.");
   }
 
-  const existingSystemAdmin = await prisma.user.findFirst({
-    where: { isSystemAdmin: true },
-    select: { id: true, passwordHash: true },
-  });
+  const [existingSystemAdmin, existingAdminUsernameUser] = await Promise.all([
+    prisma.user.findFirst({
+      where: { isSystemAdmin: true },
+      select: { id: true, passwordHash: true },
+    }),
+    prisma.user.findUnique({
+      where: { username: defaultAdminUsername },
+      select: { id: true, isSystemAdmin: true },
+    }),
+  ]);
+
+  if (
+    existingAdminUsernameUser &&
+    (!existingSystemAdmin || existingAdminUsernameUser.id !== existingSystemAdmin.id)
+  ) {
+    throw new Error(
+      existingAdminUsernameUser.isSystemAdmin
+        ? `Cannot bootstrap system admin: username '${defaultAdminUsername}' is tied to a different system admin user (id='${existingAdminUsernameUser.id}'). Resolve this conflict manually.`
+        : `Cannot bootstrap system admin: username '${defaultAdminUsername}' already exists for a non-system-admin user (id='${existingAdminUsernameUser.id}'). Resolve this conflict manually.`,
+    );
+  }
 
   if (existingSystemAdmin) {
     const passwordMatches = await bcrypt.compare(
@@ -128,21 +169,8 @@ async function main() {
       existingSystemAdmin.passwordHash,
     );
 
-    const updateData: {
-      username: string;
-      email: string;
-      role: UserRole;
-      locale: UserLocale;
-      isActive: boolean;
-      isSystemAdmin: boolean;
-      passwordHash?: string;
-    } = {
-      username: defaultAdminUsername,
-      email: defaultAdminEmail,
-      role: UserRole.admin,
-      locale: UserLocale.pt_BR,
-      isActive: true,
-      isSystemAdmin: true,
+    const updateData: AdminBaseData & { passwordHash?: string } = {
+      ...adminBaseData,
     };
 
     if (!passwordMatches) {
@@ -156,24 +184,10 @@ async function main() {
   } else {
     const passwordHash = await bcrypt.hash(defaultAdminPassword, 12);
 
-    await prisma.user.upsert({
-      where: { username: defaultAdminUsername },
-      update: {
-        email: defaultAdminEmail,
+    await prisma.user.create({
+      data: {
+        ...adminBaseData,
         passwordHash,
-        role: UserRole.admin,
-        locale: UserLocale.pt_BR,
-        isActive: true,
-        isSystemAdmin: true,
-      },
-      create: {
-        username: defaultAdminUsername,
-        email: defaultAdminEmail,
-        passwordHash,
-        role: UserRole.admin,
-        locale: UserLocale.pt_BR,
-        isActive: true,
-        isSystemAdmin: true,
       },
     });
   }
