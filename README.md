@@ -79,7 +79,8 @@ Optional (password reset by email):
 Optional default admin seed values:
 
 - `DEFAULT_ADMIN_EMAIL` (default: `admin@local`)
-- `DEFAULT_ADMIN_PASSWORD` (default: `ChangeThisNow!123`)
+- `DEFAULT_ADMIN_PASSWORD` (default: `ChangeThisNow!123`, must include uppercase, lowercase, number, and special character)
+- `SEED_ADMIN_LOCALE` (default: `pt_BR`; supported values: `pt_BR`, `en`)
 
 ### 3) Install dependencies
 
