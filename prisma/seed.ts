@@ -91,7 +91,7 @@ function resolveSeedAdminLocale(): UserLocale {
 
 function validateAdminPasswordOrThrow(password: string): void {
   if (password.length < 12) {
-    throw new Error("DEFAULT_ADMIN_PASSWORD must have at least 12 characters.");
+    throw new Error("Admin password must have at least 12 characters.");
   }
 
   const hasUppercase = /[A-Z]/.test(password);
@@ -100,7 +100,7 @@ function validateAdminPasswordOrThrow(password: string): void {
   const hasSpecialChar = /[^A-Za-z0-9]/.test(password);
   if (!hasUppercase || !hasLowercase || !hasDigit || !hasSpecialChar) {
     throw new Error(
-      "DEFAULT_ADMIN_PASSWORD must include uppercase, lowercase, number, and special character.",
+      "Admin password must include uppercase, lowercase, number, and special character.",
     );
   }
 }
@@ -204,23 +204,25 @@ async function main() {
 
   validateAdminPasswordOrThrow(defaultAdminPassword);
 
-  const [existingSystemAdmin, existingAdminUsernameUser] = await Promise.all([
-    prisma.user.findFirst({
-      where: { isSystemAdmin: true },
-      orderBy: { id: "asc" },
-      select: { id: true },
-    }),
-    prisma.user.findUnique({
-      where: { username: defaultAdminUsername },
-      select: { id: true, isSystemAdmin: true },
-    }),
-  ]);
+  const existingAdminUsernameUser = await prisma.user.findUnique({
+    where: { username: defaultAdminUsername },
+    select: { id: true, isSystemAdmin: true },
+  });
 
   if (existingAdminUsernameUser && !existingAdminUsernameUser.isSystemAdmin) {
     throw new Error(
       `Cannot bootstrap system admin: username '${defaultAdminUsername}' already exists for a non-system-admin user (id='${existingAdminUsernameUser.id}'). Resolve this conflict manually.`,
     );
   }
+
+  const existingSystemAdmin =
+    existingAdminUsernameUser?.isSystemAdmin === true
+      ? null
+      : await prisma.user.findFirst({
+          where: { isSystemAdmin: true },
+          orderBy: { id: "asc" },
+          select: { id: true },
+        });
 
   // Prefer the system admin that already owns the bootstrap username.
   // Otherwise, fall back to the oldest system admin ID for deterministic updates.
