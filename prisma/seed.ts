@@ -244,7 +244,8 @@ async function main() {
     emailExists &&
     !usernameMissing &&
     existingUserByEmail.id !== existingUserByUsername.id;
-  const isEmailConflict = emailExists && (usernameMissing || emailBelongsToDifferentUser);
+  const isEmailConflict =
+    usernameMissing ? emailExists : emailBelongsToDifferentUser;
   if (isEmailConflict) {
     throw new Error(
       `Cannot bootstrap system admin: email '${defaultAdminEmail}' already exists for a different user (id='${existingUserByEmail.id}'). Resolve this conflict manually.`,
@@ -300,7 +301,6 @@ main()
       `Seed failed during prisma seed main() execution: ${errorSummary}`,
     );
     if (error instanceof Error) {
-      console.error("Error message:", error.message);
       if (error.stack) {
         console.error("Error stack:", error.stack);
       }
