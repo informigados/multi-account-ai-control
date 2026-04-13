@@ -405,25 +405,21 @@ function getConflictingEmailOwnerId(
 }
 
 function buildMatchingUsersList(
-  existingUserByUsername: ExistingUserLookup | null,
-  existingUserByEmail: ExistingUserLookup | null,
+  usernameMatches: ExistingUserLookup[],
+  emailMatches: ExistingUserLookup[],
 ): ExistingUserLookup[] {
-  if (existingUserByUsername === null) {
-    if (existingUserByEmail === null) {
-      return [];
+  const matchingUsers: ExistingUserLookup[] = [];
+  const seenIds = new Set<string>();
+
+  for (const user of [...usernameMatches, ...emailMatches]) {
+    if (seenIds.has(user.id)) {
+      continue;
     }
-    return [existingUserByEmail];
+    seenIds.add(user.id);
+    matchingUsers.push(user);
   }
 
-  if (existingUserByEmail === null) {
-    return [existingUserByUsername];
-  }
-
-  if (existingUserByUsername.id === existingUserByEmail.id) {
-    return [existingUserByUsername];
-  }
-
-  return [existingUserByUsername, existingUserByEmail];
+  return matchingUsers;
 }
 
 async function main() {
@@ -531,20 +527,15 @@ async function main() {
     prisma.user.findMany({
       where: { username: defaultAdminUsername },
       select: USER_CONFLICT_CHECK_SELECT,
-      take: 2,
     }),
     prisma.user.findMany({
       where: { email: defaultAdminEmail },
       select: USER_CONFLICT_CHECK_SELECT,
-      take: 2,
     }),
   ]);
+  const matchingUsers = buildMatchingUsersList(usernameMatches, emailMatches);
   const existingUserByUsername = usernameMatches[0] ?? null;
   const existingUserByEmail = emailMatches[0] ?? null;
-  const matchingUsers = buildMatchingUsersList(
-    existingUserByUsername,
-    existingUserByEmail,
-  );
 
   if (matchingUsers.length > MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL) {
     throw new Error(
