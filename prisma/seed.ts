@@ -50,7 +50,9 @@ const MAX_EMAIL_LENGTH = 254;
 const MAX_EMAIL_DOMAIN_LENGTH = 253;
 // RFC 1035 §2.3.4: each DNS label must be 63 octets or fewer.
 const MAX_DNS_LABEL_LENGTH = 63;
-const DEFAULT_SEED_ADMIN_LOCALE: UserLocale = resolveDefaultSeedAdminLocale();
+function getDefaultSeedAdminLocale(): UserLocale {
+  return resolveDefaultSeedAdminLocale();
+}
 const DEFAULT_BCRYPT_SALT_ROUNDS = 12;
 // At most two users can be returned by username/email lookup:
 // one matching username and another matching email (or one matching both).
@@ -309,7 +311,7 @@ function resolveDefaultSeedAdminLocale(): UserLocale {
 
 function resolveSeedAdminLocale(): UserLocale {
   const allowedLocales = Object.values(UserLocale) as UserLocale[];
-  const fallbackLocale = DEFAULT_SEED_ADMIN_LOCALE;
+  const fallbackLocale = getDefaultSeedAdminLocale();
   const resolvedLocale = resolveOptionalLocaleFromEnv(
     process.env.SEED_ADMIN_LOCALE,
     "SEED_ADMIN_LOCALE",
