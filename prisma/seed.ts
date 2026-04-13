@@ -217,7 +217,7 @@ async function main() {
 
   const existingUserByUsername = await prisma.user.findUnique({
     where: { username: defaultAdminUsername },
-    select: { id: true, isSystemAdmin: true, username: true, email: true },
+    select: { id: true, isSystemAdmin: true },
   });
 
   if (existingUserByUsername && !existingUserByUsername.isSystemAdmin) {
@@ -228,25 +228,14 @@ async function main() {
 
   const usernameUserIsSystemAdmin =
     existingUserByUsername?.isSystemAdmin === true;
-  let existingSystemAdmin: { id: string } | null = null;
-
-  if (!usernameUserIsSystemAdmin) {
-    existingSystemAdmin = await prisma.user.findFirst({
-      where: { isSystemAdmin: true },
-      orderBy: { id: "asc" },
-      select: { id: true },
-    });
-  }
-
-  // Prefer the system admin that already owns the bootstrap username.
-  // Otherwise, fall back to the oldest system admin ID for deterministic updates.
+  // Only update when the bootstrap username already belongs to a system admin.
+  // If there is no matching system-admin username, create a new one below.
   // Note: if `existingUserByUsername` exists but is not a system admin, we
-  // throw above as a conflict, so this fallback only applies when no username
-  // match exists.
+  // throw above as a conflict.
   const targetSystemAdminId =
     usernameUserIsSystemAdmin
       ? existingUserByUsername.id
-      : existingSystemAdmin?.id;
+      : undefined;
 
   if (targetSystemAdminId) {
     // Always reconcile bootstrap profile fields (username/email/role/locale/state)
@@ -288,7 +277,17 @@ main()
     await prisma.$disconnect();
   })
   .catch(async (error) => {
-    console.error("Seed failed:", error);
+    console.error("Seed failed. Troubleshooting steps:");
+    console.error(
+      "- Verify required environment variables are set (for example: DATABASE_URL, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD).",
+    );
+    console.error(
+      "- Ensure the database is reachable and credentials in DATABASE_URL are correct.",
+    );
+    console.error(
+      "- Ensure Prisma schema changes are applied (try: `npx prisma migrate deploy` or `npx prisma db push`).",
+    );
+    console.error("Original error details:", error);
     await prisma.$disconnect();
     process.exit(1);
   });
