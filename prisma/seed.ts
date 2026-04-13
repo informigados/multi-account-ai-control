@@ -8,15 +8,14 @@ import {
 } from "@prisma/client";
 
 const prisma = new PrismaClient();
+// Minimum length requirement helps reduce weak-password risk and
+// aligns with modern baseline guidance.
+const MIN_ADMIN_PASSWORD_LENGTH = 12;
+// RFC 5321: maximum mailbox length is 254 characters.
+const MAX_EMAIL_LENGTH = 254;
 const DEFAULT_BCRYPT_SALT_ROUNDS = 12;
 const rawBcryptSaltRounds = process.env.BCRYPT_SALT_ROUNDS?.trim();
-const parsedBcryptSaltRounds =
-  rawBcryptSaltRounds && rawBcryptSaltRounds.length > 0
-    ? (() => {
-        const parsedSaltRounds = Number.parseInt(rawBcryptSaltRounds, 10);
-        return Number.isNaN(parsedSaltRounds) ? undefined : parsedSaltRounds;
-      })()
-    : undefined;
+const parsedBcryptSaltRounds = parseSaltRounds(rawBcryptSaltRounds);
 const BCRYPT_SALT_ROUNDS =
   parsedBcryptSaltRounds !== undefined &&
   Number.isInteger(parsedBcryptSaltRounds) &&
@@ -98,6 +97,15 @@ function parseBooleanFlag(value: string | undefined): boolean {
   return value?.trim().toLowerCase() === "true";
 }
 
+function parseSaltRounds(rawValue: string | undefined): number | undefined {
+  if (!rawValue || rawValue.length === 0) {
+    return undefined;
+  }
+
+  const parsedSaltRounds = Number.parseInt(rawValue, 10);
+  return Number.isNaN(parsedSaltRounds) ? undefined : parsedSaltRounds;
+}
+
 function sanitizeCredentialEnvValue(
   value: string | undefined,
   envName: string,
@@ -137,14 +145,16 @@ function resolveSeedAdminLocale(): UserLocale {
 }
 
 function validateAdminPasswordOrThrow(password: string): void {
-  if (password.length < 12) {
-    throw new Error("Admin password must be at least 12 characters long.");
+  if (password.length < MIN_ADMIN_PASSWORD_LENGTH) {
+    throw new Error(
+      `Admin password must be at least ${MIN_ADMIN_PASSWORD_LENGTH} characters long.`,
+    );
   }
 
   const hasUppercase = /[A-Z]/.test(password);
   const hasLowercase = /[a-z]/.test(password);
   const hasDigit = /\d/.test(password);
-  const hasSpecialChar = /[^A-Za-z0-9]/.test(password);
+  const hasSpecialChar = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(password);
   const missingRequirements: string[] = [];
   if (!hasUppercase) {
     missingRequirements.push("uppercase letter");
@@ -167,9 +177,9 @@ function validateAdminPasswordOrThrow(password: string): void {
 }
 
 function validateAdminEmailOrThrow(email: string): void {
-  if (email.length > 254) {
+  if (email.length > MAX_EMAIL_LENGTH) {
     throw new Error(
-      "DEFAULT_ADMIN_EMAIL email address is too long (max 254 characters).",
+      `DEFAULT_ADMIN_EMAIL email address is too long (max ${MAX_EMAIL_LENGTH} characters).`,
     );
   }
 
@@ -224,6 +234,7 @@ function validateAdminEmailOrThrow(email: string): void {
 function isValidDomainLabel(label: string): boolean {
   return (
     label.length > 0 &&
+    // RFC 1035 §2.3.4: each DNS label must be 63 octets or fewer.
     label.length <= 63 &&
     /^[A-Za-z0-9-]+$/.test(label) &&
     !label.startsWith("-") &&
