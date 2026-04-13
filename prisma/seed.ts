@@ -55,6 +55,10 @@ type AdminBaseData = {
   isSystemAdmin: boolean;
 };
 
+function parseBooleanFlag(value: string | undefined): boolean {
+  return value?.trim().toLowerCase() === "true";
+}
+
 function resolveSeedAdminLocale(): UserLocale {
   const localeFromEnv = process.env.SEED_ADMIN_LOCALE?.trim();
   if (!localeFromEnv) {
@@ -70,6 +74,22 @@ function resolveSeedAdminLocale(): UserLocale {
   throw new Error(
     `SEED_ADMIN_LOCALE must be one of: ${allowedLocales.join(", ")}.`,
   );
+}
+
+function validateAdminPasswordOrThrow(password: string): void {
+  if (password.length < 12) {
+    throw new Error("DEFAULT_ADMIN_PASSWORD must have at least 12 characters.");
+  }
+
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+  const hasDigit = /\d/.test(password);
+  const hasSpecialChar = /[^A-Za-z0-9]/.test(password);
+  if (!hasUppercase || !hasLowercase || !hasDigit || !hasSpecialChar) {
+    throw new Error(
+      "DEFAULT_ADMIN_PASSWORD must include uppercase, lowercase, number, and special character.",
+    );
+  }
 }
 
 function buildAdminBaseData(
@@ -154,25 +174,16 @@ async function main() {
   const defaultAdminPassword =
     process.env.DEFAULT_ADMIN_PASSWORD?.trim() || "ChangeThisNow!123";
   const defaultAdminLocale = resolveSeedAdminLocale();
+  const shouldUpdateAdminPassword = parseBooleanFlag(
+    process.env.SEED_UPDATE_ADMIN_PASSWORD,
+  );
   const adminBaseData = buildAdminBaseData(
     defaultAdminUsername,
     defaultAdminEmail,
     defaultAdminLocale,
   );
 
-  if (defaultAdminPassword.length < 12) {
-    throw new Error("DEFAULT_ADMIN_PASSWORD must have at least 12 characters.");
-  }
-
-  const hasUppercase = /[A-Z]/.test(defaultAdminPassword);
-  const hasLowercase = /[a-z]/.test(defaultAdminPassword);
-  const hasDigit = /\d/.test(defaultAdminPassword);
-  const hasSpecialChar = /[^A-Za-z0-9]/.test(defaultAdminPassword);
-  if (!hasUppercase || !hasLowercase || !hasDigit || !hasSpecialChar) {
-    throw new Error(
-      "DEFAULT_ADMIN_PASSWORD must include uppercase, lowercase, number, and special character.",
-    );
-  }
+  validateAdminPasswordOrThrow(defaultAdminPassword);
 
   const [existingSystemAdmin, existingAdminUsernameUser] = await Promise.all([
     prisma.user.findFirst({
@@ -185,36 +196,40 @@ async function main() {
     }),
   ]);
 
-  const hasExistingAdminUsername = Boolean(existingAdminUsernameUser);
-  const hasNoSystemAdmin = !existingSystemAdmin;
-  const isDifferentUserThanSystemAdmin =
-    hasExistingAdminUsername &&
-    !hasNoSystemAdmin &&
-    existingAdminUsernameUser.id !== existingSystemAdmin.id;
-  const hasAdminUsernameConflict =
-    hasExistingAdminUsername &&
-    (hasNoSystemAdmin || isDifferentUserThanSystemAdmin);
+  const existingAdminUsernameUserId = existingAdminUsernameUser?.id ?? "unknown";
+  const conflictsWithNonSystemAdminUsername =
+    existingAdminUsernameUser !== null && !existingAdminUsernameUser.isSystemAdmin;
+  const conflictsWithDifferentSystemAdmin =
+    existingAdminUsernameUser !== null &&
+    existingAdminUsernameUser.isSystemAdmin &&
+    (existingSystemAdmin === null ||
+      existingAdminUsernameUser.id !== existingSystemAdmin.id);
 
-  if (hasAdminUsernameConflict) {
+  if (conflictsWithNonSystemAdminUsername) {
     throw new Error(
-      existingAdminUsernameUser.isSystemAdmin
-        ? `Cannot bootstrap system admin: username '${defaultAdminUsername}' is tied to a different system admin user (id='${existingAdminUsernameUser.id}'). Resolve this conflict manually.`
-        : `Cannot bootstrap system admin: username '${defaultAdminUsername}' already exists for a non-system-admin user (id='${existingAdminUsernameUser.id}'). Resolve this conflict manually.`,
+      `Cannot bootstrap system admin: username '${defaultAdminUsername}' already exists for a non-system-admin user (id='${existingAdminUsernameUserId}'). Resolve this conflict manually.`,
+    );
+  }
+
+  if (conflictsWithDifferentSystemAdmin) {
+    throw new Error(
+      `Cannot bootstrap system admin: username '${defaultAdminUsername}' is tied to a different system admin user (id='${existingAdminUsernameUserId}'). Resolve this conflict manually.`,
     );
   }
 
   if (existingSystemAdmin) {
-    const passwordMatches = await bcrypt.compare(
-      defaultAdminPassword,
-      existingSystemAdmin.passwordHash,
-    );
-
     const updateData: AdminBaseData & { passwordHash?: string } = {
       ...adminBaseData,
-      ...(!passwordMatches
-        ? { passwordHash: await bcrypt.hash(defaultAdminPassword, 12) }
-        : {}),
     };
+    if (shouldUpdateAdminPassword) {
+      const passwordMatches = await bcrypt.compare(
+        defaultAdminPassword,
+        existingSystemAdmin.passwordHash,
+      );
+      if (!passwordMatches) {
+        updateData.passwordHash = await bcrypt.hash(defaultAdminPassword, 12);
+      }
+    }
 
     await prisma.user.update({
       where: { id: existingSystemAdmin.id },

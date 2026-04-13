@@ -82,6 +82,7 @@ Optional default admin seed values:
 - `DEFAULT_ADMIN_EMAIL` (default: `admin@local`)
 - `DEFAULT_ADMIN_PASSWORD` (default: `ChangeThisNow!123`, must include uppercase, lowercase, number, and special character)
 - `SEED_ADMIN_LOCALE` (default: `pt_BR`; supported values: `pt_BR`, `en`)
+- `SEED_UPDATE_ADMIN_PASSWORD` (default: `false`; set `true` to allow seed to compare/update existing system admin password)
 
 ### 3) Install dependencies
 

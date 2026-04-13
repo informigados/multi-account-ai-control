@@ -21,7 +21,7 @@ If you discover a vulnerability:
 
 ## ⏱️ Response Process
 
-- Initial triage: as quickly as possible after report receipt
+- Initial triage: within 48-72 hours after report receipt
 - Severity classification: based on impact and exploitability
 - Fixing: prioritized by risk level
 - Disclosure: coordinated after a patch is available
@@ -30,7 +30,7 @@ If you discover a vulnerability:
 
 - Never commit real secrets (`.env`, tokens, keys).
 - Keep server-side validation with Zod.
-- Preserve CSRF on mutable endpoints.
+- Preserve CSRF protection on mutable endpoints.
 - Ensure sensitive data does not leak into logs/responses.
 - Update security-related tests when touching critical flows.
 
