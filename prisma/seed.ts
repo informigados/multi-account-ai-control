@@ -50,9 +50,6 @@ const MAX_EMAIL_LENGTH = 254;
 const MAX_EMAIL_DOMAIN_LENGTH = 253;
 // RFC 1035 §2.3.4: each DNS label must be 63 octets or fewer.
 const MAX_DNS_LABEL_LENGTH = 63;
-function getDefaultSeedAdminLocale(): UserLocale {
-  return resolveDefaultSeedAdminLocale();
-}
 const DEFAULT_BCRYPT_SALT_ROUNDS = 12;
 // At most two users can be returned by username/email lookup:
 // one matching username and another matching email (or one matching both).
@@ -72,7 +69,6 @@ const ALLOWED_PASSWORD_SPECIAL_CHARACTERS =
 const PASSWORD_SPECIAL_CHAR_REGEX = new RegExp(
   `[${escapeForRegexCharacterClass(ALLOWED_PASSWORD_SPECIAL_CHARACTERS)}]`,
 );
-const BCRYPT_SALT_ROUNDS = resolveBcryptSaltRounds();
 
 const providerSeeds = [
   {
@@ -311,7 +307,7 @@ function resolveDefaultSeedAdminLocale(): UserLocale {
 
 function resolveSeedAdminLocale(): UserLocale {
   const allowedLocales = Object.values(UserLocale) as UserLocale[];
-  const fallbackLocale = getDefaultSeedAdminLocale();
+  const fallbackLocale = resolveDefaultSeedAdminLocale();
   const resolvedLocale = resolveOptionalLocaleFromEnv(
     process.env.SEED_ADMIN_LOCALE,
     "SEED_ADMIN_LOCALE",
@@ -475,32 +471,34 @@ function escapeForLiteralRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-let cachedSensitiveValuePattern: RegExp | null = null;
-let cachedSensitiveEnvSignature: string | null = null;
+const getSensitiveValuePattern = (() => {
+  let cachedSensitiveValuePattern: RegExp | null = null;
+  let cachedSensitiveEnvSignature: string | null = null;
 
-function getSensitiveValuePattern(): RegExp | null {
-  const currentSensitiveEnvSignature = buildSensitiveEnvSignature();
-  if (
-    cachedSensitiveValuePattern !== null &&
-    cachedSensitiveEnvSignature === currentSensitiveEnvSignature
-  ) {
-    return cachedSensitiveValuePattern;
-  }
+  return function getSensitiveValuePattern(): RegExp | null {
+    const currentSensitiveEnvSignature = buildSensitiveEnvSignature();
+    if (
+      cachedSensitiveValuePattern !== null &&
+      cachedSensitiveEnvSignature === currentSensitiveEnvSignature
+    ) {
+      return cachedSensitiveValuePattern;
+    }
 
-  const sensitiveValues = buildSensitiveValueList();
-  if (sensitiveValues.length === 0) {
+    const sensitiveValues = buildSensitiveValueList();
+    if (sensitiveValues.length === 0) {
+      cachedSensitiveEnvSignature = currentSensitiveEnvSignature;
+      cachedSensitiveValuePattern = null;
+      return null;
+    }
+
+    cachedSensitiveValuePattern = new RegExp(
+      sensitiveValues.map(escapeForLiteralRegex).join("|"),
+      "g",
+    );
     cachedSensitiveEnvSignature = currentSensitiveEnvSignature;
-    cachedSensitiveValuePattern = null;
-    return null;
-  }
-
-  cachedSensitiveValuePattern = new RegExp(
-    sensitiveValues.map(escapeForLiteralRegex).join("|"),
-    "g",
-  );
-  cachedSensitiveEnvSignature = currentSensitiveEnvSignature;
-  return cachedSensitiveValuePattern;
-}
+    return cachedSensitiveValuePattern;
+  };
+})();
 
 function redactSensitiveValues(rawText: string): string {
   const sensitiveValuePattern = getSensitiveValuePattern();
@@ -536,13 +534,14 @@ function buildAdminBaseData(
 }
 
 async function hashAdminPassword(password: string): Promise<string> {
+  const bcryptSaltRounds = resolveBcryptSaltRounds();
   try {
-    return await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
+    return await bcrypt.hash(password, bcryptSaltRounds);
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : String(error);
     throw new Error(
-      `Failed to hash default admin password using BCRYPT_SALT_ROUNDS=${BCRYPT_SALT_ROUNDS}: ${errorMessage}`,
+      `Failed to hash default admin password using BCRYPT_SALT_ROUNDS=${bcryptSaltRounds}: ${errorMessage}`,
     );
   }
 }
