@@ -11,7 +11,10 @@ const DEFAULT_BCRYPT_SALT_ROUNDS = 12;
 const rawBcryptSaltRounds = process.env.BCRYPT_SALT_ROUNDS?.trim();
 const parsedBcryptSaltRounds =
   rawBcryptSaltRounds && rawBcryptSaltRounds.length > 0
-    ? Number.parseInt(rawBcryptSaltRounds, 10)
+    ? (() => {
+        const parsed = Number.parseInt(rawBcryptSaltRounds, 10);
+        return Number.isNaN(parsed) ? undefined : parsed;
+      })()
     : undefined;
 const BCRYPT_SALT_ROUNDS =
   parsedBcryptSaltRounds !== undefined &&
@@ -185,18 +188,18 @@ async function main() {
   ]);
 
   const defaultAdminUsername = "admin";
-  const defaultAdminEmail =
-    process.env.DEFAULT_ADMIN_EMAIL?.trim() || "admin@example.com";
+  const defaultAdminEmail = process.env.DEFAULT_ADMIN_EMAIL?.trim();
   const defaultAdminPassword = process.env.DEFAULT_ADMIN_PASSWORD?.trim();
   const defaultAdminLocale = resolveSeedAdminLocale();
   const shouldUpdateAdminPassword = parseBooleanFlag(
     process.env.SEED_UPDATE_ADMIN_PASSWORD,
   );
-  const adminBaseData = buildAdminBaseData(
-    defaultAdminUsername,
-    defaultAdminEmail,
-    defaultAdminLocale,
-  );
+
+  if (!defaultAdminEmail) {
+    throw new Error(
+      "DEFAULT_ADMIN_EMAIL environment variable must be set and non-empty before running seeds.",
+    );
+  }
 
   if (!defaultAdminPassword) {
     throw new Error(
@@ -204,11 +207,17 @@ async function main() {
     );
   }
 
+  const adminBaseData = buildAdminBaseData(
+    defaultAdminUsername,
+    defaultAdminEmail,
+    defaultAdminLocale,
+  );
+
   validateAdminPasswordOrThrow(defaultAdminPassword);
 
   const existingUserByUsername = await prisma.user.findUnique({
     where: { username: defaultAdminUsername },
-    select: { id: true, isSystemAdmin: true },
+    select: { id: true, isSystemAdmin: true, username: true, email: true },
   });
 
   if (existingUserByUsername && !existingUserByUsername.isSystemAdmin) {

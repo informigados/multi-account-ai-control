@@ -79,7 +79,7 @@ Optional (password reset by email):
 
 Optional default admin seed values:
 
-- `DEFAULT_ADMIN_EMAIL` (default: `admin@local`)
+- `DEFAULT_ADMIN_EMAIL` (required, e.g. `admin@example.com`)
 - `DEFAULT_ADMIN_PASSWORD` (required for seed; must include uppercase, lowercase, number, and special character)
 - `SEED_ADMIN_LOCALE` (default: `pt_BR`; supported values: `pt_BR`, `en`)
 - `SEED_UPDATE_ADMIN_PASSWORD` (default: `false`; set `true` to force updating existing system admin password hash on seed runs)
