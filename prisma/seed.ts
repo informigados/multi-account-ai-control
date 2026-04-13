@@ -56,6 +56,8 @@ type AdminBaseData = {
   isSystemAdmin: boolean;
 };
 
+type AdminUpdateData = AdminBaseData & { passwordHash?: string };
+
 function parseBooleanFlag(value: string | undefined): boolean {
   return value?.trim().toLowerCase() === "true";
 }
@@ -222,12 +224,12 @@ async function main() {
 
   if (hasSystemAdminConflict) {
     throw new Error(
-      `Cannot bootstrap system admin: username '${defaultAdminUsername}' is tied to a different system admin user (id='${existingAdminUsernameUser.id}'). Resolve this conflict manually.`,
+      `Cannot bootstrap system admin: username '${defaultAdminUsername}' is tied to a different system admin user (id='${existingSystemAdmin.id}'). Resolve this conflict manually.`,
     );
   }
 
   if (existingSystemAdmin) {
-    const updateData: AdminBaseData & { passwordHash?: string } = {
+    const updateData: AdminUpdateData = {
       ...adminBaseData,
     };
     if (shouldUpdateAdminPassword) {
