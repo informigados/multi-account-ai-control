@@ -8,6 +8,9 @@ import {
 
 const prisma = new PrismaClient();
 const DEFAULT_BCRYPT_SALT_ROUNDS = 12;
+const MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL = 2;
+const MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL_PLUS_ONE =
+  MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL + 1;
 const rawBcryptSaltRounds = process.env.BCRYPT_SALT_ROUNDS?.trim();
 const parsedBcryptSaltRounds =
   rawBcryptSaltRounds && rawBcryptSaltRounds.length > 0
@@ -88,6 +91,27 @@ function parseBooleanFlag(value: string | undefined): boolean {
   return value?.trim().toLowerCase() === "true";
 }
 
+function sanitizeCredentialEnvValue(
+  value: string | undefined,
+  envName: string,
+): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const trimmedValue = value.trim();
+  if (trimmedValue.length === 0) {
+    return undefined;
+  }
+
+  // Reject null bytes and ASCII control characters to avoid unsafe parsing.
+  if (/[\u0000-\u001F\u007F]/.test(trimmedValue)) {
+    throw new Error(`${envName} contains invalid control characters.`);
+  }
+
+  return trimmedValue;
+}
+
 function resolveSeedAdminLocale(): UserLocale {
   const localeFromEnv = process.env.SEED_ADMIN_LOCALE?.trim();
   if (!localeFromEnv) {
@@ -122,11 +146,73 @@ function validateAdminPasswordOrThrow(password: string): void {
 }
 
 function validateAdminEmailOrThrow(email: string): void {
-  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailPattern.test(email)) {
+  if (email.length > 254) {
     throw new Error(
       "DEFAULT_ADMIN_EMAIL must be a valid email address (e.g., admin@example.com).",
     );
+  }
+
+  const atIndex = email.indexOf("@");
+  if (atIndex <= 0 || atIndex !== email.lastIndexOf("@")) {
+    throw new Error(
+      "DEFAULT_ADMIN_EMAIL must be a valid email address (e.g., admin@example.com).",
+    );
+  }
+
+  const localPart = email.slice(0, atIndex);
+  const domainPart = email.slice(atIndex + 1);
+  if (
+    localPart.length === 0 ||
+    localPart.length > 64 ||
+    domainPart.length === 0 ||
+    domainPart.length > 253
+  ) {
+    throw new Error(
+      "DEFAULT_ADMIN_EMAIL must be a valid email address (e.g., admin@example.com).",
+    );
+  }
+
+  if (
+    localPart.startsWith(".") ||
+    localPart.endsWith(".") ||
+    domainPart.startsWith(".") ||
+    domainPart.endsWith(".") ||
+    localPart.includes("..") ||
+    domainPart.includes("..")
+  ) {
+    throw new Error(
+      "DEFAULT_ADMIN_EMAIL must be a valid email address (e.g., admin@example.com).",
+    );
+  }
+
+  const localPartPattern =
+    /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/;
+  if (!localPartPattern.test(localPart)) {
+    throw new Error(
+      "DEFAULT_ADMIN_EMAIL must be a valid email address (e.g., admin@example.com).",
+    );
+  }
+
+  const domainLabels = domainPart.split(".");
+  if (domainLabels.length < 2) {
+    throw new Error(
+      "DEFAULT_ADMIN_EMAIL must be a valid email address (e.g., admin@example.com).",
+    );
+  }
+
+  for (const label of domainLabels) {
+    const isValidLabel =
+      label.length > 0 &&
+      label.length <= 63 &&
+      /^[A-Za-z0-9-]+$/.test(label) &&
+      !label.startsWith("-") &&
+      !label.endsWith("-");
+
+    if (!isValidLabel) {
+      throw new Error(
+        "DEFAULT_ADMIN_EMAIL must be a valid email address (e.g., admin@example.com).",
+      );
+    }
   }
 }
 
@@ -227,8 +313,14 @@ async function main() {
   ]);
 
   const defaultAdminUsername = "admin";
-  const defaultAdminEmail = process.env.DEFAULT_ADMIN_EMAIL?.trim();
-  const defaultAdminPassword = process.env.DEFAULT_ADMIN_PASSWORD?.trim();
+  const defaultAdminEmail = sanitizeCredentialEnvValue(
+    process.env.DEFAULT_ADMIN_EMAIL,
+    "DEFAULT_ADMIN_EMAIL",
+  );
+  const defaultAdminPassword = sanitizeCredentialEnvValue(
+    process.env.DEFAULT_ADMIN_PASSWORD,
+    "DEFAULT_ADMIN_PASSWORD",
+  );
   const defaultAdminLocale = resolveSeedAdminLocale();
   const shouldUpdateAdminPassword = parseBooleanFlag(
     process.env.SEED_UPDATE_ADMIN_PASSWORD,
@@ -266,9 +358,12 @@ async function main() {
     select: { id: true, username: true, email: true, isSystemAdmin: true },
     // Fetch one extra row so we can detect unexpected integrity issues
     // instead of silently truncating results.
-    take: 3,
+    take: MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL_PLUS_ONE,
   });
-  if (existingUsersByUsernameOrEmail.length > 2) {
+  if (
+    existingUsersByUsernameOrEmail.length >
+    MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL
+  ) {
     throw new Error(
       `Cannot bootstrap system admin: found more than two users matching username '${defaultAdminUsername}' or email '${defaultAdminEmail}'. This indicates data integrity issues that must be resolved manually.`,
     );
