@@ -221,7 +221,7 @@ async function main() {
 
   const existingUserByUsername = await prisma.user.findUnique({
     where: { username: defaultAdminUsername },
-    // Only ID and role flag are needed for conflict checks and update targeting.
+    // Only ID and isSystemAdmin flag are needed for conflict checks and update targeting.
     select: { id: true, isSystemAdmin: true },
   });
 
@@ -243,7 +243,7 @@ async function main() {
   const emailBelongsToDifferentUser =
     emailExists &&
     !usernameMissing &&
-    existingUserByEmail.id !== existingUserByUsername.id;
+    existingUserByEmail.id !== existingUserByUsername?.id;
   const isEmailConflict =
     usernameMissing ? emailExists : emailBelongsToDifferentUser;
   if (isEmailConflict) {
@@ -309,7 +309,7 @@ main()
     }
     console.error("Troubleshooting steps:");
     console.error(
-      "- Verify required environment variables are set (for example: DATABASE_URL, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD).",
+      "- Verify required environment variables are set (e.g., DATABASE_URL, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD).",
     );
     console.error(
       "- Ensure the database is reachable and credentials in DATABASE_URL are correct.",
