@@ -207,14 +207,14 @@ async function main() {
   const usernameUserIsSystemAdmin =
     existingAdminUsernameUser !== null &&
     existingAdminUsernameUser.isSystemAdmin;
-  const usernameSystemAdminIsDifferentUser =
+  const existingSystemAdminHasDifferentId =
     usernameUserIsSystemAdmin &&
     existingSystemAdmin !== null &&
     existingAdminUsernameUser.id !== existingSystemAdmin.id;
 
   const hasUsernameConflict =
     usernameUserExists && !usernameUserIsSystemAdmin;
-  const hasSystemAdminConflict = usernameSystemAdminIsDifferentUser;
+  const hasSystemAdminConflict = existingSystemAdminHasDifferentId;
 
   if (hasUsernameConflict) {
     throw new Error(
@@ -224,7 +224,7 @@ async function main() {
 
   if (hasSystemAdminConflict) {
     throw new Error(
-      `Cannot bootstrap system admin: username '${defaultAdminUsername}' is tied to a different system admin user (id='${existingSystemAdmin.id}'). Resolve this conflict manually.`,
+      `Cannot bootstrap system admin: username '${defaultAdminUsername}' is tied to a different system admin user (id='${existingAdminUsernameUser.id}'). Resolve this conflict manually.`,
     );
   }
 
