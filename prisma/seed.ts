@@ -337,18 +337,26 @@ function buildSensitiveValueList(): string[] {
     .filter(
       ([envName, envValue]) =>
         envValue !== undefined &&
+        envValue.length > 0 &&
         SENSITIVE_ENV_NAME_PATTERN.test(envName),
     )
     .map(([, envValue]) => envValue as string)
     .sort((left, right) => right.length - left.length);
 }
 
-const SENSITIVE_VALUE_LIST = buildSensitiveValueList();
+function escapeForLiteralRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 function redactSensitiveValues(rawText: string): string {
-  return SENSITIVE_VALUE_LIST.reduce(
-    (sanitizedText, sensitiveValue) =>
-      sanitizedText.replaceAll(sensitiveValue, "[REDACTED]"),
+  return buildSensitiveValueList().reduce(
+    (sanitizedText, sensitiveValue) => {
+      const escapedSensitiveValue = escapeForLiteralRegex(sensitiveValue);
+      return sanitizedText.replace(
+        new RegExp(escapedSensitiveValue, "g"),
+        "[REDACTED]",
+      );
+    },
     rawText,
   );
 }
