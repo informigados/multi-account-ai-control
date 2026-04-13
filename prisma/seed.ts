@@ -236,7 +236,8 @@ async function main() {
 
   const existingUserByUsername = await prisma.user.findUnique({
     where: { username: defaultAdminUsername },
-    // Only ID and isSystemAdmin flag are needed for conflict checks and update targeting.
+    // Only ID and isSystemAdmin are needed for conflict checks
+    // and for determining whether to update an existing admin or create one.
     select: { id: true, isSystemAdmin: true },
   });
 
@@ -253,15 +254,11 @@ async function main() {
 
   // Email is a conflict when it already exists and is not owned by
   // the same user resolved by the bootstrap username lookup.
-  let isEmailConflict = false;
-  if (existingUserByEmail) {
-    if (!existingUserByUsername) {
-      isEmailConflict = true;
-    } else {
-      isEmailConflict =
-        existingUserByEmail.id !== existingUserByUsername.id;
-    }
-  }
+  const isEmailConflict = Boolean(
+    existingUserByEmail &&
+      (!existingUserByUsername ||
+        existingUserByEmail.id !== existingUserByUsername.id),
+  );
   if (isEmailConflict) {
     throw new Error(
       `Cannot bootstrap system admin: email '${defaultAdminEmail}' already exists for a different user (id='${existingUserByEmail.id}'). Resolve this conflict manually.`,
