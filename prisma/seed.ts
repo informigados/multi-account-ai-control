@@ -110,7 +110,7 @@ function escapeForRegexCharacterClass(value: string): string {
   return value.replace(/[[\]\\^-]/g, "\\$&");
 }
 
-function parseSaltRounds(rawValue: string | undefined): number | undefined {
+function tryParseSaltRounds(rawValue: string | undefined): number | undefined {
   if (!rawValue) {
     return undefined;
   }
@@ -121,7 +121,7 @@ function parseSaltRounds(rawValue: string | undefined): number | undefined {
 
 function resolveBcryptSaltRounds(): number {
   const rawBcryptSaltRounds = process.env.BCRYPT_SALT_ROUNDS?.trim();
-  const parsedBcryptSaltRounds = parseSaltRounds(rawBcryptSaltRounds);
+  const parsedBcryptSaltRounds = tryParseSaltRounds(rawBcryptSaltRounds);
 
   return parsedBcryptSaltRounds !== undefined &&
     Number.isInteger(parsedBcryptSaltRounds) &&
@@ -553,9 +553,8 @@ async function main() {
 }
 
 main()
-  .catch(async (error: unknown) => {
-    const errorType = error instanceof Error ? error.name : "NonErrorRejection";
-    console.error(`Seed failed (error type: ${errorType}).`);
+  .catch(async () => {
+    console.error("Seed failed.");
     console.error("Troubleshooting steps:");
     for (const step of SEED_TROUBLESHOOTING_STEPS) {
       console.error(step);
