@@ -114,6 +114,26 @@ Open: `http://localhost:3000`
 
 If port `3000` is busy, Next.js automatically starts on the next available port (for example, `3001`).
 
+### 7) Troubleshooting (Turbopack cache warning)
+
+If you see this warning:
+
+`Turbopack's filesystem cache has been deleted because we previously detected an internal error in Turbopack.`
+
+It means Next.js already cleaned a corrupted cache. You can also clean it manually:
+
+```bash
+rm -rf apps/web/.next apps/web/tsconfig.tsbuildinfo
+npm run dev
+```
+
+Windows PowerShell:
+
+```powershell
+Remove-Item -Recurse -Force apps/web/.next, apps/web/tsconfig.tsbuildinfo -ErrorAction SilentlyContinue
+npm run dev
+```
+
 ## ✅ Quality Checks
 
 ```bash
