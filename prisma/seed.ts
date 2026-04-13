@@ -184,7 +184,7 @@ async function main() {
 
   const defaultAdminUsername = "admin";
   const defaultAdminEmail =
-    process.env.DEFAULT_ADMIN_EMAIL?.trim() || "admin@local";
+    process.env.DEFAULT_ADMIN_EMAIL?.trim() || "admin@example.com";
   const defaultAdminPassword = process.env.DEFAULT_ADMIN_PASSWORD?.trim();
   const defaultAdminLocale = resolveSeedAdminLocale();
   const shouldUpdateAdminPassword = parseBooleanFlag(
@@ -204,8 +204,8 @@ async function main() {
 
   validateAdminPasswordOrThrow(defaultAdminPassword);
 
-  const [existingSystemAdmins, existingAdminUsernameUser] = await Promise.all([
-    prisma.user.findMany({
+  const [existingSystemAdmin, existingAdminUsernameUser] = await Promise.all([
+    prisma.user.findFirst({
       where: { isSystemAdmin: true },
       orderBy: { id: "asc" },
       select: { id: true },
@@ -224,10 +224,13 @@ async function main() {
 
   // Prefer the system admin that already owns the bootstrap username.
   // Otherwise, fall back to the oldest system admin ID for deterministic updates.
+  // Note: if `existingAdminUsernameUser` exists but is not a system admin, we
+  // throw above as a conflict, so this fallback only applies when no username
+  // match exists.
   const targetSystemAdminId =
     existingAdminUsernameUser?.isSystemAdmin === true
       ? existingAdminUsernameUser.id
-      : existingSystemAdmins[0]?.id;
+      : existingSystemAdmin?.id;
 
   if (targetSystemAdminId) {
     // Always reconcile bootstrap profile fields (username/email/role/locale/state)
