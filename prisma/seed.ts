@@ -125,6 +125,10 @@ function buildAdminBaseData(
   };
 }
 
+async function hashAdminPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
+}
+
 async function main() {
   await Promise.all(
     providerSeeds.map((provider) =>
@@ -260,10 +264,7 @@ async function main() {
       ...adminBaseData,
       ...(shouldUpdateAdminPassword
         ? {
-            passwordHash: await bcrypt.hash(
-              defaultAdminPassword,
-              BCRYPT_SALT_ROUNDS,
-            ),
+            passwordHash: await hashAdminPassword(defaultAdminPassword),
           }
         : {}),
     };
@@ -273,10 +274,7 @@ async function main() {
       data: updateData,
     });
   } else {
-    const passwordHash = await bcrypt.hash(
-      defaultAdminPassword,
-      BCRYPT_SALT_ROUNDS,
-    );
+    const passwordHash = await hashAdminPassword(defaultAdminPassword);
 
     await prisma.user.create({
       data: {
@@ -292,7 +290,16 @@ main()
     await prisma.$disconnect();
   })
   .catch(async (error) => {
-    console.error("Seed failed. Troubleshooting steps:");
+    console.error("Seed failed.");
+    if (error instanceof Error) {
+      console.error("Error message:", error.message);
+      if (error.stack) {
+        console.error("Error stack:", error.stack);
+      }
+    } else {
+      console.error("Non-Error rejection:", error);
+    }
+    console.error("Troubleshooting steps:");
     console.error(
       "- Verify required environment variables are set (for example: DATABASE_URL, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD).",
     );
@@ -302,7 +309,6 @@ main()
     console.error(
       "- Ensure Prisma schema changes are applied (try: `npx prisma migrate deploy` or `npx prisma db push`).",
     );
-    console.error("Original error details:", error);
     await prisma.$disconnect();
     process.exit(1);
   });
