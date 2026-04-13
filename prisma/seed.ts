@@ -72,6 +72,11 @@ type AdminBaseData = {
 };
 
 type AdminUpdateData = AdminBaseData & { passwordHash?: string };
+const SEED_TROUBLESHOOTING_STEPS = [
+  "- Verify required environment variables are set (e.g., DATABASE_URL, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD).",
+  "- Ensure the database is reachable and credentials in DATABASE_URL are correct.",
+  "- Ensure Prisma schema changes are applied (try: `npx prisma migrate deploy` or `npx prisma db push`).",
+] as const;
 
 function parseBooleanFlag(value: string | undefined): boolean {
   return value?.trim().toLowerCase() === "true";
@@ -106,6 +111,15 @@ function validateAdminPasswordOrThrow(password: string): void {
   if (!hasUppercase || !hasLowercase || !hasDigit || !hasSpecialChar) {
     throw new Error(
       "Admin password must include uppercase, lowercase, number, and special character.",
+    );
+  }
+}
+
+function validateAdminEmailOrThrow(email: string): void {
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailPattern.test(email)) {
+    throw new Error(
+      "DEFAULT_ADMIN_EMAIL must be a valid email address (e.g., admin@example.com).",
     );
   }
 }
@@ -218,6 +232,7 @@ async function main() {
   );
 
   validateAdminPasswordOrThrow(defaultAdminPassword);
+  validateAdminEmailOrThrow(defaultAdminEmail);
 
   const existingUserByUsername = await prisma.user.findUnique({
     where: { username: defaultAdminUsername },
@@ -238,14 +253,15 @@ async function main() {
 
   // Email is a conflict when it already exists and is not owned by
   // the same user resolved by the bootstrap username lookup.
-  const emailExists = existingUserByEmail !== null;
-  const usernameMissing = existingUserByUsername === null;
-  const emailBelongsToDifferentUser =
-    emailExists &&
-    !usernameMissing &&
-    existingUserByEmail.id !== existingUserByUsername?.id;
-  const isEmailConflict =
-    usernameMissing ? emailExists : emailBelongsToDifferentUser;
+  let isEmailConflict = false;
+  if (existingUserByEmail) {
+    if (!existingUserByUsername) {
+      isEmailConflict = true;
+    } else {
+      isEmailConflict =
+        existingUserByEmail.id !== existingUserByUsername.id;
+    }
+  }
   if (isEmailConflict) {
     throw new Error(
       `Cannot bootstrap system admin: email '${defaultAdminEmail}' already exists for a different user (id='${existingUserByEmail.id}'). Resolve this conflict manually.`,
@@ -291,9 +307,6 @@ async function main() {
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect();
-  })
   .catch(async (error) => {
     const errorSummary =
       error instanceof Error ? error.message : String(error);
@@ -308,15 +321,11 @@ main()
       console.error("Non-Error rejection:", error);
     }
     console.error("Troubleshooting steps:");
-    console.error(
-      "- Verify required environment variables are set (e.g., DATABASE_URL, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD).",
-    );
-    console.error(
-      "- Ensure the database is reachable and credentials in DATABASE_URL are correct.",
-    );
-    console.error(
-      "- Ensure Prisma schema changes are applied (try: `npx prisma migrate deploy` or `npx prisma db push`).",
-    );
+    for (const step of SEED_TROUBLESHOOTING_STEPS) {
+      console.error(step);
+    }
+    process.exitCode = 1;
+  })
+  .finally(async () => {
     await prisma.$disconnect();
-    process.exit(1);
   });
