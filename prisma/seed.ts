@@ -201,39 +201,28 @@ async function main() {
     }),
   ]);
 
-  const adminUsernameUser = existingAdminUsernameUser;
-  const usernameUserExists = adminUsernameUser !== null;
+  const usernameUserExists = existingAdminUsernameUser !== null;
+  const usernameUserIsSystemAdmin =
+    existingAdminUsernameUser !== null &&
+    existingAdminUsernameUser.isSystemAdmin;
   const usernameSystemAdminIsDifferentUser =
-    adminUsernameUser !== null &&
-    adminUsernameUser.isSystemAdmin &&
+    usernameUserIsSystemAdmin &&
     existingSystemAdmin !== null &&
-    adminUsernameUser.id !== existingSystemAdmin.id;
+    existingAdminUsernameUser.id !== existingSystemAdmin.id;
 
   const hasUsernameConflict =
-    usernameUserExists && !adminUsernameUser.isSystemAdmin;
+    usernameUserExists && !usernameUserIsSystemAdmin;
   const hasSystemAdminConflict = usernameSystemAdminIsDifferentUser;
 
   if (hasUsernameConflict) {
-    if (!adminUsernameUser) {
-      throw new Error(
-        "Invariant violation: username conflict detected without admin username user.",
-      );
-    }
-
     throw new Error(
-      `Cannot bootstrap system admin: username '${defaultAdminUsername}' already exists for a non-system-admin user (id='${adminUsernameUser.id}'). Resolve this conflict manually.`,
+      `Cannot bootstrap system admin: username '${defaultAdminUsername}' already exists for a non-system-admin user (id='${existingAdminUsernameUser.id}'). Resolve this conflict manually.`,
     );
   }
 
   if (hasSystemAdminConflict) {
-    if (!adminUsernameUser) {
-      throw new Error(
-        "Invariant violation: system admin conflict detected without admin username user.",
-      );
-    }
-
     throw new Error(
-      `Cannot bootstrap system admin: username '${defaultAdminUsername}' is tied to a different system admin user (id='${adminUsernameUser.id}'). Resolve this conflict manually.`,
+      `Cannot bootstrap system admin: username '${defaultAdminUsername}' is tied to a different system admin user (id='${existingAdminUsernameUser.id}'). Resolve this conflict manually.`,
     );
   }
 
