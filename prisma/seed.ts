@@ -101,6 +101,8 @@ const SEED_TROUBLESHOOTING_STEPS = [
   "- Ensure the database is reachable and credentials in DATABASE_URL are correct.",
   "- Ensure Prisma schema changes are applied (try: `npx prisma migrate deploy` or `npx prisma db push`).",
 ] as const;
+const SENSITIVE_ENV_NAME_PATTERN =
+  /(PASSWORD|SECRET|TOKEN|API[_-]?KEY|DATABASE_URL|CONNECTION_STRING|PRIVATE[_-]?KEY|ACCESS[_-]?KEY)/i;
 
 function parseBooleanFlag(value: string | undefined): boolean {
   return value?.trim().toLowerCase() === "true";
@@ -145,8 +147,18 @@ function sanitizeCredentialEnvValue(
   }
 
   // Reject null bytes and ASCII control characters to avoid unsafe parsing.
-  if (/[\u0000-\u001F\u007F]/.test(trimmedValue)) {
-    throw new Error(`${envName} contains invalid control characters.`);
+  const controlCharacters = trimmedValue.match(/[\u0000-\u001F\u007F]/g);
+  if (controlCharacters) {
+    const controlCharacterCodePoints = Array.from(
+      new Set(controlCharacters),
+    ).map(
+      (character) =>
+        `U+${character.charCodeAt(0).toString(16).toUpperCase().padStart(4, "0")}`,
+    );
+
+    throw new Error(
+      `${envName} contains invalid ASCII control characters (${controlCharacterCodePoints.join(", ")}). Use printable characters only (no U+0000-U+001F or U+007F).`,
+    );
   }
 
   return trimmedValue;
@@ -250,16 +262,16 @@ function validateAdminPasswordOrThrow(password: string): void {
   }
 }
 
-function validateAdminEmailOrThrow(email: string): void {
+function validateAdminEmailOrThrow(email: string, envVarName: string): void {
   if (email.length > MAX_EMAIL_LENGTH) {
     throw new Error(
-      `DEFAULT_ADMIN_EMAIL email address is too long (max ${MAX_EMAIL_LENGTH} characters).`,
+      `${envVarName} email address is too long (max ${MAX_EMAIL_LENGTH} characters).`,
     );
   }
 
   const atIndex = email.indexOf("@");
   if (atIndex <= 0 || atIndex !== email.lastIndexOf("@")) {
-    throwInvalidAdminEmail("missing or invalid @ separator");
+    throwInvalidAdminEmail(envVarName, "missing or invalid @ separator");
   }
 
   const localPart = email.slice(0, atIndex);
@@ -270,7 +282,7 @@ function validateAdminEmailOrThrow(email: string): void {
     domainPart.length === 0 ||
     domainPart.length > 253
   ) {
-    throwInvalidAdminEmail("invalid local-part or domain length");
+    throwInvalidAdminEmail(envVarName, "invalid local-part or domain length");
   }
 
   if (
@@ -281,24 +293,24 @@ function validateAdminEmailOrThrow(email: string): void {
     localPart.includes("..") ||
     domainPart.includes("..")
   ) {
-    throwInvalidAdminEmail("invalid dot placement");
+    throwInvalidAdminEmail(envVarName, "invalid dot placement");
   }
 
   // RFC 5322-inspired dot-atom local-part validation (practical subset):
   // allows one or more "atext" chars, optionally dot-separated,
   // while preventing leading/trailing or consecutive dots.
   if (!EMAIL_LOCAL_PART_PATTERN.test(localPart)) {
-    throwInvalidAdminEmail("invalid local-part characters");
+    throwInvalidAdminEmail(envVarName, "invalid local-part characters");
   }
 
   const domainLabels = domainPart.split(".");
   if (domainLabels.length < 2) {
-    throwInvalidAdminEmail("missing top-level domain");
+    throwInvalidAdminEmail(envVarName, "missing top-level domain");
   }
 
   for (const label of domainLabels) {
     if (!isValidDomainLabel(label)) {
-      throwInvalidAdminEmail("invalid domain label");
+      throwInvalidAdminEmail(envVarName, "invalid domain label");
     }
   }
 }
@@ -314,10 +326,39 @@ function isValidDomainLabel(label: string): boolean {
   );
 }
 
-function throwInvalidAdminEmail(reason: string): never {
+function throwInvalidAdminEmail(envVarName: string, reason: string): never {
   throw new Error(
-    `DEFAULT_ADMIN_EMAIL must be a valid email address (${reason}; e.g., admin@example.com).`,
+    `${envVarName} must be a valid email address (${reason}; e.g., admin@example.com).`,
   );
+}
+
+function buildSensitiveValueList(): string[] {
+  return Object.entries(process.env)
+    .filter(
+      ([envName, envValue]) =>
+        envValue !== undefined &&
+        envValue.length >= 8 &&
+        SENSITIVE_ENV_NAME_PATTERN.test(envName),
+    )
+    .map(([, envValue]) => envValue as string)
+    .sort((left, right) => right.length - left.length);
+}
+
+function redactSensitiveValues(rawText: string): string {
+  return buildSensitiveValueList().reduce(
+    (sanitizedText, sensitiveValue) =>
+      sanitizedText.split(sensitiveValue).join("[REDACTED]"),
+    rawText,
+  );
+}
+
+function formatSeedErrorForLog(error: unknown): string {
+  if (error instanceof Error) {
+    const errorMessage = error.message || error.name || "Unknown error";
+    return redactSensitiveValues(errorMessage);
+  }
+
+  return redactSensitiveValues(String(error));
 }
 
 function buildAdminBaseData(
@@ -394,7 +435,7 @@ async function main() {
   }
 
   validateAdminPasswordOrThrow(defaultAdminPassword);
-  validateAdminEmailOrThrow(defaultAdminEmail);
+  validateAdminEmailOrThrow(defaultAdminEmail, "DEFAULT_ADMIN_EMAIL");
 
   const adminBaseData = buildAdminBaseData(
     defaultAdminUsername,
@@ -473,11 +514,18 @@ async function main() {
       select: USER_CONFLICT_CHECK_SELECT,
     }),
   ]);
-  const matchingUsers = Array.from(
-    new Map(
-      [...usernameMatches, ...emailMatches].map((user) => [user.id, user]),
-    ).values(),
-  );
+  const existingUserByUsername = usernameMatches[0] ?? null;
+  const existingUserByEmail = emailMatches[0] ?? null;
+  const matchingUsers =
+    existingUserByUsername === null
+      ? existingUserByEmail === null
+        ? []
+        : [existingUserByEmail]
+      : existingUserByEmail === null
+        ? [existingUserByUsername]
+        : existingUserByUsername.id === existingUserByEmail.id
+          ? [existingUserByUsername]
+          : [existingUserByUsername, existingUserByEmail];
 
   if (matchingUsers.length > MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL) {
     throw new Error(
@@ -494,9 +542,6 @@ async function main() {
       `Cannot bootstrap system admin: unexpected match distribution (username matches=${usernameMatches.length}, email matches=${emailMatches.length}). Resolve this data integrity conflict manually.`,
     );
   }
-
-  const existingUserByUsername = usernameMatches[0] ?? null;
-  const existingUserByEmail = emailMatches[0] ?? null;
 
   if (existingUserByUsername && !existingUserByUsername.isSystemAdmin) {
     throw new Error(
@@ -555,7 +600,7 @@ async function main() {
 main()
   .catch(async (error) => {
     console.error("Seed failed.");
-    console.error(error);
+    console.error(`Error details: ${formatSeedErrorForLog(error)}`);
     console.error("Troubleshooting steps:");
     for (const step of SEED_TROUBLESHOOTING_STEPS) {
       console.error(step);
