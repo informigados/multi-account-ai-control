@@ -144,7 +144,9 @@ function isAsciiDigit(charCode: number): boolean {
 }
 
 function isAsciiLetter(charCode: number): boolean {
-  return charCode >= 97 && charCode <= 122;
+  return (
+    (charCode >= 65 && charCode <= 90) || (charCode >= 97 && charCode <= 122)
+  );
 }
 
 function hasSequentialRun(value: string, minRunLength: number): boolean {
@@ -565,6 +567,25 @@ function buildMatchingUsersList(
   return matchingUsers;
 }
 
+/**
+ * Valid distributions:
+ * - 0 total matches
+ * - 1 total match (either username or email)
+ * - 2 total matches only when there is exactly 1 username match and 1 email match
+ */
+function hasUnexpectedMatchDistribution(
+  usernameMatchCount: number,
+  emailMatchCount: number,
+  combinedMatchCount: number,
+): boolean {
+  return (
+    usernameMatchCount > 1 ||
+    emailMatchCount > 1 ||
+    (combinedMatchCount === MAX_COMBINED_USERNAME_EMAIL_MATCHES &&
+      (usernameMatchCount !== 1 || emailMatchCount !== 1))
+  );
+}
+
 async function main() {
   const defaultAdminUsername =
     sanitizeCredentialEnvValue(
@@ -622,12 +643,8 @@ async function main() {
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
-        const safeProviderSlug = redactSensitiveValues(provider.slug);
-        const safeProviderName = redactSensitiveValues(provider.name);
         const safeErrorMessage = redactSensitiveValues(errorMessage);
-        throw new Error(
-          `Failed to seed provider '${safeProviderSlug}' (${safeProviderName}): ${safeErrorMessage}`,
-        );
+        throw new Error(`Failed to seed provider: ${safeErrorMessage}`);
       }
     }),
   );
@@ -703,10 +720,11 @@ async function main() {
     );
   }
   if (
-    usernameMatches.length > 1 ||
-    emailMatches.length > 1 ||
-    (matchingUsers.length === MAX_COMBINED_USERNAME_EMAIL_MATCHES &&
-      (usernameMatches.length !== 1 || emailMatches.length !== 1))
+    hasUnexpectedMatchDistribution(
+      usernameMatches.length,
+      emailMatches.length,
+      matchingUsers.length,
+    )
   ) {
     throw new Error(
       `Cannot bootstrap system admin: unexpected match distribution (username matches=${usernameMatches.length}, email matches=${emailMatches.length}). Resolve this data integrity conflict manually.`,
