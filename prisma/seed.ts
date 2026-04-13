@@ -203,27 +203,35 @@ async function main() {
 
   const adminUsernameUser = existingAdminUsernameUser;
   const usernameUserExists = adminUsernameUser !== null;
-  const usernameUserIsSystemAdmin =
-    usernameUserExists && adminUsernameUser.isSystemAdmin;
-  const noExistingSystemAdmin = existingSystemAdmin === null;
   const usernameSystemAdminIsDifferentUser =
-    usernameUserIsSystemAdmin &&
-    !noExistingSystemAdmin &&
+    adminUsernameUser !== null &&
+    adminUsernameUser.isSystemAdmin &&
+    existingSystemAdmin !== null &&
     adminUsernameUser.id !== existingSystemAdmin.id;
 
   const hasUsernameConflict =
-    usernameUserExists && !usernameUserIsSystemAdmin;
-  const hasSystemAdminConflict =
-    usernameUserIsSystemAdmin &&
-    (noExistingSystemAdmin || usernameSystemAdminIsDifferentUser);
+    usernameUserExists && !adminUsernameUser.isSystemAdmin;
+  const hasSystemAdminConflict = usernameSystemAdminIsDifferentUser;
 
   if (hasUsernameConflict) {
+    if (!adminUsernameUser) {
+      throw new Error(
+        "Invariant violation: username conflict detected without admin username user.",
+      );
+    }
+
     throw new Error(
       `Cannot bootstrap system admin: username '${defaultAdminUsername}' already exists for a non-system-admin user (id='${adminUsernameUser.id}'). Resolve this conflict manually.`,
     );
   }
 
   if (hasSystemAdminConflict) {
+    if (!adminUsernameUser) {
+      throw new Error(
+        "Invariant violation: system admin conflict detected without admin username user.",
+      );
+    }
+
     throw new Error(
       `Cannot bootstrap system admin: username '${defaultAdminUsername}' is tied to a different system admin user (id='${adminUsernameUser.id}'). Resolve this conflict manually.`,
     );
