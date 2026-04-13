@@ -152,13 +152,22 @@ function sanitizeCredentialEnvValue(
 }
 
 function resolveSeedAdminLocale(): UserLocale {
+  const allowedLocales = Object.values(UserLocale) as string[];
+  const defaultLocaleFromEnv = process.env.SEED_ADMIN_DEFAULT_LOCALE?.trim();
+  const normalizedDefaultLocale = defaultLocaleFromEnv?.replace(/-/g, "_");
+  const fallbackLocale = normalizedDefaultLocale ?? UserLocale.pt_BR;
+  if (!allowedLocales.includes(fallbackLocale)) {
+    throw new Error(
+      `SEED_ADMIN_DEFAULT_LOCALE must be one of: ${allowedLocales.join(", ")}.`,
+    );
+  }
+
   const localeFromEnv = process.env.SEED_ADMIN_LOCALE?.trim();
   if (!localeFromEnv) {
-    return UserLocale.pt_BR;
+    return fallbackLocale as UserLocale;
   }
 
   const normalizedLocale = localeFromEnv.replace(/-/g, "_");
-  const allowedLocales = Object.values(UserLocale) as string[];
   if (allowedLocales.includes(normalizedLocale)) {
     return normalizedLocale as UserLocale;
   }
@@ -313,68 +322,11 @@ function getConflictingEmailOwnerId(
 }
 
 async function main() {
-  await Promise.all(
-    providerSeeds.map((provider) =>
-      prisma.provider.upsert({
-        where: { slug: provider.slug },
-        update: {
-          name: provider.name,
-          connectorType: provider.connectorType,
-          color: provider.color,
-          description: provider.description,
-          isActive: true,
-        },
-        create: { ...provider, isActive: true },
-      }),
-    ),
-  );
-
-  await Promise.all([
-    prisma.appSetting.upsert({
-      where: { key: "ui.theme.default" },
-      update: { valueJson: { mode: "system" } },
-      create: {
-        key: "ui.theme.default",
-        valueJson: { mode: "system" },
-      },
-    }),
-    prisma.appSetting.upsert({
-      where: { key: "ui.locale.default" },
-      update: { valueJson: { locale: "pt_BR" } },
-      create: {
-        key: "ui.locale.default",
-        valueJson: { locale: "pt_BR" },
-      },
-    }),
-    prisma.appSetting.upsert({
-      where: { key: "audit.log.retention" },
-      update: { valueJson: { enabled: false, days: null } },
-      create: {
-        key: "audit.log.retention",
-        valueJson: { enabled: false, days: null },
-      },
-    }),
-    prisma.appSetting.upsert({
-      where: { key: "security.idle_lock" },
-      update: {
-        valueJson: {
-          enabled: false,
-          timeoutMinutes: 10,
-          requirePasswordOnUnlock: true,
-        },
-      },
-      create: {
-        key: "security.idle_lock",
-        valueJson: {
-          enabled: false,
-          timeoutMinutes: 10,
-          requirePasswordOnUnlock: true,
-        },
-      },
-    }),
-  ]);
-
-  const defaultAdminUsername = "admin";
+  const defaultAdminUsername =
+    sanitizeCredentialEnvValue(
+      process.env.DEFAULT_ADMIN_USERNAME,
+      "DEFAULT_ADMIN_USERNAME",
+    ) ?? "admin";
   const defaultAdminEmail = sanitizeCredentialEnvValue(
     process.env.DEFAULT_ADMIN_EMAIL,
     "DEFAULT_ADMIN_EMAIL",
@@ -408,6 +360,67 @@ async function main() {
     defaultAdminEmail,
     defaultAdminLocale,
   );
+
+  await Promise.all(
+    providerSeeds.map((provider) =>
+      prisma.provider.upsert({
+        where: { slug: provider.slug },
+        update: {
+          name: provider.name,
+          connectorType: provider.connectorType,
+          color: provider.color,
+          description: provider.description,
+          isActive: true,
+        },
+        create: { ...provider, isActive: true },
+      }),
+    ),
+  );
+
+  await Promise.all([
+    prisma.appSetting.upsert({
+      where: { key: "ui.theme.default" },
+      update: { valueJson: { mode: "system" } },
+      create: {
+        key: "ui.theme.default",
+        valueJson: { mode: "system" },
+      },
+    }),
+    prisma.appSetting.upsert({
+      where: { key: "ui.locale.default" },
+      update: { valueJson: { locale: defaultAdminLocale } },
+      create: {
+        key: "ui.locale.default",
+        valueJson: { locale: defaultAdminLocale },
+      },
+    }),
+    prisma.appSetting.upsert({
+      where: { key: "audit.log.retention" },
+      update: { valueJson: { enabled: false, days: null } },
+      create: {
+        key: "audit.log.retention",
+        valueJson: { enabled: false, days: null },
+      },
+    }),
+    prisma.appSetting.upsert({
+      where: { key: "security.idle_lock" },
+      update: {
+        valueJson: {
+          enabled: false,
+          timeoutMinutes: 10,
+          requirePasswordOnUnlock: true,
+        },
+      },
+      create: {
+        key: "security.idle_lock",
+        valueJson: {
+          enabled: false,
+          timeoutMinutes: 10,
+          requirePasswordOnUnlock: true,
+        },
+      },
+    }),
+  ]);
 
   const matchingUsers = await prisma.user.findMany({
     where: {
