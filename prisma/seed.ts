@@ -14,15 +14,16 @@ const MIN_ADMIN_PASSWORD_LENGTH = 12;
 // RFC 5321: maximum mailbox length is 254 characters.
 const MAX_EMAIL_LENGTH = 254;
 const DEFAULT_BCRYPT_SALT_ROUNDS = 12;
-const rawBcryptSaltRounds = process.env.BCRYPT_SALT_ROUNDS?.trim();
-const parsedBcryptSaltRounds = parseSaltRounds(rawBcryptSaltRounds);
-const BCRYPT_SALT_ROUNDS =
-  parsedBcryptSaltRounds !== undefined &&
-  Number.isInteger(parsedBcryptSaltRounds) &&
-  parsedBcryptSaltRounds >= 4 &&
-  parsedBcryptSaltRounds <= 31
-    ? parsedBcryptSaltRounds
-    : DEFAULT_BCRYPT_SALT_ROUNDS;
+const MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL = 2;
+// Explicit list of special characters accepted by the admin
+// password policy. Keeping this as data improves readability
+// and makes future policy updates safer.
+const ALLOWED_PASSWORD_SPECIAL_CHARACTERS =
+  "!@#$%^&*()_+-=[]{};':\"\\|,.<>/?`~";
+const PASSWORD_SPECIAL_CHAR_REGEX = new RegExp(
+  `[${escapeForRegexCharacterClass(ALLOWED_PASSWORD_SPECIAL_CHARACTERS)}]`,
+);
+const BCRYPT_SALT_ROUNDS = resolveBcryptSaltRounds();
 
 const providerSeeds = [
   {
@@ -97,6 +98,10 @@ function parseBooleanFlag(value: string | undefined): boolean {
   return value?.trim().toLowerCase() === "true";
 }
 
+function escapeForRegexCharacterClass(value: string): string {
+  return value.replace(/[[\]\\^-]/g, "\\$&");
+}
+
 function parseSaltRounds(rawValue: string | undefined): number | undefined {
   if (!rawValue || rawValue.length === 0) {
     return undefined;
@@ -104,6 +109,18 @@ function parseSaltRounds(rawValue: string | undefined): number | undefined {
 
   const parsedSaltRounds = Number.parseInt(rawValue, 10);
   return Number.isNaN(parsedSaltRounds) ? undefined : parsedSaltRounds;
+}
+
+function resolveBcryptSaltRounds(): number {
+  const rawBcryptSaltRounds = process.env.BCRYPT_SALT_ROUNDS?.trim();
+  const parsedBcryptSaltRounds = parseSaltRounds(rawBcryptSaltRounds);
+
+  return parsedBcryptSaltRounds !== undefined &&
+    Number.isInteger(parsedBcryptSaltRounds) &&
+    parsedBcryptSaltRounds >= 4 &&
+    parsedBcryptSaltRounds <= 31
+    ? parsedBcryptSaltRounds
+    : DEFAULT_BCRYPT_SALT_ROUNDS;
 }
 
 function sanitizeCredentialEnvValue(
@@ -154,7 +171,7 @@ function validateAdminPasswordOrThrow(password: string): void {
   const hasUppercase = /[A-Z]/.test(password);
   const hasLowercase = /[a-z]/.test(password);
   const hasDigit = /\d/.test(password);
-  const hasSpecialChar = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(password);
+  const hasSpecialChar = PASSWORD_SPECIAL_CHAR_REGEX.test(password);
   const missingRequirements: string[] = [];
   if (!hasUppercase) {
     missingRequirements.push("uppercase letter");
@@ -387,16 +404,26 @@ async function main() {
     defaultAdminLocale,
   );
 
-  const [existingUserByUsername, existingUserByEmail] = await Promise.all([
-    prisma.user.findUnique({
-      where: { username: defaultAdminUsername },
-      select: USER_CONFLICT_CHECK_SELECT,
-    }),
-    prisma.user.findUnique({
-      where: { email: defaultAdminEmail },
-      select: USER_CONFLICT_CHECK_SELECT,
-    }),
-  ]);
+  const matchingUsers = await prisma.user.findMany({
+    where: {
+      OR: [
+        { username: defaultAdminUsername },
+        { email: defaultAdminEmail },
+      ],
+    },
+    select: USER_CONFLICT_CHECK_SELECT,
+  });
+  if (matchingUsers.length > MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL) {
+    throw new Error(
+      `Cannot bootstrap system admin: username '${defaultAdminUsername}' and email '${defaultAdminEmail}' are already used by different users. This indicates data integrity issues that must be resolved manually.`,
+    );
+  }
+
+  const existingUserByUsername =
+    matchingUsers.find((user) => user.username === defaultAdminUsername) ??
+    null;
+  const existingUserByEmail =
+    matchingUsers.find((user) => user.email === defaultAdminEmail) ?? null;
 
   if (existingUserByUsername && !existingUserByUsername.isSystemAdmin) {
     throw new Error(
