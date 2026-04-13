@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import {
+  Prisma,
   PrismaClient,
   ProviderConnectorType,
   UserLocale,
@@ -79,6 +80,15 @@ type ExistingUserLookup = {
   email: string;
   isSystemAdmin: boolean;
 };
+const USER_CONFLICT_CHECK_SELECT = {
+  // id: used for identity/ownership comparisons when matching records.
+  id: true,
+  // username/email: used for uniqueness conflict detection.
+  username: true,
+  email: true,
+  // isSystemAdmin: used to ensure matched users are valid admin candidates.
+  isSystemAdmin: true,
+} satisfies Prisma.UserSelect;
 
 type AdminUpdateData = AdminBaseData & { passwordHash?: string };
 const SEED_TROUBLESHOOTING_STEPS = [
@@ -118,7 +128,7 @@ function resolveSeedAdminLocale(): UserLocale {
     return UserLocale.pt_BR;
   }
 
-  const normalizedLocale = localeFromEnv.replace("-", "_");
+  const normalizedLocale = localeFromEnv.replaceAll("-", "_");
   const allowedLocales = Object.values(UserLocale) as string[];
   if (allowedLocales.includes(normalizedLocale)) {
     return normalizedLocale as UserLocale;
@@ -138,9 +148,23 @@ function validateAdminPasswordOrThrow(password: string): void {
   const hasLowercase = /[a-z]/.test(password);
   const hasDigit = /\d/.test(password);
   const hasSpecialChar = /[^A-Za-z0-9]/.test(password);
-  if (!hasUppercase || !hasLowercase || !hasDigit || !hasSpecialChar) {
+  const missingRequirements: string[] = [];
+  if (!hasUppercase) {
+    missingRequirements.push("uppercase letter");
+  }
+  if (!hasLowercase) {
+    missingRequirements.push("lowercase letter");
+  }
+  if (!hasDigit) {
+    missingRequirements.push("digit");
+  }
+  if (!hasSpecialChar) {
+    missingRequirements.push("special character");
+  }
+
+  if (missingRequirements.length > 0) {
     throw new Error(
-      "Admin password must include uppercase, lowercase, number, and special character.",
+      `Admin password is missing required character types: ${missingRequirements.join(", ")}.`,
     );
   }
 }
@@ -232,7 +256,15 @@ function buildAdminBaseData(
 }
 
 async function hashAdminPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
+  try {
+    return await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Failed to hash default admin password using BCRYPT_SALT_ROUNDS=${BCRYPT_SALT_ROUNDS}: ${errorMessage}`,
+    );
+  }
 }
 
 function getConflictingEmailOwnerId(
@@ -354,8 +386,7 @@ async function main() {
         { email: defaultAdminEmail },
       ],
     },
-    // We only need fields used by conflict checks and ownership comparisons.
-    select: { id: true, username: true, email: true, isSystemAdmin: true },
+    select: USER_CONFLICT_CHECK_SELECT,
     // Fetch one extra row so we can detect unexpected integrity issues
     // instead of silently truncating results.
     take: MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL_PLUS_ONE,
