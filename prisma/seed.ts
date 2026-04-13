@@ -262,20 +262,33 @@ function normalizeLocaleEnvValue(value: string | undefined): string | undefined 
   return normalizedValue;
 }
 
+function resolveOptionalLocaleFromEnv(
+  rawValue: string | undefined,
+  envVarName: string,
+  allowedLocales: UserLocale[],
+): UserLocale | undefined {
+  const normalizedLocale = normalizeLocaleEnvValue(rawValue);
+  if (!normalizedLocale) {
+    return undefined;
+  }
+
+  if (allowedLocales.includes(normalizedLocale as UserLocale)) {
+    return normalizedLocale as UserLocale;
+  }
+
+  throw new Error(`${envVarName} must be one of: ${allowedLocales.join(", ")}.`);
+}
+
 function resolveDefaultSeedAdminLocale(): UserLocale {
   const allowedLocales = Object.values(UserLocale) as UserLocale[];
-  const normalizedDefaultLocale = normalizeLocaleEnvValue(
+  const resolvedDefaultLocale = resolveOptionalLocaleFromEnv(
     process.env.SEED_ADMIN_DEFAULT_LOCALE,
+    "SEED_ADMIN_DEFAULT_LOCALE",
+    allowedLocales,
   );
 
-  if (normalizedDefaultLocale) {
-    if (allowedLocales.includes(normalizedDefaultLocale as UserLocale)) {
-      return normalizedDefaultLocale as UserLocale;
-    }
-
-    throw new Error(
-      `SEED_ADMIN_DEFAULT_LOCALE must be one of: ${allowedLocales.join(", ")}.`,
-    );
+  if (resolvedDefaultLocale) {
+    return resolvedDefaultLocale;
   }
 
   const [firstLocale] = allowedLocales;
@@ -289,19 +302,13 @@ function resolveDefaultSeedAdminLocale(): UserLocale {
 function resolveSeedAdminLocale(): UserLocale {
   const allowedLocales = Object.values(UserLocale) as UserLocale[];
   const fallbackLocale = DEFAULT_SEED_ADMIN_LOCALE;
-
-  const normalizedLocale = normalizeLocaleEnvValue(process.env.SEED_ADMIN_LOCALE);
-  if (!normalizedLocale) {
-    return fallbackLocale;
-  }
-
-  if (allowedLocales.includes(normalizedLocale as UserLocale)) {
-    return normalizedLocale as UserLocale;
-  }
-
-  throw new Error(
-    `SEED_ADMIN_LOCALE must be one of: ${allowedLocales.join(", ")}.`,
+  const resolvedLocale = resolveOptionalLocaleFromEnv(
+    process.env.SEED_ADMIN_LOCALE,
+    "SEED_ADMIN_LOCALE",
+    allowedLocales,
   );
+
+  return resolvedLocale ?? fallbackLocale;
 }
 
 function validateAdminPasswordOrThrow(password: string): void {
@@ -430,29 +437,25 @@ function throwInvalidAdminEmail(envVarName: string, reason: string): never {
   );
 }
 
+function getSensitiveEnvEntries(): Array<[string, string]> {
+  return Object.entries(process.env).filter(
+    (entry): entry is [string, string] =>
+      entry[1] !== undefined &&
+      entry[1].length > 0 &&
+      SENSITIVE_ENV_NAME_PATTERN.test(entry[0]),
+  );
+}
+
 function buildSensitiveValueList(): string[] {
   return Array.from(
     new Set(
-      Object.entries(process.env)
-        .filter(
-          ([envName, envValue]) =>
-            envValue !== undefined &&
-            envValue.length > 0 &&
-            SENSITIVE_ENV_NAME_PATTERN.test(envName),
-        )
-        .map(([, envValue]) => envValue as string),
+      getSensitiveEnvEntries().map(([, envValue]) => envValue),
     ),
   ).sort((left, right) => right.length - left.length);
 }
 
 function buildSensitiveEnvSignature(): string {
-  return Object.entries(process.env)
-    .filter(
-      ([envName, envValue]) =>
-        envValue !== undefined &&
-        envValue.length > 0 &&
-        SENSITIVE_ENV_NAME_PATTERN.test(envName),
-    )
+  return getSensitiveEnvEntries()
     .sort(([leftName], [rightName]) => leftName.localeCompare(rightName))
     .map(([envName, envValue]) => `${envName}=${envValue}`)
     .join("\u001F");
@@ -643,8 +646,12 @@ async function main() {
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
+        const safeProviderSlug = redactSensitiveValues(provider.slug);
+        const safeProviderName = redactSensitiveValues(provider.name);
         const safeErrorMessage = redactSensitiveValues(errorMessage);
-        throw new Error(`Failed to seed provider: ${safeErrorMessage}`);
+        throw new Error(
+          `Failed to seed provider '${safeProviderSlug}' (${safeProviderName}): ${safeErrorMessage}`,
+        );
       }
     }),
   );
