@@ -6,6 +6,7 @@
 ![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?logo=prisma&logoColor=white)
 [![Release](https://img.shields.io/badge/release-1.0.0-blue)](https://github.com/informigados/multi-account-ai-control/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/informigados/multi-account-ai-control)
 
 A **local-first** operations panel for managing multiple AI accounts with strong security, traceability, and day-to-day productivity.
 
