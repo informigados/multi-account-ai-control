@@ -215,14 +215,17 @@ async function main() {
     );
   }
 
-  const existingSystemAdmin =
-    existingAdminUsernameUser?.isSystemAdmin === true
-      ? null
-      : await prisma.user.findFirst({
-          where: { isSystemAdmin: true },
-          orderBy: { id: "asc" },
-          select: { id: true },
-        });
+  const usernameUserIsSystemAdmin =
+    existingAdminUsernameUser?.isSystemAdmin === true;
+  let existingSystemAdmin: { id: string } | null = null;
+
+  if (!usernameUserIsSystemAdmin) {
+    existingSystemAdmin = await prisma.user.findFirst({
+      where: { isSystemAdmin: true },
+      orderBy: { id: "asc" },
+      select: { id: true },
+    });
+  }
 
   // Prefer the system admin that already owns the bootstrap username.
   // Otherwise, fall back to the oldest system admin ID for deterministic updates.
@@ -230,7 +233,7 @@ async function main() {
   // throw above as a conflict, so this fallback only applies when no username
   // match exists.
   const targetSystemAdminId =
-    existingAdminUsernameUser?.isSystemAdmin === true
+    usernameUserIsSystemAdmin
       ? existingAdminUsernameUser.id
       : existingSystemAdmin?.id;
 
