@@ -83,6 +83,7 @@ Optional default admin seed values:
 - `DEFAULT_ADMIN_PASSWORD` (required for seed; must include uppercase, lowercase, number, and special character)
 - `SEED_ADMIN_LOCALE` (default: `pt_BR`; supported values: `pt_BR`, `en`)
 - `SEED_UPDATE_ADMIN_PASSWORD` (default: `false`; set `true` to force updating existing system admin password hash on seed runs)
+- `BCRYPT_SALT_ROUNDS` (default: `12`; valid range: `4` to `31`)
 
 ### 3) Install dependencies
 

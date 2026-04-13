@@ -7,7 +7,17 @@ import {
 } from "@prisma/client";
 
 const prisma = new PrismaClient();
-const BCRYPT_SALT_ROUNDS = 12;
+const DEFAULT_BCRYPT_SALT_ROUNDS = 12;
+const parsedBcryptSaltRounds = Number.parseInt(
+  process.env.BCRYPT_SALT_ROUNDS ?? "",
+  10,
+);
+const BCRYPT_SALT_ROUNDS =
+  Number.isInteger(parsedBcryptSaltRounds) &&
+  parsedBcryptSaltRounds >= 4 &&
+  parsedBcryptSaltRounds <= 31
+    ? parsedBcryptSaltRounds
+    : DEFAULT_BCRYPT_SALT_ROUNDS;
 
 const providerSeeds = [
   {
@@ -111,19 +121,21 @@ function buildAdminBaseData(
 }
 
 async function main() {
-  for (const provider of providerSeeds) {
-    await prisma.provider.upsert({
-      where: { slug: provider.slug },
-      update: {
-        name: provider.name,
-        connectorType: provider.connectorType,
-        color: provider.color,
-        description: provider.description,
-        isActive: true,
-      },
-      create: { ...provider, isActive: true },
-    });
-  }
+  await Promise.all(
+    providerSeeds.map((provider) =>
+      prisma.provider.upsert({
+        where: { slug: provider.slug },
+        update: {
+          name: provider.name,
+          connectorType: provider.connectorType,
+          color: provider.color,
+          description: provider.description,
+          isActive: true,
+        },
+        create: { ...provider, isActive: true },
+      }),
+    ),
+  );
 
   await Promise.all([
     prisma.appSetting.upsert({
@@ -195,6 +207,7 @@ async function main() {
   const [existingSystemAdmin, existingAdminUsernameUser] = await Promise.all([
     prisma.user.findFirst({
       where: { isSystemAdmin: true },
+      orderBy: { id: "asc" },
       select: { id: true },
     }),
     prisma.user.findUnique({
@@ -229,6 +242,9 @@ async function main() {
   }
 
   if (existingSystemAdmin) {
+    // Always reconcile bootstrap profile fields (username/email/role/locale/state)
+    // for the system admin. Password hash rotation is optional and only happens
+    // when explicitly requested via SEED_UPDATE_ADMIN_PASSWORD.
     const updateData: AdminUpdateData = {
       ...adminBaseData,
     };
