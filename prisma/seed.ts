@@ -171,8 +171,7 @@ async function main() {
   const defaultAdminUsername = "admin";
   const defaultAdminEmail =
     process.env.DEFAULT_ADMIN_EMAIL?.trim() || "admin@local";
-  const defaultAdminPassword =
-    process.env.DEFAULT_ADMIN_PASSWORD?.trim() || "ChangeThisNow!123";
+  const defaultAdminPassword = process.env.DEFAULT_ADMIN_PASSWORD?.trim();
   const defaultAdminLocale = resolveSeedAdminLocale();
   const shouldUpdateAdminPassword = parseBooleanFlag(
     process.env.SEED_UPDATE_ADMIN_PASSWORD,
@@ -183,12 +182,18 @@ async function main() {
     defaultAdminLocale,
   );
 
+  if (!defaultAdminPassword) {
+    throw new Error(
+      "DEFAULT_ADMIN_PASSWORD must be set to a non-empty value before running seeds.",
+    );
+  }
+
   validateAdminPasswordOrThrow(defaultAdminPassword);
 
   const [existingSystemAdmin, existingAdminUsernameUser] = await Promise.all([
     prisma.user.findFirst({
       where: { isSystemAdmin: true },
-      select: { id: true, passwordHash: true },
+      select: { id: true },
     }),
     prisma.user.findUnique({
       where: { username: defaultAdminUsername },
@@ -196,7 +201,6 @@ async function main() {
     }),
   ]);
 
-  const existingAdminUsernameUserId = existingAdminUsernameUser?.id ?? "unknown";
   const conflictsWithNonSystemAdminUsername =
     existingAdminUsernameUser !== null && !existingAdminUsernameUser.isSystemAdmin;
   const conflictsWithDifferentSystemAdmin =
@@ -207,13 +211,13 @@ async function main() {
 
   if (conflictsWithNonSystemAdminUsername) {
     throw new Error(
-      `Cannot bootstrap system admin: username '${defaultAdminUsername}' already exists for a non-system-admin user (id='${existingAdminUsernameUserId}'). Resolve this conflict manually.`,
+      `Cannot bootstrap system admin: username '${defaultAdminUsername}' already exists for a non-system-admin user (id='${existingAdminUsernameUser.id}'). Resolve this conflict manually.`,
     );
   }
 
   if (conflictsWithDifferentSystemAdmin) {
     throw new Error(
-      `Cannot bootstrap system admin: username '${defaultAdminUsername}' is tied to a different system admin user (id='${existingAdminUsernameUserId}'). Resolve this conflict manually.`,
+      `Cannot bootstrap system admin: username '${defaultAdminUsername}' is tied to a different system admin user (id='${existingAdminUsernameUser.id}'). Resolve this conflict manually.`,
     );
   }
 
@@ -222,13 +226,7 @@ async function main() {
       ...adminBaseData,
     };
     if (shouldUpdateAdminPassword) {
-      const passwordMatches = await bcrypt.compare(
-        defaultAdminPassword,
-        existingSystemAdmin.passwordHash,
-      );
-      if (!passwordMatches) {
-        updateData.passwordHash = await bcrypt.hash(defaultAdminPassword, 12);
-      }
+      updateData.passwordHash = await bcrypt.hash(defaultAdminPassword, 12);
     }
 
     await prisma.user.update({
