@@ -463,20 +463,20 @@ async function main() {
     }),
   ]);
 
-  const matchingUsers = await prisma.user.findMany({
-    where: {
-      OR: [
-        { username: defaultAdminUsername },
-        { email: defaultAdminEmail },
-      ],
-    },
-    select: USER_CONFLICT_CHECK_SELECT,
-  });
-  const usernameMatches = matchingUsers.filter(
-    (user) => user.username === defaultAdminUsername,
-  );
-  const emailMatches = matchingUsers.filter(
-    (user) => user.email === defaultAdminEmail,
+  const [usernameMatches, emailMatches] = await Promise.all([
+    prisma.user.findMany({
+      where: { username: defaultAdminUsername },
+      select: USER_CONFLICT_CHECK_SELECT,
+    }),
+    prisma.user.findMany({
+      where: { email: defaultAdminEmail },
+      select: USER_CONFLICT_CHECK_SELECT,
+    }),
+  ]);
+  const matchingUsers = Array.from(
+    new Map(
+      [...usernameMatches, ...emailMatches].map((user) => [user.id, user]),
+    ).values(),
   );
 
   if (matchingUsers.length > MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL) {
@@ -553,8 +553,9 @@ async function main() {
 }
 
 main()
-  .catch(async () => {
+  .catch(async (error) => {
     console.error("Seed failed.");
+    console.error(error);
     console.error("Troubleshooting steps:");
     for (const step of SEED_TROUBLESHOOTING_STEPS) {
       console.error(step);
