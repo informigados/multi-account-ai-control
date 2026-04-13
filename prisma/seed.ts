@@ -348,15 +348,24 @@ function escapeForLiteralRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+let cachedSensitiveValuePatterns: RegExp[] | null = null;
+
+function getSensitiveValuePatterns(): RegExp[] {
+  if (cachedSensitiveValuePatterns !== null) {
+    return cachedSensitiveValuePatterns;
+  }
+
+  cachedSensitiveValuePatterns = buildSensitiveValueList().map(
+    (sensitiveValue) =>
+      new RegExp(escapeForLiteralRegex(sensitiveValue), "g"),
+  );
+  return cachedSensitiveValuePatterns;
+}
+
 function redactSensitiveValues(rawText: string): string {
-  return buildSensitiveValueList().reduce(
-    (sanitizedText, sensitiveValue) => {
-      const escapedSensitiveValue = escapeForLiteralRegex(sensitiveValue);
-      return sanitizedText.replace(
-        new RegExp(escapedSensitiveValue, "g"),
-        "[REDACTED]",
-      );
-    },
+  return getSensitiveValuePatterns().reduce(
+    (sanitizedText, sensitiveValuePattern) =>
+      sanitizedText.replace(sensitiveValuePattern, "[REDACTED]"),
     rawText,
   );
 }
@@ -486,47 +495,51 @@ async function main() {
     ),
   );
 
+  const uiThemeDefaultValueJson: Prisma.InputJsonValue = { mode: "system" };
+  const uiLocaleDefaultValueJson: Prisma.InputJsonValue = {
+    locale: defaultAdminLocale,
+  };
+  const auditLogRetentionValueJson: Prisma.InputJsonValue = {
+    enabled: false,
+    days: null,
+  };
+  const securityIdleLockValueJson: Prisma.InputJsonValue = {
+    enabled: false,
+    timeoutMinutes: 10,
+    requirePasswordOnUnlock: true,
+  };
+
   await Promise.all([
     prisma.appSetting.upsert({
       where: { key: "ui.theme.default" },
-      update: { valueJson: { mode: "system" } },
+      update: { valueJson: uiThemeDefaultValueJson },
       create: {
         key: "ui.theme.default",
-        valueJson: { mode: "system" },
+        valueJson: uiThemeDefaultValueJson,
       },
     }),
     prisma.appSetting.upsert({
       where: { key: "ui.locale.default" },
-      update: { valueJson: { locale: defaultAdminLocale } },
+      update: { valueJson: uiLocaleDefaultValueJson },
       create: {
         key: "ui.locale.default",
-        valueJson: { locale: defaultAdminLocale },
+        valueJson: uiLocaleDefaultValueJson,
       },
     }),
     prisma.appSetting.upsert({
       where: { key: "audit.log.retention" },
-      update: { valueJson: { enabled: false, days: null } },
+      update: { valueJson: auditLogRetentionValueJson },
       create: {
         key: "audit.log.retention",
-        valueJson: { enabled: false, days: null },
+        valueJson: auditLogRetentionValueJson,
       },
     }),
     prisma.appSetting.upsert({
       where: { key: "security.idle_lock" },
-      update: {
-        valueJson: {
-          enabled: false,
-          timeoutMinutes: 10,
-          requirePasswordOnUnlock: true,
-        },
-      },
+      update: { valueJson: securityIdleLockValueJson },
       create: {
         key: "security.idle_lock",
-        valueJson: {
-          enabled: false,
-          timeoutMinutes: 10,
-          requirePasswordOnUnlock: true,
-        },
+        valueJson: securityIdleLockValueJson,
       },
     }),
   ]);
