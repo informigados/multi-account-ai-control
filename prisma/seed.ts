@@ -9,9 +9,6 @@ import {
 
 const prisma = new PrismaClient();
 const DEFAULT_BCRYPT_SALT_ROUNDS = 12;
-const MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL = 2;
-const MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL_PLUS_ONE =
-  MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL + 1;
 const rawBcryptSaltRounds = process.env.BCRYPT_SALT_ROUNDS?.trim();
 const parsedBcryptSaltRounds =
   rawBcryptSaltRounds && rawBcryptSaltRounds.length > 0
@@ -209,6 +206,9 @@ function validateAdminEmailOrThrow(email: string): void {
     );
   }
 
+  // RFC 5322-inspired dot-atom local-part validation (practical subset):
+  // allows one or more "atext" chars, optionally dot-separated,
+  // while preventing leading/trailing or consecutive dots.
   const localPartPattern =
     /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/;
   if (!localPartPattern.test(localPart)) {
@@ -225,19 +225,22 @@ function validateAdminEmailOrThrow(email: string): void {
   }
 
   for (const label of domainLabels) {
-    const isValidLabel =
-      label.length > 0 &&
-      label.length <= 63 &&
-      /^[A-Za-z0-9-]+$/.test(label) &&
-      !label.startsWith("-") &&
-      !label.endsWith("-");
-
-    if (!isValidLabel) {
+    if (!isValidDomainLabel(label)) {
       throw new Error(
         "DEFAULT_ADMIN_EMAIL must be a valid email address (e.g., admin@example.com).",
       );
     }
   }
+}
+
+function isValidDomainLabel(label: string): boolean {
+  return (
+    label.length > 0 &&
+    label.length <= 63 &&
+    /^[A-Za-z0-9-]+$/.test(label) &&
+    !label.startsWith("-") &&
+    !label.endsWith("-")
+  );
 }
 
 function buildAdminBaseData(
@@ -379,34 +382,16 @@ async function main() {
     defaultAdminLocale,
   );
 
-  const existingUsersByUsernameOrEmail = await prisma.user.findMany({
-    where: {
-      OR: [
-        { username: defaultAdminUsername },
-        { email: defaultAdminEmail },
-      ],
-    },
-    select: USER_CONFLICT_CHECK_SELECT,
-    // Fetch one extra row so we can detect unexpected integrity issues
-    // instead of silently truncating results.
-    take: MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL_PLUS_ONE,
-  });
-  if (
-    existingUsersByUsernameOrEmail.length >
-    MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL
-  ) {
-    throw new Error(
-      `Cannot bootstrap system admin: found more than two users matching username '${defaultAdminUsername}' or email '${defaultAdminEmail}'. This indicates data integrity issues that must be resolved manually.`,
-    );
-  }
-  const existingUserByUsername =
-    existingUsersByUsernameOrEmail.find(
-      (user) => user.username === defaultAdminUsername,
-    ) ?? null;
-  const existingUserByEmail =
-    existingUsersByUsernameOrEmail.find(
-      (user) => user.email === defaultAdminEmail,
-    ) ?? null;
+  const [existingUserByUsername, existingUserByEmail] = await Promise.all([
+    prisma.user.findUnique({
+      where: { username: defaultAdminUsername },
+      select: USER_CONFLICT_CHECK_SELECT,
+    }),
+    prisma.user.findUnique({
+      where: { email: defaultAdminEmail },
+      select: USER_CONFLICT_CHECK_SELECT,
+    }),
+  ]);
 
   if (existingUserByUsername && !existingUserByUsername.isSystemAdmin) {
     throw new Error(
