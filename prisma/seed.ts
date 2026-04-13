@@ -149,15 +149,19 @@ async function hashAdminPassword(password: string): Promise<string> {
   return bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
 }
 
-function isEmailOwnedByDifferentUser(
+function getConflictingEmailOwnerId(
   userByEmail: ExistingUserLookup | null,
   userByUsername: ExistingUserLookup | null,
-): boolean {
+): string | null {
   if (!userByEmail) {
-    return false;
+    return null;
   }
 
-  return !userByUsername || userByEmail.id !== userByUsername.id;
+  if (!userByUsername || userByEmail.id !== userByUsername.id) {
+    return userByEmail.id;
+  }
+
+  return null;
 }
 
 async function main() {
@@ -260,8 +264,15 @@ async function main() {
     },
     // We only need fields used by conflict checks and ownership comparisons.
     select: { id: true, username: true, email: true, isSystemAdmin: true },
-    take: 2,
+    // Fetch one extra row so we can detect unexpected integrity issues
+    // instead of silently truncating results.
+    take: 3,
   });
+  if (existingUsersByUsernameOrEmail.length > 2) {
+    throw new Error(
+      `Cannot bootstrap system admin: found more than two users matching username '${defaultAdminUsername}' or email '${defaultAdminEmail}'. This indicates data integrity issues that must be resolved manually.`,
+    );
+  }
   const existingUserByUsername =
     existingUsersByUsernameOrEmail.find(
       (user) => user.username === defaultAdminUsername,
@@ -277,13 +288,13 @@ async function main() {
     );
   }
 
-  const isEmailConflict = isEmailOwnedByDifferentUser(
+  const conflictingEmailOwnerId = getConflictingEmailOwnerId(
     existingUserByEmail,
     existingUserByUsername,
   );
-  if (isEmailConflict) {
+  if (conflictingEmailOwnerId) {
     throw new Error(
-      `Cannot bootstrap system admin: email '${defaultAdminEmail}' already exists for a different user (id='${existingUserByEmail.id}'). Resolve this conflict manually.`,
+      `Cannot bootstrap system admin: email '${defaultAdminEmail}' already exists for a different user (id='${conflictingEmailOwnerId}'). Resolve this conflict manually.`,
     );
   }
 
