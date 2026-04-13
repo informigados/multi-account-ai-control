@@ -13,6 +13,7 @@ const prisma = new PrismaClient();
 const MIN_ADMIN_PASSWORD_LENGTH = 12;
 // RFC 5321: maximum mailbox length is 254 characters.
 const MAX_EMAIL_LENGTH = 254;
+const DEFAULT_SEED_ADMIN_LOCALE: UserLocale = UserLocale.pt_BR;
 const DEFAULT_BCRYPT_SALT_ROUNDS = 12;
 // At most two users can be returned by username/email lookup:
 // one matching username and another matching email (or one matching both).
@@ -155,7 +156,7 @@ function resolveSeedAdminLocale(): UserLocale {
   const allowedLocales = Object.values(UserLocale) as string[];
   const defaultLocaleFromEnv = process.env.SEED_ADMIN_DEFAULT_LOCALE?.trim();
   const normalizedDefaultLocale = defaultLocaleFromEnv?.replace(/-/g, "_");
-  const fallbackLocale = normalizedDefaultLocale ?? UserLocale.pt_BR;
+  const fallbackLocale = normalizedDefaultLocale ?? DEFAULT_SEED_ADMIN_LOCALE;
   if (!allowedLocales.includes(fallbackLocale)) {
     throw new Error(
       `SEED_ADMIN_DEFAULT_LOCALE must be one of: ${allowedLocales.join(", ")}.`,
@@ -431,17 +432,31 @@ async function main() {
     },
     select: USER_CONFLICT_CHECK_SELECT,
   });
+  const usernameMatches = matchingUsers.filter(
+    (user) => user.username === defaultAdminUsername,
+  );
+  const emailMatches = matchingUsers.filter(
+    (user) => user.email === defaultAdminEmail,
+  );
+
   if (matchingUsers.length > MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL) {
     throw new Error(
       `Cannot bootstrap system admin: found ${matchingUsers.length} users matching username '${defaultAdminUsername}' or email '${defaultAdminEmail}', exceeding the expected maximum of ${MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL}. This indicates a data integrity issue that must be resolved manually.`,
     );
   }
+  if (
+    usernameMatches.length > 1 ||
+    emailMatches.length > 1 ||
+    (matchingUsers.length === MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL &&
+      (usernameMatches.length !== 1 || emailMatches.length !== 1))
+  ) {
+    throw new Error(
+      `Cannot bootstrap system admin: unexpected match distribution (username matches=${usernameMatches.length}, email matches=${emailMatches.length}). Resolve this data integrity conflict manually.`,
+    );
+  }
 
-  const existingUserByUsername =
-    matchingUsers.find((user) => user.username === defaultAdminUsername) ??
-    null;
-  const existingUserByEmail =
-    matchingUsers.find((user) => user.email === defaultAdminEmail) ?? null;
+  const existingUserByUsername = usernameMatches[0] ?? null;
+  const existingUserByEmail = emailMatches[0] ?? null;
 
   if (existingUserByUsername && !existingUserByUsername.isSystemAdmin) {
     throw new Error(
@@ -464,7 +479,7 @@ async function main() {
   // Note: if `existingUserByUsername` exists but is not a system admin, we
   // throw above as a conflict.
   const existingSystemAdminId =
-    existingUserByUsername?.isSystemAdmin === true
+    existingUserByUsername?.isSystemAdmin
       ? existingUserByUsername.id
       : undefined;
 
@@ -499,18 +514,8 @@ async function main() {
 
 main()
   .catch(async (error) => {
-    const errorSummary =
-      error instanceof Error ? error.message : String(error);
-    console.error(
-      `Seed failed during prisma seed main() execution: ${errorSummary}`,
-    );
-    if (error instanceof Error) {
-      if (error.stack) {
-        console.error("Error stack:", error.stack);
-      }
-    } else {
-      console.error("Non-Error rejection:", error);
-    }
+    void error;
+    console.error("Seed failed.");
     console.error("Troubleshooting steps:");
     for (const step of SEED_TROUBLESHOOTING_STEPS) {
       console.error(step);
