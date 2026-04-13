@@ -70,6 +70,12 @@ type AdminBaseData = {
   isActive: boolean;
   isSystemAdmin: boolean;
 };
+type ExistingUserLookup = {
+  id: string;
+  username: string;
+  email: string;
+  isSystemAdmin: boolean;
+};
 
 type AdminUpdateData = AdminBaseData & { passwordHash?: string };
 const SEED_TROUBLESHOOTING_STEPS = [
@@ -141,6 +147,17 @@ function buildAdminBaseData(
 
 async function hashAdminPassword(password: string): Promise<string> {
   return bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
+}
+
+function isEmailOwnedByDifferentUser(
+  userByEmail: ExistingUserLookup | null,
+  userByUsername: ExistingUserLookup | null,
+): boolean {
+  if (!userByEmail) {
+    return false;
+  }
+
+  return !userByUsername || userByEmail.id !== userByUsername.id;
 }
 
 async function main() {
@@ -260,12 +277,9 @@ async function main() {
     );
   }
 
-  // Email is a conflict when it already exists and is not owned by
-  // the same user resolved by the bootstrap username lookup.
-  const isEmailConflict = Boolean(
-    existingUserByEmail &&
-      (!existingUserByUsername ||
-        existingUserByEmail.id !== existingUserByUsername.id),
+  const isEmailConflict = isEmailOwnedByDifferentUser(
+    existingUserByEmail,
+    existingUserByUsername,
   );
   if (isEmailConflict) {
     throw new Error(
