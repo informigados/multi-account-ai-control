@@ -18,8 +18,10 @@ function getPrismaClient(): PrismaClient {
 }
 
 const prisma = getPrismaClient();
-// Minimum length requirement helps reduce weak-password risk and
-// aligns with modern baseline guidance.
+// Require at least 12 characters for admin passwords because 12 is a
+// widely accepted modern baseline: it materially improves resistance to
+// guessing/brute-force attacks compared with shorter lengths while
+// remaining practical for user adoption.
 const MIN_ADMIN_PASSWORD_LENGTH = 12;
 // Common weak passwords that should never be accepted, even if they pass
 // composition checks.
@@ -43,12 +45,18 @@ const MIN_SEQUENTIAL_RUN_LENGTH = 4;
 const REPEATED_CHAR_RUN_REGEX = /(.)\1{3,}/;
 // RFC 5321: maximum mailbox length is 254 characters.
 const MAX_EMAIL_LENGTH = 254;
+// RFC 1035: domain name total length is capped by label structure, with
+// practical mailbox domain-part validation typically enforcing <= 253.
+const MAX_EMAIL_DOMAIN_LENGTH = 253;
+// RFC 1035 §2.3.4: each DNS label must be 63 octets or fewer.
+const MAX_DNS_LABEL_LENGTH = 63;
 const DEFAULT_SEED_ADMIN_LOCALE: UserLocale = resolveDefaultSeedAdminLocale();
 const DEFAULT_BCRYPT_SALT_ROUNDS = 12;
 // At most two users can be returned by username/email lookup:
 // one matching username and another matching email (or one matching both).
 const MAX_COMBINED_USERNAME_EMAIL_MATCHES = 2;
 const USER_CONFLICT_QUERY_LIMIT = MAX_COMBINED_USERNAME_EMAIL_MATCHES + 1;
+const DEFAULT_IDLE_TIMEOUT_MINUTES = 10;
 // RFC 5322-inspired "atext" subset used for dot-atom local-part validation.
 const EMAIL_LOCAL_PART_ATEXT_CLASS = "A-Za-z0-9!#$%&'*+/=?^_`{|}~-";
 const EMAIL_LOCAL_PART_PATTERN = new RegExp(
@@ -385,7 +393,7 @@ function validateAdminEmailOrThrow(email: string, envVarName: string): void {
     localPart.length === 0 ||
     localPart.length > 64 ||
     domainPart.length === 0 ||
-    domainPart.length > 253
+    domainPart.length > MAX_EMAIL_DOMAIN_LENGTH
   ) {
     throwInvalidAdminEmail(envVarName, "invalid local-part or domain length");
   }
@@ -424,7 +432,7 @@ function isValidDomainLabel(label: string): boolean {
   return (
     label.length > 0 &&
     // RFC 1035 §2.3.4: each DNS label must be 63 octets or fewer.
-    label.length <= 63 &&
+    label.length <= MAX_DNS_LABEL_LENGTH &&
     /^[A-Za-z0-9-]+$/.test(label) &&
     !label.startsWith("-") &&
     !label.endsWith("-")
@@ -666,7 +674,7 @@ async function main() {
   };
   const securityIdleLockValueJson: Prisma.InputJsonValue = {
     enabled: false,
-    timeoutMinutes: 10,
+    timeoutMinutes: DEFAULT_IDLE_TIMEOUT_MINUTES,
     requirePasswordOnUnlock: true,
   };
 
