@@ -235,11 +235,11 @@ async function main() {
     select: { id: true },
   });
 
-  const emailBelongsToDifferentUser =
+  const isEmailConflict =
     existingUserByEmail !== null &&
     (existingUserByUsername === null ||
       existingUserByEmail.id !== existingUserByUsername.id);
-  if (emailBelongsToDifferentUser) {
+  if (isEmailConflict) {
     throw new Error(
       `Cannot bootstrap system admin: email '${defaultAdminEmail}' already exists for a different user (id='${existingUserByEmail.id}'). Resolve this conflict manually.`,
     );
@@ -251,12 +251,12 @@ async function main() {
   // If there is no matching system-admin username, create a new one below.
   // Note: if `existingUserByUsername` exists but is not a system admin, we
   // throw above as a conflict.
-  const targetSystemAdminId =
+  const existingSystemAdminId =
     existingUserIsSystemAdmin
       ? existingUserByUsername.id
       : undefined;
 
-  if (targetSystemAdminId) {
+  if (existingSystemAdminId) {
     // Always reconcile bootstrap profile fields (username/email/role/locale/state)
     // for the system admin. Password hash rotation is optional and only happens
     // when explicitly requested via SEED_UPDATE_ADMIN_PASSWORD.
@@ -270,7 +270,7 @@ async function main() {
     };
 
     await prisma.user.update({
-      where: { id: targetSystemAdminId },
+      where: { id: existingSystemAdminId },
       data: updateData,
     });
   } else {
@@ -290,7 +290,11 @@ main()
     await prisma.$disconnect();
   })
   .catch(async (error) => {
-    console.error("Seed failed.");
+    const errorSummary =
+      error instanceof Error ? error.message : String(error);
+    console.error(
+      `Seed failed during prisma seed main() execution: ${errorSummary}`,
+    );
     if (error instanceof Error) {
       console.error("Error message:", error.message);
       if (error.stack) {
