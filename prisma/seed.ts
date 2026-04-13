@@ -226,6 +226,20 @@ async function main() {
     );
   }
 
+  const existingUserByEmail = await prisma.user.findUnique({
+    where: { email: defaultAdminEmail },
+    select: { id: true },
+  });
+
+  if (
+    existingUserByEmail &&
+    existingUserByEmail.id !== existingUserByUsername?.id
+  ) {
+    throw new Error(
+      `Cannot bootstrap system admin: email '${defaultAdminEmail}' already exists for a different user (id='${existingUserByEmail.id}'). Resolve this conflict manually.`,
+    );
+  }
+
   const usernameUserIsSystemAdmin =
     existingUserByUsername?.isSystemAdmin === true;
   // Only update when the bootstrap username already belongs to a system admin.
