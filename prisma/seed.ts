@@ -404,6 +404,28 @@ function getConflictingEmailOwnerId(
   return null;
 }
 
+function buildMatchingUsersList(
+  existingUserByUsername: ExistingUserLookup | null,
+  existingUserByEmail: ExistingUserLookup | null,
+): ExistingUserLookup[] {
+  if (existingUserByUsername === null) {
+    if (existingUserByEmail === null) {
+      return [];
+    }
+    return [existingUserByEmail];
+  }
+
+  if (existingUserByEmail === null) {
+    return [existingUserByUsername];
+  }
+
+  if (existingUserByUsername.id === existingUserByEmail.id) {
+    return [existingUserByUsername];
+  }
+
+  return [existingUserByUsername, existingUserByEmail];
+}
+
 async function main() {
   const defaultAdminUsername =
     sanitizeCredentialEnvValue(
@@ -509,24 +531,20 @@ async function main() {
     prisma.user.findMany({
       where: { username: defaultAdminUsername },
       select: USER_CONFLICT_CHECK_SELECT,
+      take: 2,
     }),
     prisma.user.findMany({
       where: { email: defaultAdminEmail },
       select: USER_CONFLICT_CHECK_SELECT,
+      take: 2,
     }),
   ]);
   const existingUserByUsername = usernameMatches[0] ?? null;
   const existingUserByEmail = emailMatches[0] ?? null;
-  const matchingUsers =
-    existingUserByUsername === null
-      ? existingUserByEmail === null
-        ? []
-        : [existingUserByEmail]
-      : existingUserByEmail === null
-        ? [existingUserByUsername]
-        : existingUserByUsername.id === existingUserByEmail.id
-          ? [existingUserByUsername]
-          : [existingUserByUsername, existingUserByEmail];
+  const matchingUsers = buildMatchingUsersList(
+    existingUserByUsername,
+    existingUserByEmail,
+  );
 
   if (matchingUsers.length > MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL) {
     throw new Error(
