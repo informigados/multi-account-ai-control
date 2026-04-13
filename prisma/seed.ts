@@ -225,32 +225,40 @@ async function main() {
     );
   }
 
+  validateAdminPasswordOrThrow(defaultAdminPassword);
+  validateAdminEmailOrThrow(defaultAdminEmail);
+
   const adminBaseData = buildAdminBaseData(
     defaultAdminUsername,
     defaultAdminEmail,
     defaultAdminLocale,
   );
 
-  validateAdminPasswordOrThrow(defaultAdminPassword);
-  validateAdminEmailOrThrow(defaultAdminEmail);
-
-  const existingUserByUsername = await prisma.user.findUnique({
-    where: { username: defaultAdminUsername },
-    // Only ID and isSystemAdmin are needed for conflict checks
-    // and for determining whether to update an existing admin or create one.
-    select: { id: true, isSystemAdmin: true },
+  const existingUsersByUsernameOrEmail = await prisma.user.findMany({
+    where: {
+      OR: [
+        { username: defaultAdminUsername },
+        { email: defaultAdminEmail },
+      ],
+    },
+    // We only need fields used by conflict checks and ownership comparisons.
+    select: { id: true, username: true, email: true, isSystemAdmin: true },
+    take: 2,
   });
+  const existingUserByUsername =
+    existingUsersByUsernameOrEmail.find(
+      (user) => user.username === defaultAdminUsername,
+    ) ?? null;
+  const existingUserByEmail =
+    existingUsersByUsernameOrEmail.find(
+      (user) => user.email === defaultAdminEmail,
+    ) ?? null;
 
   if (existingUserByUsername && !existingUserByUsername.isSystemAdmin) {
     throw new Error(
       `Cannot bootstrap system admin: username '${defaultAdminUsername}' already exists for a non-system-admin user (id='${existingUserByUsername.id}'). Resolve this conflict manually.`,
     );
   }
-
-  const existingUserByEmail = await prisma.user.findUnique({
-    where: { email: defaultAdminEmail },
-    select: { id: true },
-  });
 
   // Email is a conflict when it already exists and is not owned by
   // the same user resolved by the bootstrap username lookup.
