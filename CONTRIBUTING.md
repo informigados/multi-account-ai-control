@@ -35,7 +35,7 @@ Thank you for contributing to **Multi Account AI Control**.
 - [ ] `npm run lint` passes with no errors
 - [ ] `npm run test:critical` passes
 - [ ] `npm run build` passes
-- [ ] Documentation updated (`README`, `docs/`, `ROADMAP` when applicable)
+- [ ] Documentation updated (`README`, `CONTRIBUTING`, `SECURITY` when applicable)
 - [ ] No secrets, tokens, or sensitive data committed
 
 ## 🧱 Code Standards
@@ -54,14 +54,14 @@ Suggested format:
 - `fix: ...`
 - `refactor: ...`
 - `test: ...`
-- `docs: ...`
+- `documentation: ...`
 - `chore: ...`
 
 Examples:
 
 - `feat: add cursor pagination to providers API`
 - `fix: harden backup restore validation`
-- `docs: update API docs for imports history endpoint`
+- `documentation: update API reference for imports history endpoint`
 
 ## 🔍 Pull Request Content
 

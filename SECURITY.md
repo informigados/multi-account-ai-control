@@ -4,10 +4,6 @@
 
 This repository contains a local-first system that handles sensitive data (credentials, secrets, and audit traces). Security is a mandatory requirement.
 
-Technical reference for implemented controls:
-
-- [docs/SECURITY.md](docs/SECURITY.md)
-
 ## 🛡️ Supported Versions
 
 | Version | Security support |
