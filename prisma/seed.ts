@@ -14,7 +14,14 @@ const MIN_ADMIN_PASSWORD_LENGTH = 12;
 // RFC 5321: maximum mailbox length is 254 characters.
 const MAX_EMAIL_LENGTH = 254;
 const DEFAULT_BCRYPT_SALT_ROUNDS = 12;
+// At most two users can be returned by username/email lookup:
+// one matching username and another matching email (or one matching both).
 const MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL = 2;
+// RFC 5322-inspired "atext" subset used for dot-atom local-part validation.
+const EMAIL_LOCAL_PART_ATEXT_CLASS = "A-Za-z0-9!#$%&'*+/=?^_`{|}~-";
+const EMAIL_LOCAL_PART_PATTERN = new RegExp(
+  `^[${EMAIL_LOCAL_PART_ATEXT_CLASS}]+(?:\\.[${EMAIL_LOCAL_PART_ATEXT_CLASS}]+)*$`,
+);
 // Explicit list of special characters accepted by the admin
 // password policy. Keeping this as data improves readability
 // and makes future policy updates safer.
@@ -150,7 +157,7 @@ function resolveSeedAdminLocale(): UserLocale {
     return UserLocale.pt_BR;
   }
 
-  const normalizedLocale = localeFromEnv.replaceAll("-", "_");
+  const normalizedLocale = localeFromEnv.replace(/-/g, "_");
   const allowedLocales = Object.values(UserLocale) as string[];
   if (allowedLocales.includes(normalizedLocale)) {
     return normalizedLocale as UserLocale;
@@ -230,9 +237,7 @@ function validateAdminEmailOrThrow(email: string): void {
   // RFC 5322-inspired dot-atom local-part validation (practical subset):
   // allows one or more "atext" chars, optionally dot-separated,
   // while preventing leading/trailing or consecutive dots.
-  const localPartPattern =
-    /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/;
-  if (!localPartPattern.test(localPart)) {
+  if (!EMAIL_LOCAL_PART_PATTERN.test(localPart)) {
     throwInvalidAdminEmail("invalid local-part characters");
   }
 
@@ -415,7 +420,7 @@ async function main() {
   });
   if (matchingUsers.length > MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL) {
     throw new Error(
-      `Cannot bootstrap system admin: username '${defaultAdminUsername}' and email '${defaultAdminEmail}' are already used by different users. This indicates data integrity issues that must be resolved manually.`,
+      `Cannot bootstrap system admin: found ${matchingUsers.length} users matching username '${defaultAdminUsername}' or email '${defaultAdminEmail}', exceeding the expected maximum of ${MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL}. This indicates a data integrity issue that must be resolved manually.`,
     );
   }
 
