@@ -13,8 +13,8 @@ const rawBcryptSaltRounds = process.env.BCRYPT_SALT_ROUNDS?.trim();
 const parsedBcryptSaltRounds =
   rawBcryptSaltRounds && rawBcryptSaltRounds.length > 0
     ? (() => {
-        const parsed = Number.parseInt(rawBcryptSaltRounds, 10);
-        return Number.isNaN(parsed) ? undefined : parsed;
+        const parsedSaltRounds = Number.parseInt(rawBcryptSaltRounds, 10);
+        return Number.isNaN(parsedSaltRounds) ? undefined : parsedSaltRounds;
       })()
     : undefined;
 const BCRYPT_SALT_ROUNDS =
@@ -138,7 +138,7 @@ function resolveSeedAdminLocale(): UserLocale {
 
 function validateAdminPasswordOrThrow(password: string): void {
   if (password.length < 12) {
-    throw new Error("Admin password must have at least 12 characters.");
+    throw new Error("Admin password must be at least 12 characters long.");
   }
 
   const hasUppercase = /[A-Z]/.test(password);
@@ -169,15 +169,13 @@ function validateAdminPasswordOrThrow(password: string): void {
 function validateAdminEmailOrThrow(email: string): void {
   if (email.length > 254) {
     throw new Error(
-      "DEFAULT_ADMIN_EMAIL must be a valid email address (e.g., admin@example.com).",
+      "DEFAULT_ADMIN_EMAIL email address is too long (max 254 characters).",
     );
   }
 
   const atIndex = email.indexOf("@");
   if (atIndex <= 0 || atIndex !== email.lastIndexOf("@")) {
-    throw new Error(
-      "DEFAULT_ADMIN_EMAIL must be a valid email address (e.g., admin@example.com).",
-    );
+    throwInvalidAdminEmail("missing or invalid @ separator");
   }
 
   const localPart = email.slice(0, atIndex);
@@ -188,9 +186,7 @@ function validateAdminEmailOrThrow(email: string): void {
     domainPart.length === 0 ||
     domainPart.length > 253
   ) {
-    throw new Error(
-      "DEFAULT_ADMIN_EMAIL must be a valid email address (e.g., admin@example.com).",
-    );
+    throwInvalidAdminEmail("invalid local-part or domain length");
   }
 
   if (
@@ -201,9 +197,7 @@ function validateAdminEmailOrThrow(email: string): void {
     localPart.includes("..") ||
     domainPart.includes("..")
   ) {
-    throw new Error(
-      "DEFAULT_ADMIN_EMAIL must be a valid email address (e.g., admin@example.com).",
-    );
+    throwInvalidAdminEmail("invalid dot placement");
   }
 
   // RFC 5322-inspired dot-atom local-part validation (practical subset):
@@ -212,23 +206,17 @@ function validateAdminEmailOrThrow(email: string): void {
   const localPartPattern =
     /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/;
   if (!localPartPattern.test(localPart)) {
-    throw new Error(
-      "DEFAULT_ADMIN_EMAIL must be a valid email address (e.g., admin@example.com).",
-    );
+    throwInvalidAdminEmail("invalid local-part characters");
   }
 
   const domainLabels = domainPart.split(".");
   if (domainLabels.length < 2) {
-    throw new Error(
-      "DEFAULT_ADMIN_EMAIL must be a valid email address (e.g., admin@example.com).",
-    );
+    throwInvalidAdminEmail("missing top-level domain");
   }
 
   for (const label of domainLabels) {
     if (!isValidDomainLabel(label)) {
-      throw new Error(
-        "DEFAULT_ADMIN_EMAIL must be a valid email address (e.g., admin@example.com).",
-      );
+      throwInvalidAdminEmail("invalid domain label");
     }
   }
 }
@@ -240,6 +228,12 @@ function isValidDomainLabel(label: string): boolean {
     /^[A-Za-z0-9-]+$/.test(label) &&
     !label.startsWith("-") &&
     !label.endsWith("-")
+  );
+}
+
+function throwInvalidAdminEmail(reason: string): never {
+  throw new Error(
+    `DEFAULT_ADMIN_EMAIL must be a valid email address (${reason}; e.g., admin@example.com).`,
   );
 }
 
