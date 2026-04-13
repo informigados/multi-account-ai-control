@@ -122,51 +122,50 @@ async function main() {
     });
   }
 
-  await prisma.appSetting.upsert({
-    where: { key: "ui.theme.default" },
-    update: { valueJson: { mode: "system" } },
-    create: {
-      key: "ui.theme.default",
-      valueJson: { mode: "system" },
-    },
-  });
-
-  await prisma.appSetting.upsert({
-    where: { key: "ui.locale.default" },
-    update: { valueJson: { locale: "pt_BR" } },
-    create: {
-      key: "ui.locale.default",
-      valueJson: { locale: "pt_BR" },
-    },
-  });
-
-  await prisma.appSetting.upsert({
-    where: { key: "audit.log.retention" },
-    update: { valueJson: { enabled: false, days: null } },
-    create: {
-      key: "audit.log.retention",
-      valueJson: { enabled: false, days: null },
-    },
-  });
-
-  await prisma.appSetting.upsert({
-    where: { key: "security.idle_lock" },
-    update: {
-      valueJson: {
-        enabled: false,
-        timeoutMinutes: 10,
-        requirePasswordOnUnlock: true,
+  await Promise.all([
+    prisma.appSetting.upsert({
+      where: { key: "ui.theme.default" },
+      update: { valueJson: { mode: "system" } },
+      create: {
+        key: "ui.theme.default",
+        valueJson: { mode: "system" },
       },
-    },
-    create: {
-      key: "security.idle_lock",
-      valueJson: {
-        enabled: false,
-        timeoutMinutes: 10,
-        requirePasswordOnUnlock: true,
+    }),
+    prisma.appSetting.upsert({
+      where: { key: "ui.locale.default" },
+      update: { valueJson: { locale: "pt_BR" } },
+      create: {
+        key: "ui.locale.default",
+        valueJson: { locale: "pt_BR" },
       },
-    },
-  });
+    }),
+    prisma.appSetting.upsert({
+      where: { key: "audit.log.retention" },
+      update: { valueJson: { enabled: false, days: null } },
+      create: {
+        key: "audit.log.retention",
+        valueJson: { enabled: false, days: null },
+      },
+    }),
+    prisma.appSetting.upsert({
+      where: { key: "security.idle_lock" },
+      update: {
+        valueJson: {
+          enabled: false,
+          timeoutMinutes: 10,
+          requirePasswordOnUnlock: true,
+        },
+      },
+      create: {
+        key: "security.idle_lock",
+        valueJson: {
+          enabled: false,
+          timeoutMinutes: 10,
+          requirePasswordOnUnlock: true,
+        },
+      },
+    }),
+  ]);
 
   const defaultAdminUsername = "admin";
   const defaultAdminEmail =
@@ -201,21 +200,21 @@ async function main() {
     }),
   ]);
 
-  const conflictsWithNonSystemAdminUsername =
+  const hasUsernameConflict =
     existingAdminUsernameUser !== null && !existingAdminUsernameUser.isSystemAdmin;
-  const conflictsWithDifferentSystemAdmin =
+  const hasSystemAdminConflict =
     existingAdminUsernameUser !== null &&
     existingAdminUsernameUser.isSystemAdmin &&
     (existingSystemAdmin === null ||
       existingAdminUsernameUser.id !== existingSystemAdmin.id);
 
-  if (conflictsWithNonSystemAdminUsername) {
+  if (hasUsernameConflict) {
     throw new Error(
       `Cannot bootstrap system admin: username '${defaultAdminUsername}' already exists for a non-system-admin user (id='${existingAdminUsernameUser.id}'). Resolve this conflict manually.`,
     );
   }
 
-  if (conflictsWithDifferentSystemAdmin) {
+  if (hasSystemAdminConflict) {
     throw new Error(
       `Cannot bootstrap system admin: username '${defaultAdminUsername}' is tied to a different system admin user (id='${existingAdminUsernameUser.id}'). Resolve this conflict manually.`,
     );
