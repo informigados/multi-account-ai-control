@@ -17,7 +17,7 @@ const DEFAULT_SEED_ADMIN_LOCALE: UserLocale = resolveDefaultSeedAdminLocale();
 const DEFAULT_BCRYPT_SALT_ROUNDS = 12;
 // At most two users can be returned by username/email lookup:
 // one matching username and another matching email (or one matching both).
-const MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL = 2;
+const MAX_COMBINED_USERNAME_EMAIL_MATCHES = 2;
 // RFC 5322-inspired "atext" subset used for dot-atom local-part validation.
 const EMAIL_LOCAL_PART_ATEXT_CLASS = "A-Za-z0-9!#$%&'*+/=?^_`{|}~-";
 const EMAIL_LOCAL_PART_PATTERN = new RegExp(
@@ -333,6 +333,21 @@ function throwInvalidAdminEmail(envVarName: string, reason: string): never {
 }
 
 function buildSensitiveValueList(): string[] {
+  return Array.from(
+    new Set(
+      Object.entries(process.env)
+        .filter(
+          ([envName, envValue]) =>
+            envValue !== undefined &&
+            envValue.length > 0 &&
+            SENSITIVE_ENV_NAME_PATTERN.test(envName),
+        )
+        .map(([, envValue]) => envValue as string),
+    ),
+  ).sort((left, right) => right.length - left.length);
+}
+
+function buildSensitiveEnvSignature(): string {
   return Object.entries(process.env)
     .filter(
       ([envName, envValue]) =>
@@ -340,34 +355,49 @@ function buildSensitiveValueList(): string[] {
         envValue.length > 0 &&
         SENSITIVE_ENV_NAME_PATTERN.test(envName),
     )
-    .map(([, envValue]) => envValue as string)
-    .sort((left, right) => right.length - left.length);
+    .sort(([leftName], [rightName]) => leftName.localeCompare(rightName))
+    .map(([envName, envValue]) => `${envName}=${envValue}`)
+    .join("\u001F");
 }
 
 function escapeForLiteralRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-let cachedSensitiveValuePatterns: RegExp[] | null = null;
+let cachedSensitiveValuePattern: RegExp | null = null;
+let cachedSensitiveEnvSignature: string | null = null;
 
-function getSensitiveValuePatterns(): RegExp[] {
-  if (cachedSensitiveValuePatterns !== null) {
-    return cachedSensitiveValuePatterns;
+function getSensitiveValuePattern(): RegExp | null {
+  const currentSensitiveEnvSignature = buildSensitiveEnvSignature();
+  if (
+    cachedSensitiveValuePattern !== null &&
+    cachedSensitiveEnvSignature === currentSensitiveEnvSignature
+  ) {
+    return cachedSensitiveValuePattern;
   }
 
-  cachedSensitiveValuePatterns = buildSensitiveValueList().map(
-    (sensitiveValue) =>
-      new RegExp(escapeForLiteralRegex(sensitiveValue), "g"),
+  const sensitiveValues = buildSensitiveValueList();
+  if (sensitiveValues.length === 0) {
+    cachedSensitiveEnvSignature = currentSensitiveEnvSignature;
+    cachedSensitiveValuePattern = null;
+    return null;
+  }
+
+  cachedSensitiveValuePattern = new RegExp(
+    sensitiveValues.map(escapeForLiteralRegex).join("|"),
+    "g",
   );
-  return cachedSensitiveValuePatterns;
+  cachedSensitiveEnvSignature = currentSensitiveEnvSignature;
+  return cachedSensitiveValuePattern;
 }
 
 function redactSensitiveValues(rawText: string): string {
-  return getSensitiveValuePatterns().reduce(
-    (sanitizedText, sensitiveValuePattern) =>
-      sanitizedText.replace(sensitiveValuePattern, "[REDACTED]"),
-    rawText,
-  );
+  const sensitiveValuePattern = getSensitiveValuePattern();
+  if (sensitiveValuePattern === null) {
+    return rawText;
+  }
+
+  return rawText.replace(sensitiveValuePattern, "[REDACTED]");
 }
 
 function formatSeedErrorForLog(error: unknown): string {
@@ -480,19 +510,27 @@ async function main() {
   );
 
   await Promise.all(
-    providerSeeds.map((provider) =>
-      prisma.provider.upsert({
-        where: { slug: provider.slug },
-        update: {
-          name: provider.name,
-          connectorType: provider.connectorType,
-          color: provider.color,
-          description: provider.description,
-          isActive: true,
-        },
-        create: { ...provider, isActive: true },
-      }),
-    ),
+    providerSeeds.map(async (provider) => {
+      try {
+        return await prisma.provider.upsert({
+          where: { slug: provider.slug },
+          update: {
+            name: provider.name,
+            connectorType: provider.connectorType,
+            color: provider.color,
+            description: provider.description,
+            isActive: true,
+          },
+          create: { ...provider, isActive: true },
+        });
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `Failed to seed provider '${provider.slug}' (${provider.name}): ${errorMessage}`,
+        );
+      }
+    }),
   );
 
   const uiThemeDefaultValueJson: Prisma.InputJsonValue = { mode: "system" };
@@ -558,15 +596,15 @@ async function main() {
   const existingUserByUsername = usernameMatches[0] ?? null;
   const existingUserByEmail = emailMatches[0] ?? null;
 
-  if (matchingUsers.length > MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL) {
+  if (matchingUsers.length > MAX_COMBINED_USERNAME_EMAIL_MATCHES) {
     throw new Error(
-      `Cannot bootstrap system admin: found ${matchingUsers.length} users matching username '${defaultAdminUsername}' or email '${defaultAdminEmail}', exceeding the expected maximum of ${MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL}. This indicates a data integrity issue that must be resolved manually.`,
+      `Cannot bootstrap system admin: found ${matchingUsers.length} users matching username '${defaultAdminUsername}' or email '${defaultAdminEmail}', exceeding the expected maximum of ${MAX_COMBINED_USERNAME_EMAIL_MATCHES}. This indicates a data integrity issue that must be resolved manually.`,
     );
   }
   if (
     usernameMatches.length > 1 ||
     emailMatches.length > 1 ||
-    (matchingUsers.length === MAX_EXPECTED_USERS_BY_USERNAME_OR_EMAIL &&
+    (matchingUsers.length === MAX_COMBINED_USERNAME_EMAIL_MATCHES &&
       (usernameMatches.length !== 1 || emailMatches.length !== 1))
   ) {
     throw new Error(
