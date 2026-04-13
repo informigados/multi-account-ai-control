@@ -322,6 +322,13 @@ function getConflictingEmailOwnerId(
   return null;
 }
 
+function sanitizeErrorSummary(error: unknown): string {
+  const summary = error instanceof Error ? error.message : String(error);
+  return summary
+    .replace(/'[^']*'/g, "'[redacted]'")
+    .replace(/\b(password|token|secret|key)\s*[:=]\s*\S+/gi, "$1=[redacted]");
+}
+
 async function main() {
   const defaultAdminUsername =
     sanitizeCredentialEnvValue(
@@ -514,8 +521,8 @@ async function main() {
 
 main()
   .catch(async (error) => {
-    void error;
-    console.error("Seed failed.");
+    const safeErrorSummary = sanitizeErrorSummary(error);
+    console.error(`Seed failed: ${safeErrorSummary}`);
     console.error("Troubleshooting steps:");
     for (const step of SEED_TROUBLESHOOTING_STEPS) {
       console.error(step);
