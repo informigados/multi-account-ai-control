@@ -23,6 +23,8 @@
 .PARAMETER ExecutionTimeLimitMinutes
     Execution time limit for the scheduled backup task, in minutes.
     Default is 5 minutes. Increase this for larger backups.
+    This is a hard limit enforced by Task Scheduler; if exceeded, the
+    running backup process is terminated.
 
 .PARAMETER Port
     Port of the MAAC web server. Default: 4173
@@ -143,7 +145,7 @@ try {
     if (`$token) {
         `$headers['Authorization'] = "Bearer `$token"
     } else {
-        Write-EventLog -LogName Application -Source '$EventSource' -EntryType Warning -EventId 1002 -Message "Backup request sent without authentication token (MAAC_BACKUP_TOKEN not set)." -ErrorAction SilentlyContinue
+        Write-EventLog -LogName Application -Source '$EventSource' -EntryType Information -EventId 1002 -Message "Backup request sent without authentication token (MAAC_BACKUP_TOKEN not set)." -ErrorAction SilentlyContinue
     }
 
     Invoke-RestMethod -Method Post -Uri '$ApiUrl' -Headers `$headers -Body `$body -ContentType 'application/json' -ErrorAction Stop
@@ -184,6 +186,9 @@ $Action  = New-ScheduledTaskAction `
 
 $Trigger = New-ScheduledTaskTrigger -Daily -At "${Hour}:00"
 
+# ExecutionTimeLimit is a hard runtime cap enforced by Task Scheduler.
+# If this limit is exceeded, the running process is terminated.
+# Set this above worst-case backup duration to reduce interruption risk.
 $Settings = New-ScheduledTaskSettingsSet `
     -ExecutionTimeLimit (New-TimeSpan -Minutes $ExecutionTimeLimitMinutes) `
     -StartWhenAvailable `
