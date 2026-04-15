@@ -283,9 +283,9 @@ export function DashboardCommandCenter({
 
 	const [accountCards, setAccountCards] = useState(accounts);
 	// Tick every 60 seconds to refresh reset countdown values in real time.
-	// `tick` is intentionally not read; updates force a periodic re-render.
-	const [tick, setTick] = useState(0);
-	void tick;
+	// The first tuple element is intentionally unused — calling setTick forces
+	// a periodic re-render so reset countdowns stay up-to-date without a prop change.
+	const [, setTick] = useState(0);
 	const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 	useEffect(() => {
 		tickRef.current = setInterval(() => setTick((n) => n + 1), 60_000);
@@ -450,7 +450,7 @@ export function DashboardCommandCenter({
 													className={`progress-fill progress-dynamic h-full rounded-full ${toneC.bar}`}
 													style={
 														{
-															"--pw": `${Math.min(100, Math.max(0, pct))}%`,
+															"--pw": `${Math.min(MAX_PERCENT, Math.max(MIN_PERCENT, pct))}%`,
 														} as CSSProperties
 													}
 												/>
