@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 			await writeActivityLog({
 				entityType: "auth",
 				eventType: "login_failure",
-				message: `Failed login for identifier ${identifier}`,
+				message: "Failed login attempt (user not found)",
 			});
 
 			return NextResponse.json(

@@ -100,8 +100,9 @@ export function QuickUsageUpdate({
 	const canSubmit = useMemo(() => {
 		const total = totalQuota.trim();
 		const used = usedQuota.trim();
-		return total.length > 0 || used.length > 0 || comments.trim().length > 0;
-	}, [comments, totalQuota, usedQuota]);
+		// Need at least one numeric metric; comments alone don't produce usage data.
+		return total.length > 0 || used.length > 0;
+	}, [totalQuota, usedQuota]);
 
 	async function submitUsage(event: React.FormEvent<HTMLFormElement>) {
 		event.preventDefault();

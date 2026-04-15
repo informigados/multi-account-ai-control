@@ -161,7 +161,7 @@ export function AppShellHeader({
 		<>
 			<header className="sticky top-0 z-40 rounded-xl border border-border bg-card/90 shadow-sm backdrop-blur-md">
 				{/* Top row: logo + user + actions */}
-				<div className="flex items-center justify-between gap-3 px-4 pt-3">
+				<div className="flex items-center justify-between gap-3 px-4 pb-1 pt-3">
 					<div className="flex items-center gap-2.5">
 						<img
 							src="/favicon.svg"

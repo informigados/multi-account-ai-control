@@ -254,6 +254,13 @@ export function DashboardCommandCenter({
 			"No hay cuentas de alto riesgo.",
 			"暂无高风险账号。",
 		),
+		riskQueueOverflow: (shown: number, total: number) =>
+			text(
+				`Exibindo ${shown} de ${total} contas em risco`,
+				`Showing ${shown} of ${total} at-risk accounts`,
+				`Mostrando ${shown} de ${total} cuentas en riesgo`,
+				`显示 ${shown}/${total} 个高风险账号`,
+			),
 		recentMeasurements: text(
 			"Medições Recentes",
 			"Recent Measurements",
@@ -506,48 +513,51 @@ export function DashboardCommandCenter({
 						{highRiskAccounts.length === 0 ? (
 							<p className="mt-3 text-sm text-success">{ui.noHighRisk}</p>
 						) : (
-						<>
-							<ul className="mt-3 space-y-2">
-								{highRiskAccounts.slice(0, MAX_HIGH_RISK_ACCOUNTS_DISPLAY).map((account) => {
-									const pct = usagePercent(account);
-									return (
-										<li
-											key={account.id}
-											className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2"
-										>
-											<div className="min-w-0 flex-1">
-												<p className="truncate text-sm font-medium">
-													{account.displayName}
-												</p>
-												<p className="text-xs text-muted-foreground">
-													{statusLabel(account.status)} • {pct.toFixed(1)}%
-												</p>
-											</div>
-											<div
-												className={
-													"h-2 w-12 shrink-0 overflow-hidden rounded-full bg-muted"
-												}
-											>
-												<div
-													className={`progress-fill progress-dynamic h-full rounded-full ${pct >= 90 ? "bg-danger" : "bg-warning"}`}
-													style={
-														{
-															"--pw": `${Math.min(MAX_PERCENT, Math.max(MIN_PERCENT, pct))}%`,
-														} as CSSProperties
-													}
-												/>
-											</div>
-										</li>
-									);
-								})}
-							</ul>
-							{highRiskAccounts.length > MAX_HIGH_RISK_ACCOUNTS_DISPLAY ? (
-								<p className="mt-2 text-center text-xs text-muted-foreground">
-									{`Exibindo ${MAX_HIGH_RISK_ACCOUNTS_DISPLAY} de ${highRiskAccounts.length} contas em risco`}
-								</p>
-							) : null}
+							<>
+								<ul className="mt-3 space-y-2" aria-label={ui.riskQueue}>
+									{highRiskAccounts
+										.slice(0, MAX_HIGH_RISK_ACCOUNTS_DISPLAY)
+										.map((account) => {
+											const pct = usagePercent(account);
+											return (
+												<li
+													key={account.id}
+													className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2"
+												>
+													<div className="min-w-0 flex-1">
+														<p className="truncate text-sm font-medium">
+															{account.displayName}
+														</p>
+														<p className="text-xs text-muted-foreground">
+															{statusLabel(account.status)} • {pct.toFixed(1)}%
+														</p>
+													</div>
+													<div className="h-2 w-12 shrink-0 overflow-hidden rounded-full bg-muted">
+														<div
+															className={`progress-fill progress-dynamic h-full rounded-full ${
+																pct >= 90 ? "bg-danger" : "bg-warning"
+															}`}
+															style={
+																{
+																	"--pw": `${Math.min(MAX_PERCENT, Math.max(MIN_PERCENT, pct))}%`,
+																} as CSSProperties
+															}
+														/>
+													</div>
+												</li>
+											);
+										})}
+								</ul>
+								{highRiskAccounts.length > MAX_HIGH_RISK_ACCOUNTS_DISPLAY ? (
+									<p className="mt-2 text-center text-xs text-muted-foreground">
+										{ui.riskQueueOverflow(
+											MAX_HIGH_RISK_ACCOUNTS_DISPLAY,
+											highRiskAccounts.length,
+										)}
+									</p>
+								) : null}
 							</>
-					)}
+						)}
 					</article>
 
 					<article className="rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
