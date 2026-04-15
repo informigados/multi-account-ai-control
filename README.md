@@ -224,8 +224,6 @@ multi-account-ai-control/
 
 ## 📝 Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) for the full history.
-
 ### v1.2.0 — 2026-04-15 (Phase F — Premium Suite)
 
 - **Batch operations:** floating batch action bar for multi-select archive, delete, and export
