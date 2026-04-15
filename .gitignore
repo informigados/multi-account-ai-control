@@ -37,6 +37,10 @@ backups/*.enc
 .npm-cache/
 .appdata/
 
+# ide / editor
+.vscode/
+.idea/
+
 # misc
 dist/
 coverage/
