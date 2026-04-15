@@ -677,7 +677,7 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 									<p className="text-xs font-medium">{"Ícone personalizado"}</p>
 									<p className="text-[10px] text-muted-foreground">
 										{
-											"SVG, PNG, ICO, WEBP • Máx. 512 KB • Fundo transparente recomendado"
+											"SVG, PNG, ICO, WEBP • Máx. 512 KB • Use o ícone oficial (fundo branco ou preto)"
 										}
 									</p>
 								</div>

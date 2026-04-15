@@ -146,9 +146,9 @@ body {
 	width: var(--pw, 0%);
 }
 
-/* Provider brand icon: dynamic border color via CSS custom property --brand-border */
+/* Provider brand icon: background is the brand color; icon is tinted white/black via JS filter */
 .provider-brand-icon {
-	border: 1px solid var(--brand-border, hsl(var(--border) / 0.7));
+	box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12);
 }
 
 /* Dialog entry animation */
