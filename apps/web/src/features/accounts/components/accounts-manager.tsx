@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -22,6 +22,7 @@ import { useAccountsAutoRefresh } from "@/features/accounts/hooks/use-accounts-a
 import { ProviderBrand } from "@/features/providers/components/provider-brand";
 import { QuickUsageUpdate } from "@/features/usage/components/quick-usage-update";
 import type { UsageSnapshotView } from "@/features/usage/usage-types";
+import { toInputDateTime } from "@/lib/datetime";
 import { type AppLocale, pickLocaleText } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/utils";
 import Link from "next/link";
@@ -157,19 +158,6 @@ function normalizeStatus(value: string): AccountStatus {
 	return statusOptions.includes(value as AccountStatus)
 		? (value as AccountStatus)
 		: "active";
-}
-
-function toInputDateTime(isoValue: string | null) {
-	if (!isoValue) return "";
-
-	const date = new Date(isoValue);
-	if (Number.isNaN(date.getTime())) return "";
-
-	const pad = (n: number) => n.toString().padStart(2, "0");
-	const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-	return `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(
-		local.getDate(),
-	)}T${pad(local.getHours())}:${pad(local.getMinutes())}`;
 }
 
 type AccountsManagerProps = {

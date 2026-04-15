@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import type { UsageSnapshotView } from "@/features/usage/usage-types";
+import { toInputDateTime } from "@/lib/datetime";
 import { type AppLocale, pickLocaleText } from "@/lib/i18n";
 import { useId, useMemo, useState } from "react";
 
@@ -17,15 +18,6 @@ type FeedbackState = {
 	tone: "success" | "error";
 	message: string;
 };
-
-function toInputDateTime(isoValue: string | null) {
-	if (!isoValue) return "";
-	const date = new Date(isoValue);
-	if (Number.isNaN(date.getTime())) return "";
-	const pad = (n: number) => n.toString().padStart(2, "0");
-	const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-	return `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`;
-}
 
 export function QuickUsageUpdate({
 	accountId,

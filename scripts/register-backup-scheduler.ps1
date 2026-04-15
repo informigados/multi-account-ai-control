@@ -5,7 +5,7 @@
 
 .DESCRIPTION
     This script creates a scheduled task named "MAAC-AutoBackup" that calls
-    the backup API endpoint via curl (built-in since Windows 10 1803).
+    the backup API endpoint via PowerShell's Invoke-RestMethod.
 
     The task runs daily at the specified hour WITHOUT requiring the Tauri
     desktop app to be open — it is a true OS-level daemon.
@@ -13,7 +13,7 @@
     Requirements:
     - Multi Account AI Control web server must be running (Next.js)
     - The web server must be accessible at http://localhost:4173
-    - Windows 10 1803+ or Windows Server 2019+ (for built-in curl)
+    - Windows PowerShell/PowerShell with Invoke-RestMethod available
     - Run this script as Administrator
 
 .PARAMETER Hour
@@ -73,7 +73,6 @@ if ($existing) {
 
 # ── Build the backup command ───────────────────────────────────────────────────
 $ApiUrl = "http://127.0.0.1:$Port/api/export/backup/schedule"
-$Date   = '$(Get-Date -Format yyyy-MM-dd)'
 
 # Use PowerShell to call the API (curl alternative that works reliably)
 $ScriptBlock = @"

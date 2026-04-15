@@ -44,9 +44,6 @@ export function BackupManager({ locale }: BackupManagerProps) {
 	const [deletingId, setDeletingId] = useState<string | null>(null);
 	const [restoringId, setRestoringId] = useState<string | null>(null);
 	const [retentionDays, setRetentionDays] = useState<7 | 14 | 30>(30);
-	const [onRestoreLoad, setOnRestoreLoad] = useState<
-		((payload: string) => void) | null
-	>(null);
 	const [feedback, setFeedback] = useState<{
 		type: "success" | "error";
 		msg: string;
@@ -180,8 +177,6 @@ export function BackupManager({ locale }: BackupManagerProps) {
 	}
 
 	const totalSize = entries.reduce((acc, e) => acc + e.sizeBytes, 0);
-	// Void unused ref for now
-	void onRestoreLoad;
 
 	return (
 		<section className="space-y-4">

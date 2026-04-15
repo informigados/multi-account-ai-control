@@ -8,7 +8,7 @@
  *
  * Displayed inside SettingsHub for admins only.
  */
-import { type AppLocale, pickLocaleText } from "@/lib/i18n";
+import type { AppLocale } from "@/lib/i18n";
 import { useEffect, useRef, useState } from "react";
 
 type ProviderSummary = {
