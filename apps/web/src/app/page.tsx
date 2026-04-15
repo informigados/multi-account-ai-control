@@ -1,6 +1,7 @@
 import { AppShellHeader } from "@/components/app-shell-header";
 import { PageGuide } from "@/components/page-guide";
 import { presentAccount } from "@/features/accounts/account-presenter";
+import { AutoSnapshotOrchestrator } from "@/features/usage/components/auto-snapshot-orchestrator";
 import { DashboardCommandCenter } from "@/features/usage/components/dashboard-command-center";
 import { presentUsageSnapshot } from "@/features/usage/usage-presenter";
 import { getServerSessionUser } from "@/lib/auth/require-auth";
@@ -141,6 +142,8 @@ export default async function Home() {
 						),
 					]}
 				/>
+				{/* Auto-snapshot polling — saves usage snapshots every N minutes */}
+				<AutoSnapshotOrchestrator accounts={accounts.map(presentAccount)} />
 				<DashboardCommandCenter
 					summary={{
 						totalAccounts,

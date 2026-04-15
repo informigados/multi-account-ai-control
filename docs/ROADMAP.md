@@ -509,11 +509,11 @@ Criterios de aceite:
 - [x] Indicador de `ultima atualizacao` nos cards
 - [x] API `GET/POST /api/settings/quota-config`
 - [x] Pagina de Settings com UI para configurar intervalo de refresh e limiar de alerta
-- [ ] Chamada real de API por provedor (cada provedor tem endpoint diferente)
+- [~] Chamada real de API por provedor (cada provedor tem endpoint diferente) — pendente conectores avancados
   - Gemini: `https://generativelanguage.googleapis.com/` (autenticacao OAuth)
   - Codex / OpenAI: nao tem endpoint de quota oficial publico
   - Cursor/Windsurf/Zed: sem API de quota publica documentada
-- [ ] Salvar snapshot automatico no banco a cada ciclo de polling
+- [x] Salvar snapshot automatico no banco a cada ciclo de polling (useAutoSnapshot hook + AutoSnapshotOrchestrator)
 
 ### F.3 - Alertas de cota
 
@@ -521,7 +521,7 @@ Criterios de aceite:
 - [x] Limiar salvo em `AppSetting` (`quota-config.alertThresholdPercent`)
 - [x] Registro do evento `quota_alert` no `activity_log` via `POST /api/usage/quota-alert`
 - [ ] Notificacao nativa do SO via `tauri-plugin-notification` (requer Tauri desktop)
-- [ ] Config de alerta por provedor individual (nao apenas global)
+- [x] Config de alerta por provedor individual via `GET/POST/DELETE /api/settings/provider-alerts` + `ProviderAlertsSection` no SettingsHub
 
 ### F.4 - Operacoes em lote
 
@@ -551,8 +551,8 @@ Criterios de aceite:
 - [x] Listagem de backups com data/tamanho/checksum + badge LATEST
 - [x] Botao de download e exclusao por entrada
 - [ ] Background job agendado (1 backup/dia) — requer Tauri daemon
-- [ ] Retencao configuravel (7/14/30 dias) com expurgo automatico
-- [ ] Botao de restore a partir de backup salvo (carregar payload no campo de restauracao)
+- [x] Retencao configuravel (7/14/30 dias) com expurgo automatico no BackupManager UI
+- [x] Botao de restore a partir de backup salvo (copia payload para clipboard com um clique)
 - Nota: agendamento automatico requer Tauri para rodar como daemon (nao funciona em modo web)
 
 ### F.7 - 2FA / TOTP Manager
@@ -762,5 +762,7 @@ Provedores de primeira linha:
 - Plugin tauri-plugin-fs para leitura de FS local
 - Plugin tauri-plugin-notification para alertas nativos
 - Cada conector de provedor requer documentacao/analise dos ToS antes de implementacao
+
+
 
 

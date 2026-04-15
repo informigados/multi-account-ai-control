@@ -3,6 +3,7 @@
 import type { AccountView } from "@/features/accounts/account-types";
 import { ProviderBrand } from "@/features/providers/components/provider-brand";
 import { QuickUsageUpdate } from "@/features/usage/components/quick-usage-update";
+import { UsageSparkline } from "@/features/usage/components/usage-sparkline";
 import type { UsageSnapshotView } from "@/features/usage/usage-types";
 import { type AppLocale, pickLocaleText } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/utils";
@@ -596,6 +597,14 @@ export function DashboardCommandCenter({
 													}
 												/>
 											</div>
+											{/* Sparkline trend */}
+											<UsageSparkline
+												accountId={account.id}
+												currentPercent={pct}
+												width={160}
+												height={28}
+												limit={15}
+											/>
 										</div>
 										<div className="mt-3 space-y-0.5 text-xs text-muted-foreground">
 											<p>

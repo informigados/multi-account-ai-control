@@ -6,6 +6,7 @@ import { AuditLogViewer } from "@/features/audit/components/audit-log-viewer";
 import { AccountNotesManager } from "@/features/notes/components/account-notes-manager";
 import { ProviderBrand } from "@/features/providers/components/provider-brand";
 import { QuickUsageUpdate } from "@/features/usage/components/quick-usage-update";
+import { UsageSparkline } from "@/features/usage/components/usage-sparkline";
 import { getServerSessionUser } from "@/lib/auth/require-auth";
 import { db } from "@/lib/db";
 import { pickLocaleText } from "@/lib/i18n";
@@ -254,6 +255,23 @@ export default async function AccountDetailsPage({
 									width: `${Math.min(100, Math.max(0, usagePercent))}%`,
 								}}
 							/>
+						</div>
+						{/* Trend sparkline */}
+						<div className="flex items-center justify-between gap-3">
+							<UsageSparkline
+								accountId={view.id}
+								currentPercent={usagePercent}
+								width={240}
+								height={44}
+								limit={30}
+								className="flex-1"
+							/>
+							<div className="flex flex-col items-end gap-0.5 text-xs text-muted-foreground">
+								<span className="font-medium text-foreground">
+									{usagePercent.toFixed(1)}%
+								</span>
+								<span>{text("usado", "used")}</span>
+							</div>
 						</div>
 						<div className="grid gap-2 text-xs text-muted-foreground md:grid-cols-3">
 							<p>
