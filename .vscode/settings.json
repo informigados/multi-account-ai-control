@@ -1,0 +1,21 @@
+{
+  // Suppress VS Code CSS language server warnings for Tailwind directives
+  // (@tailwind and @apply are valid Tailwind directives, not standard CSS)
+  "css.lint.unknownAtRules": "ignore",
+
+  // Suppress "CSS inline styles" warnings for dynamic CSS custom properties
+  // (--pw, --brand-border etc. are the CSS standard for dynamic values in React)
+  "css.lint.validProperties": ["--pw", "--brand-border"],
+
+  // Suppress SonarLint inline style rule (false positive for CSS custom properties)
+  "sonarlint.rules": {
+    "Web:S6502": { "level": "off" }
+  },
+
+  // Biome as the JS/TS/JSON formatter
+  "editor.defaultFormatter": "biomejs.biome",
+  "[typescript]": { "editor.defaultFormatter": "biomejs.biome" },
+  "[typescriptreact]": { "editor.defaultFormatter": "biomejs.biome" },
+  "[json]": { "editor.defaultFormatter": "biomejs.biome" },
+  "[css]": { "editor.defaultFormatter": "biomejs.biome" }
+}
