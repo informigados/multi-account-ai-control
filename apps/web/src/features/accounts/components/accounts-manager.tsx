@@ -85,8 +85,6 @@ function loadSortFromStorage(): SortConfig {
 	return { field: "displayName", dir: "asc" };
 }
 
-const QUOTA_CONFIG_LS_KEY = "accounts_quota_config_v1";
-
 type QuotaConfig = {
 	refreshIntervalMinutes: number;
 	alertThresholdPercent: number;
@@ -2313,6 +2311,53 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 					if (pendingDeleteAccount) {
 						void deleteAccount(pendingDeleteAccount);
 					}
+				}}
+			/>
+			{/* Bulk action confirmation dialog */}
+			<ConfirmDialog
+				open={Boolean(pendingBulkAction)}
+				title={
+					pendingBulkAction === "archive"
+						? text(
+								"Arquivar contas",
+								"Archive accounts",
+								"Archivar cuentas",
+								"归档账户",
+							)
+						: text(
+								"Excluir contas",
+								"Delete accounts",
+								"Eliminar cuentas",
+								"删除账户",
+							)
+				}
+				description={
+					pendingBulkAction === "archive"
+						? text(
+								`Arquivar ${selection.selectedIds.size} conta(s) selecionada(s)?`,
+								`Archive ${selection.selectedIds.size} selected account(s)?`,
+								"¿Archivar las cuentas seleccionadas?",
+								"归档选定的账户？",
+							)
+						: text(
+								`Excluir permanentemente ${selection.selectedIds.size} conta(s) selecionada(s)?`,
+								`Permanently delete ${selection.selectedIds.size} selected account(s)?`,
+								"¿Eliminar permanentemente las cuentas seleccionadas?",
+								"永久删除选定的账户？",
+							)
+				}
+				confirmLabel={
+					pendingBulkAction === "archive"
+						? text("Arquivar", "Archive", "Archivar", "归档")
+						: text("Excluir", "Delete", "Eliminar", "删除")
+				}
+				tone="danger"
+				isLoading={isBulkLoading}
+				onCancel={() => {
+					if (!isBulkLoading) setPendingBulkAction(null);
+				}}
+				onConfirm={() => {
+					if (pendingBulkAction) void executeBulkAction(pendingBulkAction);
 				}}
 			/>
 		</section>

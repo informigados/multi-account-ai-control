@@ -50,8 +50,9 @@ param(
     [switch]$Remove
 )
 
-$TaskName = "MAAC-AutoBackup"
-$TaskPath = "\MAAC\"
+$TaskName   = "MAAC-AutoBackup"
+$TaskPath   = "\MAAC\"
+$EventSource = "MAAC-AutoBackup"
 
 # ── Remove existing task ───────────────────────────────────────────────────────
 if ($Remove) {
@@ -72,17 +73,28 @@ if ($existing) {
 }
 
 # ── Build the backup command ───────────────────────────────────────────────────
-$ApiUrl = "http://127.0.0.1:$Port/api/export/backup/schedule"
+$ApiUrl = "http://localhost:$Port/api/export/backup/schedule"
 
-# Use PowerShell to call the API (curl alternative that works reliably)
+# ── Ensure the Event Log source exists (required before Write-EventLog can work) ─
+try {
+    if (-not [System.Diagnostics.EventLog]::SourceExists($EventSource)) {
+        New-EventLog -LogName Application -Source $EventSource -ErrorAction Stop
+        Write-Host "  [OK] Event Log source '$EventSource' registered." -ForegroundColor Green
+    }
+} catch {
+    Write-Warning "Could not register Event Log source '$EventSource': $_"
+    Write-Warning "Event logging inside the scheduled task may fail silently."
+}
+
+# ── Build the script block that runs inside the scheduled task ─────────────────
 $ScriptBlock = @"
 try {
     `$label = "Auto-backup (OS scheduler) `$(Get-Date -Format 'yyyy-MM-dd')"
     `$body  = ConvertTo-Json @{ label = `$label }
     Invoke-RestMethod -Method Post -Uri '$ApiUrl' -Body `$body -ContentType 'application/json' -ErrorAction Stop
-    Write-EventLog -LogName Application -Source 'MAAC-AutoBackup' -EntryType Information -EventId 1000 -Message "Backup created: `$label" -ErrorAction SilentlyContinue
+    Write-EventLog -LogName Application -Source '$EventSource' -EntryType Information -EventId 1000 -Message "Backup created: `$label" -ErrorAction SilentlyContinue
 } catch {
-    Write-EventLog -LogName Application -Source 'MAAC-AutoBackup' -EntryType Warning -EventId 1001 -Message "Backup failed: `$_" -ErrorAction SilentlyContinue
+    Write-EventLog -LogName Application -Source '$EventSource' -EntryType Warning -EventId 1001 -Message "Backup failed: `$_" -ErrorAction SilentlyContinue
 }
 "@
 
@@ -101,6 +113,9 @@ $Settings = New-ScheduledTaskSettingsSet `
     -RunOnlyIfNetworkAvailable:$false `
     -MultipleInstances IgnoreNew
 
+# S4U (Service For User): runs without storing the user's password in Task Scheduler.
+# Requires the user to have logged in interactively at least once on this machine;
+# otherwise the task may fail. This avoids credential storage for improved security.
 $Principal = New-ScheduledTaskPrincipal `
     -UserId "$env:USERDOMAIN\$env:USERNAME" `
     -LogonType S4U `

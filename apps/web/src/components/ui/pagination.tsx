@@ -87,10 +87,6 @@ export function usePagination(): PaginationState {
 		setHasNext(false);
 	}, []);
 
-	// Expose a setter so the parent can tell us if there's a next page
-	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional
-	const setHasNextExternal = useCallback((v: boolean) => setHasNext(v), []);
-
 	return {
 		page,
 		currentCursor,
@@ -101,7 +97,7 @@ export function usePagination(): PaginationState {
 		goToPage,
 		resetPagination,
 		totalPagesSeen,
-	} as PaginationState & { setHasNext: (v: boolean) => void };
+	};
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────────
