@@ -2,7 +2,7 @@ type ProviderBrandProps = {
 	name: string;
 	icon: string | null | undefined;
 	color: string | null | undefined;
-	size?: "sm" | "md";
+	size?: "sm" | "md" | "lg" | "xl";
 	showName?: boolean;
 	className?: string;
 };
@@ -16,7 +16,13 @@ export function ProviderBrand({
 	className,
 }: ProviderBrandProps) {
 	const sizeClass =
-		size === "sm" ? "h-6 w-6 text-[9px]" : "h-7 w-7 text-[10px]";
+		size === "sm"
+			? "h-5 w-5 text-[9px]"
+			: size === "md"
+				? "h-8 w-8 text-[11px]"
+				: size === "lg"
+					? "h-10 w-10 text-xs"
+					: "h-12 w-12 text-sm";
 	const safeColor = color ?? "#334155";
 	const resolvedIcon = icon ?? "/providers/provider-fallback.svg";
 

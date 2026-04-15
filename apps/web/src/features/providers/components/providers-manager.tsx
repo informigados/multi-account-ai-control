@@ -9,7 +9,7 @@ import {
 	HIGH_RISK_CONNECTOR_CONFIRMATION_PHRASE,
 	SENSITIVE_CONNECTOR_CONFIRMATION_HEADER,
 } from "@/lib/security/connector-gate";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type ConnectorType =
 	| "manual"
@@ -44,6 +44,11 @@ type ProviderFormState = {
 type FeedbackState = {
 	tone: "success" | "error";
 	message: string;
+};
+
+type IconUploadState = {
+	status: "idle" | "uploading" | "done" | "error";
+	message?: string;
 };
 
 type ProvidersPageResponse = {
@@ -339,6 +344,10 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 	const [sensitiveConfirmPhrase, setSensitiveConfirmPhrase] = useState("");
 	const [editingOriginalConnector, setEditingOriginalConnector] =
 		useState<ConnectorType | null>(null);
+	const [iconUpload, setIconUpload] = useState<IconUploadState>({
+		status: "idle",
+	});
+	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	const isHighRiskConnector =
 		form.connectorType === "web_automation" ||
@@ -421,12 +430,14 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 		});
 		setSensitiveConfirmPhrase("");
 		setEditingOriginalConnector(provider.connectorType);
+		setIconUpload({ status: "idle" });
 	}
 
 	async function saveProvider(event: React.FormEvent<HTMLFormElement>) {
 		event.preventDefault();
 		setIsSaving(true);
 		setFeedback(null);
+		setIconUpload({ status: "idle" });
 
 		const body = {
 			name: form.name,
@@ -487,6 +498,7 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 	async function removeProvider(provider: Provider) {
 		setFeedback(null);
 		setIsDeleting(true);
+		setIconUpload({ status: "idle" });
 
 		try {
 			const response = await fetch(`/api/providers/${provider.id}`, {
@@ -512,6 +524,52 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 			});
 		} finally {
 			setIsDeleting(false);
+		}
+	}
+
+	async function uploadIcon(file: File) {
+		if (!editingId) return;
+		setIconUpload({ status: "uploading" });
+		const formData = new FormData();
+		formData.append("file", file);
+		try {
+			const response = await fetch(`/api/providers/${editingId}/icon`, {
+				method: "POST",
+				body: formData,
+			});
+			if (!response.ok) {
+				const err = (await response.json()) as { message?: string };
+				throw new Error(err.message ?? "Falha ao enviar ícone.");
+			}
+			const payload = (await response.json()) as { provider: Provider };
+			setIconUpload({ status: "done", message: "Ícone salvo com sucesso!" });
+			updateForm("icon", payload.provider.icon ?? "");
+			// Refresh list silently
+			setReloadToken((value) => value + 1);
+		} catch (error) {
+			setIconUpload({
+				status: "error",
+				message: error instanceof Error ? error.message : "Erro no upload.",
+			});
+		}
+	}
+
+	async function removeIcon() {
+		if (!editingId) return;
+		setIconUpload({ status: "uploading", message: "Removendo..." });
+		try {
+			const response = await fetch(`/api/providers/${editingId}/icon`, {
+				method: "DELETE",
+			});
+			if (!response.ok) throw new Error("Falha ao remover ícone.");
+			setIconUpload({ status: "idle" });
+			updateForm("icon", "");
+			setReloadToken((value) => value + 1);
+		} catch (error) {
+			setIconUpload({
+				status: "error",
+				message: error instanceof Error ? error.message : "Erro ao remover.",
+			});
 		}
 	}
 

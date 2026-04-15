@@ -8,6 +8,7 @@ import type {
 	AccountView,
 	ProviderSummary,
 } from "@/features/accounts/account-types";
+import { QuickAddAccountDialog } from "@/features/accounts/components/quick-add-account-dialog";
 import { ProviderBrand } from "@/features/providers/components/provider-brand";
 import { QuickUsageUpdate } from "@/features/usage/components/quick-usage-update";
 import type { UsageSnapshotView } from "@/features/usage/usage-types";
@@ -836,29 +837,42 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 			<article className="rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
 				<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
 					<h2 className="text-lg font-semibold">{ui.filterTitle}</h2>
-					<div className="inline-flex rounded-lg border border-border bg-muted/40 p-1">
-						<button
-							type="button"
-							onClick={() => setViewMode("cards")}
-							className={`rounded-md px-3 py-1 text-sm ${
-								viewMode === "cards"
-									? "bg-primary text-primary-foreground"
-									: "text-muted-foreground"
-							}`}
-						>
-							{ui.cards}
-						</button>
-						<button
-							type="button"
-							onClick={() => setViewMode("table")}
-							className={`rounded-md px-3 py-1 text-sm ${
-								viewMode === "table"
-									? "bg-primary text-primary-foreground"
-									: "text-muted-foreground"
-							}`}
-						>
-							{ui.table}
-						</button>
+					<div className="flex items-center gap-2">
+						<QuickAddAccountDialog
+							locale={locale}
+							providers={providers}
+							onSuccess={() => {
+								setRequestCursor(null);
+								setNextCursor(null);
+								setHasMore(false);
+								setAccounts([]);
+								setReloadToken((value) => value + 1);
+							}}
+						/>
+						<div className="inline-flex rounded-lg border border-border bg-muted/40 p-1">
+							<button
+								type="button"
+								onClick={() => setViewMode("cards")}
+								className={`rounded-md px-3 py-1 text-sm ${
+									viewMode === "cards"
+										? "bg-primary text-primary-foreground"
+										: "text-muted-foreground"
+								}`}
+							>
+								{ui.cards}
+							</button>
+							<button
+								type="button"
+								onClick={() => setViewMode("table")}
+								className={`rounded-md px-3 py-1 text-sm ${
+									viewMode === "table"
+										? "bg-primary text-primary-foreground"
+										: "text-muted-foreground"
+								}`}
+							>
+								{ui.table}
+							</button>
+						</div>
 					</div>
 				</div>
 				<div className="grid gap-3 md:grid-cols-5">
