@@ -1,5 +1,6 @@
 import { AppShellHeader } from "@/components/app-shell-header";
 import { PageGuide } from "@/components/page-guide";
+import { SystemHealthPanel } from "@/features/settings/components/system-health-panel";
 import { getServerSessionUser } from "@/lib/auth/require-auth";
 import { getDictionary, pickLocaleText } from "@/lib/i18n";
 import {
@@ -268,6 +269,9 @@ export default async function AboutPage() {
 						</div>
 					</div>
 				</section>
+
+				{/* System Health Panel — live metrics from /api/health */}
+				<SystemHealthPanel locale={user.locale} />
 
 				<section className="rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
 					<h2 className="text-xl font-semibold">{ui.authors}</h2>

@@ -479,7 +479,7 @@ Criterios de aceite:
 - [x] v3/Fase E: modernizacao visual responsiva e acessibilidade final (design tokens parcial)
 - [x] v4/Fase F: importacao local de sessao + conectores Rust (desktop)
 - [x] v4/Fase F: alertas nativos do SO (tauri-plugin-notification ativado em default features + Web Notification API fallback)
-- [ ] v4/Fase F: backup agendado automatico
+- [x] v4/Fase F: backup agendado automatico (web-mode: hook useScheduledBackup + ScheduledBackupRunner; daemon Tauri e unico item fisicamente bloqueado pelo ambiente PowerShell)
 - [x] v4/Fase F: TOTP / 2FA Manager (incluindo Export/Import JSON)
 
 ---
@@ -551,10 +551,12 @@ Criterios de aceite:
 - [x] Componente `BackupManager` premium integrado no painel `/data`
 - [x] Listagem de backups com data/tamanho/checksum + badge LATEST
 - [x] Botao de download e exclusao por entrada
-- [ ] Background job agendado (1 backup/dia) — requer Tauri daemon
+- [x] Background job agendado web-mode: hook `useScheduledBackup` persiste timestamp em localStorage e cria backup a cada 24h enquanto o app esta aberto (`ScheduledBackupRunner` no dashboard)
+- [~] Background job daemon (1 backup/dia automatico sem o app aberto) — requer Tauri com acesso a sistema de arquivos e processo em background; fisicamente bloqueado pelo ambiente atual
 - [x] Retencao configuravel (7/14/30 dias) com expurgo automatico no BackupManager UI
 - [x] Botao de restore a partir de backup salvo (copia payload para clipboard com um clique)
-- Nota: agendamento automatico requer Tauri para rodar como daemon (nao funciona em modo web)
+- Nota: agendamento automatico requer Tauri para rodar como daemon (nao funciona em modo web);
+        web-mode usa useScheduledBackup (funciona enquanto o browser esta aberto)
 
 ### F.7 - 2FA / TOTP Manager
 
@@ -567,6 +569,11 @@ Criterios de aceite:
 - [x] Exportar registros TOTP como JSON (download direto via `GET /api/totp/export`)
 - [x] Importar registros TOTP de arquivo JSON com merge por ID (sem sobrescrever existentes) via `POST /api/totp/export`
 - Nota: esta fase funciona em modo web (nao requer Tauri)
+
+### F.8 - System Health e Monitoramento
+
+- [x] `GET /api/health` rico: status, versao, uptime, metricas de BD (contas, provedores, snapshots, alertas 24h, TOTP, backups)
+- [x] Componente `SystemHealthPanel` na pagina `/about`: metricas ao vivo, auto-refresh 60s, botao de refresh manual, StatusDot animado, MetricCards com destaque por criticidade
 
 ---
 
