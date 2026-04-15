@@ -8,9 +8,17 @@ import type {
 	AccountView,
 	ProviderSummary,
 } from "@/features/accounts/account-types";
+import { AccountGroupsManager } from "@/features/accounts/components/account-groups-manager";
+import type { AccountGroup } from "@/features/accounts/components/account-groups-manager";
+import { BatchActionBar } from "@/features/accounts/components/batch-action-bar";
 import { ExportJsonDialog } from "@/features/accounts/components/export-json-dialog";
+import { LocalImportDialog } from "@/features/accounts/components/local-import-dialog";
+import type { DetectedLocalAccount } from "@/features/accounts/components/local-import-dialog";
 import { QuickAddAccountDialog } from "@/features/accounts/components/quick-add-account-dialog";
+import { QuotaAlertBanner } from "@/features/accounts/components/quota-alert-banner";
 import { TagEditorDialog } from "@/features/accounts/components/tag-editor-dialog";
+import { useAccountSelection } from "@/features/accounts/hooks/use-account-selection";
+import { useAccountsAutoRefresh } from "@/features/accounts/hooks/use-accounts-auto-refresh";
 import { ProviderBrand } from "@/features/providers/components/provider-brand";
 import { QuickUsageUpdate } from "@/features/usage/components/quick-usage-update";
 import type { UsageSnapshotView } from "@/features/usage/usage-types";
@@ -45,6 +53,36 @@ type Filters = {
 	status: "" | AccountStatus;
 	tag: string;
 	includeArchived: boolean;
+	groupId: string;
+};
+
+type SortConfig = {
+	field: "displayName" | "priority" | "status" | "usedPercent";
+	dir: "asc" | "desc";
+};
+
+const SORT_LS_KEY = "accounts_sort_v1";
+
+function loadSortFromStorage(): SortConfig {
+	try {
+		const raw = localStorage.getItem(SORT_LS_KEY);
+		if (raw) return JSON.parse(raw) as SortConfig;
+	} catch {
+		/* ignore */
+	}
+	return { field: "displayName", dir: "asc" };
+}
+
+const QUOTA_CONFIG_LS_KEY = "accounts_quota_config_v1";
+
+type QuotaConfig = {
+	refreshIntervalMinutes: number;
+	alertThresholdPercent: number;
+};
+
+const DEFAULT_QUOTA_CONFIG: QuotaConfig = {
+	refreshIntervalMinutes: 10,
+	alertThresholdPercent: 80,
 };
 
 type AccountsPageResponse = {
@@ -91,6 +129,7 @@ const defaultFilters: Filters = {
 	status: "",
 	tag: "",
 	includeArchived: false,
+	groupId: "",
 };
 
 function usagePercent(account: AccountView) {
@@ -527,6 +566,28 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 	const sensitiveDetailsRef = useRef<HTMLDetailsElement>(null);
 	const passwordOrTokenInputRef = useRef<HTMLInputElement>(null);
 
+	// Fase F — sort, quota config, selection, groups
+	const [sortConfig, setSortConfig] = useState<SortConfig>(loadSortFromStorage);
+	const [quotaConfig, setQuotaConfig] =
+		useState<QuotaConfig>(DEFAULT_QUOTA_CONFIG);
+	const [groups, setGroups] = useState<AccountGroup[]>([]);
+	const [isBulkLoading, setIsBulkLoading] = useState(false);
+	const [pendingBulkAction, setPendingBulkAction] = useState<
+		"archive" | "delete" | null
+	>(null);
+
+	const selection = useAccountSelection();
+
+	// Persist sort config to localStorage
+	function applySort(cfg: SortConfig) {
+		setSortConfig(cfg);
+		try {
+			localStorage.setItem(SORT_LS_KEY, JSON.stringify(cfg));
+		} catch {
+			/* ignore */
+		}
+	}
+
 	const loadProviders = useCallback(async () => {
 		const allProviders: ProviderSummary[] = [];
 		let cursor: string | null = null;
@@ -628,22 +689,57 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 				if (data.map) setActiveAccountMap(data.map);
 			})
 			.catch(() => {
-				/* silent — not critical */
+				/* silent */
 			});
 	}, []);
 
+	// Load quota config from API
+	useEffect(() => {
+		fetch("/api/settings/quota-config")
+			.then((r) => r.json())
+			.then((d: { config?: QuotaConfig }) => {
+				if (d.config) setQuotaConfig(d.config);
+			})
+			.catch(() => {
+				/* silent */
+			});
+	}, []);
+
+	// Load groups
+	useEffect(() => {
+		fetch("/api/settings/account-groups")
+			.then((r) => r.json())
+			.then((d: { groups?: AccountGroup[] }) => {
+				if (d.groups) setGroups(d.groups);
+			})
+			.catch(() => {
+				/* silent */
+			});
+	}, []);
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: selection.clearAll is stable (useCallback with no deps)
 	useEffect(() => {
 		void baseQueryString;
 		setRequestCursor(null);
 		setNextCursor(null);
 		setHasMore(false);
 		setAccounts([]);
+		selection.clearAll();
 	}, [baseQueryString]);
 
 	useEffect(() => {
 		void reloadToken;
 		void loadAccounts();
 	}, [loadAccounts, reloadToken]);
+
+	// Auto-refresh hook
+	const { isRefreshing, sinceLabel } = useAccountsAutoRefresh({
+		intervalMinutes: quotaConfig.refreshIntervalMinutes,
+		skipInitial: true,
+		onRefresh: useCallback(async () => {
+			setReloadToken((v) => v + 1);
+		}, []),
+	});
 
 	useEffect(() => {
 		const timeout = window.setTimeout(() => {
@@ -865,6 +961,102 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 		return activeAccountMap[account.providerId] === account.id;
 	}
 
+	// Bulk action handler
+	async function executeBulkAction(action: "archive" | "delete") {
+		const ids = Array.from(selection.selectedIds);
+		if (ids.length === 0) return;
+		setIsBulkLoading(true);
+		try {
+			const res = await fetch("/api/accounts/bulk", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ action, ids }),
+			});
+			if (!res.ok) throw new Error("Falha na operação em lote.");
+			selection.clearAll();
+			setRequestCursor(null);
+			setNextCursor(null);
+			setHasMore(false);
+			setAccounts([]);
+			setReloadToken((v) => v + 1);
+			setFeedback({
+				tone: "success",
+				message:
+					action === "archive"
+						? `${ids.length} conta(s) arquivada(s).`
+						: `${ids.length} conta(s) excluída(s).`,
+			});
+		} catch (error) {
+			setFeedback({
+				tone: "error",
+				message: error instanceof Error ? error.message : "Erro desconhecido.",
+			});
+		} finally {
+			setIsBulkLoading(false);
+			setPendingBulkAction(null);
+		}
+	}
+
+	// Export selected accounts as JSON download
+	function exportSelectedAsJson() {
+		const ids = Array.from(selection.selectedIds);
+		const selected = accounts.filter((a) => ids.includes(a.id));
+		const data = JSON.stringify(selected, null, 2);
+		const blob = new Blob([data], { type: "application/json" });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = `accounts-export-${new Date().toISOString().slice(0, 10)}.json`;
+		a.click();
+		URL.revokeObjectURL(url);
+	}
+
+	// Handle pre-filled import from local session
+	function handleLocalImport(detected: DetectedLocalAccount) {
+		// Find provider by slug
+		const provider = providers.find((p) =>
+			p.name.toLowerCase().includes(detected.providerSlug),
+		);
+		setForm((prev) => ({
+			...emptyForm,
+			providerId: provider?.id ?? prev.providerId,
+			displayName: detected.displayName,
+			identifier: detected.identifier,
+			planName: detected.planName ?? "",
+		}));
+		setEditingId(null);
+	}
+
+	// Sorted accounts (client-side sort applied after API results)
+	const sortedAccounts = useMemo(() => {
+		const filtered = filters.groupId
+			? accounts.filter((a) => {
+					const group = groups.find((g) => g.id === filters.groupId);
+					return group?.accountIds.includes(a.id) ?? false;
+				})
+			: accounts;
+
+		return [...filtered].sort((a, b) => {
+			let valA: string | number = a.displayName;
+			let valB: string | number = b.displayName;
+
+			if (sortConfig.field === "priority") {
+				valA = a.priority;
+				valB = b.priority;
+			} else if (sortConfig.field === "status") {
+				valA = a.status;
+				valB = b.status;
+			} else if (sortConfig.field === "usedPercent") {
+				valA = a.latestUsage?.usedPercent ?? 0;
+				valB = b.latestUsage?.usedPercent ?? 0;
+			}
+
+			if (valA < valB) return sortConfig.dir === "asc" ? -1 : 1;
+			if (valA > valB) return sortConfig.dir === "asc" ? 1 : -1;
+			return 0;
+		});
+	}, [accounts, sortConfig, filters.groupId, groups]);
+
 	async function setActiveAccount(account: AccountView) {
 		try {
 			const response = await fetch("/api/settings/active-account-map", {
@@ -888,10 +1080,26 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 
 	return (
 		<section className="space-y-5">
+			{/* Quota Alert Banner */}
+			<QuotaAlertBanner
+				accounts={accounts}
+				thresholdPercent={quotaConfig.alertThresholdPercent}
+				locale={locale}
+			/>
+
 			<article className="rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
 				<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-					<h2 className="text-lg font-semibold">{ui.filterTitle}</h2>
 					<div className="flex items-center gap-2">
+						<h2 className="text-lg font-semibold">{ui.filterTitle}</h2>
+						{/* Auto-refresh status */}
+						{sinceLabel && (
+							<span className="text-[10px] text-muted-foreground">
+								{isRefreshing ? "↻ atualizando..." : `↻ ${sinceLabel}`}
+							</span>
+						)}
+					</div>
+					<div className="flex items-center gap-2">
+						<LocalImportDialog locale={locale} onImport={handleLocalImport} />
 						<QuickAddAccountDialog
 							locale={locale}
 							providers={providers}
@@ -929,7 +1137,7 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 						</div>
 					</div>
 				</div>
-				<div className="grid gap-3 md:grid-cols-5">
+				<div className="grid gap-3 md:grid-cols-6">
 					<input
 						aria-label={ui.searchPlaceholder}
 						placeholder={ui.searchPlaceholder}
@@ -990,6 +1198,25 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 						}
 						className="h-10 rounded-md border border-border bg-card px-3 text-sm outline-none ring-primary transition focus:ring-2"
 					/>
+					{/* Group filter dropdown */}
+					<select
+						aria-label="Filtrar por grupo"
+						value={filters.groupId}
+						onChange={(event) =>
+							setFilters((previous) => ({
+								...previous,
+								groupId: event.target.value,
+							}))
+						}
+						className="h-10 rounded-md border border-border bg-card px-3 text-sm outline-none ring-primary transition focus:ring-2"
+					>
+						<option value="">Todos os grupos</option>
+						{groups.map((g) => (
+							<option key={g.id} value={g.id}>
+								{g.name}
+							</option>
+						))}
+					</select>
 					<label className="flex h-10 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm text-muted-foreground">
 						<input
 							type="checkbox"
@@ -1234,11 +1461,47 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 				</article>
 
 				<article className="rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
-					<div className="mb-3 flex items-center justify-between">
-						<h2 className="text-lg font-semibold">{ui.accountsTitle}</h2>
-						<span className="text-sm text-muted-foreground">
-							{accounts.length} {ui.totalSuffix}
-						</span>
+					<div className="mb-3 flex items-center justify-between gap-2">
+						<div className="flex items-center gap-2">
+							<h2 className="text-lg font-semibold">{ui.accountsTitle}</h2>
+							<span className="text-sm text-muted-foreground">
+								{sortedAccounts.length} {ui.totalSuffix}
+							</span>
+						</div>
+						{/* Sort controls */}
+						<div className="flex items-center gap-1.5">
+							{selection.hasSelection && (
+								<button
+									type="button"
+									onClick={() =>
+										selection.selectAll(sortedAccounts.map((a) => a.id))
+									}
+									className="text-xs text-primary hover:underline"
+								>
+									Selecionar todos
+								</button>
+							)}
+							<select
+								aria-label="Ordenar por"
+								value={`${sortConfig.field}:${sortConfig.dir}`}
+								onChange={(e) => {
+									const [field, dir] = e.target.value.split(":") as [
+										SortConfig["field"],
+										SortConfig["dir"],
+									];
+									applySort({ field, dir });
+								}}
+								className="h-8 rounded-md border border-border bg-card px-2 text-xs outline-none ring-primary transition focus:ring-2"
+							>
+								<option value="displayName:asc">Nome A→Z</option>
+								<option value="displayName:desc">Nome Z→A</option>
+								<option value="priority:asc">Prioridade ↑</option>
+								<option value="priority:desc">Prioridade ↓</option>
+								<option value="usedPercent:desc">Uso alto</option>
+								<option value="usedPercent:asc">Uso baixo</option>
+								<option value="status:asc">Status</option>
+							</select>
+						</div>
 					</div>
 
 					{feedback?.tone === "error" ? (
@@ -1277,20 +1540,32 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 								<Skeleton className="h-8 w-full" />
 							</div>
 						</output>
-					) : accounts.length === 0 ? (
+					) : sortedAccounts.length === 0 ? (
 						<p className="text-sm text-muted-foreground">{ui.noAccounts}</p>
 					) : viewMode === "cards" ? (
 						<div className="grid gap-3 md:grid-cols-2">
-							{accounts.map((account) => (
+							{sortedAccounts.map((account) => (
 								<div
 									key={account.id}
 									className={`rounded-xl border bg-background/40 p-4 transition ${
-										isActiveInApp(account)
-											? "border-primary/50 ring-1 ring-primary/30"
-											: "border-border"
+										selection.isSelected(account.id)
+											? "border-primary/60 ring-2 ring-primary/20"
+											: isActiveInApp(account)
+												? "border-primary/50 ring-1 ring-primary/30"
+												: "border-border"
 									}`}
 								>
 									<div className="flex items-start justify-between gap-3">
+										{/* Selection checkbox */}
+										<label className="mt-0.5 shrink-0">
+											<input
+												type="checkbox"
+												checked={selection.isSelected(account.id)}
+												onChange={() => selection.toggle(account.id)}
+												aria-label={`Selecionar ${account.displayName}`}
+												className="h-4 w-4 accent-primary"
+											/>
+										</label>
 										<div className="min-w-0 flex-1">
 											<div className="flex items-center gap-2 flex-wrap">
 												<h3 className="text-base font-semibold">

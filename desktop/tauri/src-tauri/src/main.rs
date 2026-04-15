@@ -1,5 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod connectors;
+
+use connectors::DetectedAccount;
 use std::net::TcpStream;
 use std::path::PathBuf;
 use std::process::{Child, Command};
@@ -56,9 +59,23 @@ fn start_local_runtime(app: &tauri::AppHandle) -> Result<Child, String> {
 		.map_err(|error| format!("Failed to spawn Node runtime: {error}"))
 }
 
+/// Detects a locally logged-in account for the given AI provider.
+/// Called from the frontend via `invoke("detect_local_accounts", { provider: "gemini-cli" })`.
+#[tauri::command]
+fn detect_local_accounts(provider: String) -> Option<DetectedAccount> {
+	match provider.as_str() {
+		"gemini-cli" => connectors::detect_gemini(),
+		"codex" => connectors::detect_codex(),
+		"zed" => connectors::detect_zed(),
+		"cursor" | "windsurf" => connectors::detect_cursor(),
+		_ => None,
+	}
+}
+
 fn main() {
 	let app = tauri::Builder::default()
 		.manage(RuntimeProcess(Mutex::new(None)))
+		.invoke_handler(tauri::generate_handler![detect_local_accounts])
 		.setup(|app| {
 			#[cfg(not(debug_assertions))]
 			{
