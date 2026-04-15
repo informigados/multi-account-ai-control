@@ -471,6 +471,10 @@ export function TotpManager({ locale }: TotpManagerProps) {
 	const [error, setError] = useState<string | null>(null);
 	const [filter, setFilter] = useState<"all" | "favorites">("all");
 	const [search, setSearch] = useState("");
+	const [isExporting, setIsExporting] = useState(false);
+	const [isImporting, setIsImporting] = useState(false);
+	const [importFeedback, setImportFeedback] = useState<string | null>(null);
+	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {
 		async function load() {
@@ -508,6 +512,91 @@ export function TotpManager({ locale }: TotpManagerProps) {
 		setEntries((prev) =>
 			prev.map((e) => (e.id === id ? { ...e, isFavorite: !current } : e)),
 		);
+	}
+
+	/** Export all entries (with secrets) as a downloadable JSON file */
+	async function handleExport() {
+		setIsExporting(true);
+		try {
+			const res = await fetch("/api/totp/export");
+			if (!res.ok) throw new Error();
+			const data = await res.json();
+			const blob = new Blob([JSON.stringify(data, null, 2)], {
+				type: "application/json",
+			});
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = `totp-export-${new Date().toISOString().slice(0, 10)}.json`;
+			a.click();
+			URL.revokeObjectURL(url);
+		} catch {
+			// silent — export errors are non-critical
+		} finally {
+			setIsExporting(false);
+		}
+	}
+
+	/** Import entries from a JSON file (merge, no overwrite of existing IDs) */
+	function handleImportFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+		const file = e.target.files?.[0];
+		if (!file) return;
+		const reader = new FileReader();
+		reader.onload = async (ev) => {
+			setIsImporting(true);
+			setImportFeedback(null);
+			try {
+				const raw = JSON.parse(ev.target?.result as string) as unknown;
+				// Accept both { entries: [...] } and raw array
+				const arr = Array.isArray(raw)
+					? raw
+					: Array.isArray((raw as { entries?: unknown }).entries)
+						? (raw as { entries: unknown[] }).entries
+						: [];
+				if (arr.length === 0)
+					throw new Error(
+						isPt
+							? "Arquivo vazio ou formato inválido."
+							: "Empty file or invalid format.",
+					);
+				const res = await fetch("/api/totp/export", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ entries: arr }),
+				});
+				if (!res.ok) throw new Error();
+				const result = (await res.json()) as {
+					importedCount: number;
+					totalEntries: number;
+				};
+				// Reload entries list
+				const listRes = await fetch("/api/totp");
+				if (listRes.ok) {
+					const listData = (await listRes.json()) as {
+						entries: TotpEntryMasked[];
+					};
+					setEntries(listData.entries);
+				}
+				setImportFeedback(
+					isPt
+						? `${result.importedCount} entrada(s) importada(s) com sucesso.`
+						: `${result.importedCount} entry/entries imported successfully.`,
+				);
+				setTimeout(() => setImportFeedback(null), 4000);
+			} catch (err) {
+				setImportFeedback(
+					err instanceof Error
+						? err.message
+						: isPt
+							? "Falha na importação."
+							: "Import failed.",
+				);
+			} finally {
+				setIsImporting(false);
+				if (fileInputRef.current) fileInputRef.current.value = "";
+			}
+		};
+		reader.readAsText(file);
 	}
 
 	const filtered = entries
@@ -551,10 +640,70 @@ export function TotpManager({ locale }: TotpManagerProps) {
 						)}
 					</p>
 				</div>
-				<span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-					{entries.length} {text("entradas", "entries")}
-				</span>
+				<div className="flex items-center gap-2">
+					<span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+						{entries.length} {text("entradas", "entries")}
+					</span>
+					{/* Import JSON */}
+					<input
+						ref={fileInputRef}
+						type="file"
+						accept=".json,application/json"
+						className="sr-only"
+						aria-label={text("Importar JSON", "Import JSON")}
+						onChange={handleImportFileChange}
+					/>
+					<button
+						type="button"
+						onClick={() => fileInputRef.current?.click()}
+						disabled={isImporting}
+						title={text("Importar JSON", "Import JSON")}
+						className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+					>
+						<svg
+							viewBox="0 0 20 20"
+							fill="currentColor"
+							className="h-3.5 w-3.5"
+							aria-hidden="true"
+						>
+							<path
+								fillRule="evenodd"
+								d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z"
+								clipRule="evenodd"
+							/>
+						</svg>
+						{isImporting ? "..." : text("Importar", "Import")}
+					</button>
+					{/* Export JSON */}
+					<button
+						type="button"
+						onClick={() => void handleExport()}
+						disabled={isExporting || entries.length === 0}
+						title={text("Exportar JSON", "Export JSON")}
+						className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+					>
+						<svg
+							viewBox="0 0 20 20"
+							fill="currentColor"
+							className="h-3.5 w-3.5"
+							aria-hidden="true"
+						>
+							<path
+								fillRule="evenodd"
+								d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+								clipRule="evenodd"
+							/>
+						</svg>
+						{isExporting ? "..." : text("Exportar", "Export")}
+					</button>
+				</div>
 			</div>
+			{/* Import feedback */}
+			{importFeedback && (
+				<p className="rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
+					{importFeedback}
+				</p>
+			)}
 
 			{/* Add form */}
 			<AddTotpForm locale={locale} onCreated={handleCreated} />

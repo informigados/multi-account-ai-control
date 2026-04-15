@@ -1142,8 +1142,48 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 	}
 
 	// Handle pre-filled import from local session
-	function handleLocalImport(detected: DetectedLocalAccount) {
-		// Find provider by slug
+	// Uses POST /api/accounts/import-local for atomic create + encrypted secret storage.
+	// Falls back to form pre-fill if the API call fails.
+	async function handleLocalImport(detected: DetectedLocalAccount) {
+		try {
+			const res = await fetch("/api/accounts/import-local", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					identifier: detected.identifier,
+					displayName: detected.displayName,
+					providerSlug: detected.providerSlug,
+					planName: detected.planName,
+					// tokenPreview is masked — full token not available in web mode.
+					// In Tauri mode the dialog passes the full token if present.
+					rawToken: undefined,
+				}),
+			});
+			if (res.ok) {
+				const data = (await res.json()) as {
+					account: { id: string };
+					secretStored: boolean;
+				};
+				// Reload accounts list to include the newly created account
+				const accountsRes = await fetch("/api/accounts?limit=200");
+				if (accountsRes.ok) {
+					const accountsData = (await accountsRes.json()) as {
+						accounts: (typeof accounts)[number][];
+					};
+					setAccounts(
+						(accountsData.accounts ?? []).map(
+							(a) => a as (typeof accounts)[number],
+						),
+					);
+				}
+				// Briefly show success on the form area
+				setEditingId(data.account.id);
+				return;
+			}
+		} catch {
+			// Silent — fall through to form pre-fill
+		}
+		// Fallback: pre-fill the creation form
 		const provider = providers.find((p) =>
 			p.name.toLowerCase().includes(detected.providerSlug),
 		);

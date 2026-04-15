@@ -67,8 +67,25 @@ fn detect_local_accounts(provider: String) -> Option<DetectedAccount> {
 		"gemini-cli" => connectors::detect_gemini(),
 		"codex" => connectors::detect_codex(),
 		"zed" => connectors::detect_zed(),
-		"cursor" | "windsurf" => connectors::detect_cursor(),
+		"cursor" => connectors::detect_cursor(),
+		"windsurf" => connectors::detect_windsurf(),
+		"github-copilot" => connectors::detect_copilot(),
 		_ => None,
+	}
+}
+
+/// Detects ALL locally logged-in accounts for the given provider.
+/// Useful for providers that support multiple simultaneous sessions (e.g. Zed).
+/// Returns an empty Vec when no accounts are found.
+/// Called from the frontend via `invoke("detect_multiple_local_accounts", { provider: "zed" })`.
+#[tauri::command]
+fn detect_multiple_local_accounts(provider: String) -> Vec<DetectedAccount> {
+	match provider.as_str() {
+		"zed" => connectors::detect_zed_multiple(),
+		// For single-account providers, wrap the Option into a Vec
+		other => detect_local_accounts(other.to_string())
+			.map(|a| vec![a])
+			.unwrap_or_default(),
 	}
 }
 
@@ -96,6 +113,7 @@ fn main() {
 		.manage(RuntimeProcess(Mutex::new(None)))
 		.invoke_handler(tauri::generate_handler![
 			detect_local_accounts,
+			detect_multiple_local_accounts,
 			send_quota_alert
 		])
 		.setup(|app| {

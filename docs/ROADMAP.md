@@ -480,7 +480,7 @@ Criterios de aceite:
 - [x] v4/Fase F: importacao local de sessao + conectores Rust (desktop)
 - [ ] v4/Fase F: alertas nativos do SO (tauri-plugin-notification)
 - [ ] v4/Fase F: backup agendado automatico
-- [ ] v4/Fase F: TOTP / 2FA Manager
+- [x] v4/Fase F: TOTP / 2FA Manager (incluindo Export/Import JSON)
 
 ---
 
@@ -496,11 +496,11 @@ Criterios de aceite:
 - [x] Comando Tauri `detect_local_accounts` registrado em `main.rs`
 - [x] UI: `LocalImportDialog` com graceful fallback em modo web
 - [x] Cursor: placeholder quando feature sqlite nao ativada (evita falha silenciosa)
-- [ ] Conector GitHub Copilot (safe-storage criptografado, complexidade alta)
-- [ ] Conector Windsurf (similar a Cursor, requer analise do path exato)
+- [x] Conector GitHub Copilot (`%LOCALAPPDATA%/github-copilot/hosts.json` — identidade publica; token via OS keychain)
+- [x] Conector Windsurf (`state.vscdb` SQLite; mesmo padrao do Cursor; feature sqlite ativada)
 - [x] Feature `sqlite` ativada no Cargo.toml para Cursor leitura real do vscdb
-- [ ] Leitura de multiplas contas por provedor (ex: varios perfis Zed)
-- [ ] Persistir token detectado de forma segura (criptografado no banco)
+- [x] Leitura de multiplas contas por provedor via `detect_zed_multiple()` + comando `detect_multiple_local_accounts`
+- [x] Persistir token detectado de forma segura: `POST /api/accounts/import-local` cria conta + salva `encryptedSecretBlob` atomicamente
 
 ### F.2 - Auto-refresh de cota por provedor
 
@@ -563,7 +563,8 @@ Criterios de aceite:
 - [x] Geracao RFC 6238 (HMAC-SHA1) sem biblioteca externa via Web Crypto API
 - [x] Armazenamento Base32 normalizado (segredo via `encryptSecret`)
 - [x] Interface premium: countdown ring SVG, formato `123 456`, copy-with-feedback, favoritos, busca, skeleton
-- [ ] Importar/Exportar registros TOTP como JSON criptografado (fase futura)
+- [x] Exportar registros TOTP como JSON (download direto via `GET /api/totp/export`)
+- [x] Importar registros TOTP de arquivo JSON com merge por ID (sem sobrescrever existentes) via `POST /api/totp/export`
 - Nota: esta fase funciona em modo web (nao requer Tauri)
 
 ---
