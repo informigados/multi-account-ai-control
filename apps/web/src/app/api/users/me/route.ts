@@ -1,6 +1,7 @@
 import { writeActivityLog } from "@/lib/audit/log";
 import { requireApiUser } from "@/lib/auth/require-auth";
 import { db } from "@/lib/db";
+import type { AppLocale } from "@/lib/i18n";
 import { enforceCsrfProtection } from "@/lib/security/csrf";
 import { hashPassword } from "@/lib/security/password";
 import { userSelfUpdateSchema } from "@/schemas/user";
@@ -33,7 +34,7 @@ export async function PATCH(request: NextRequest) {
 	const data: {
 		email?: string;
 		passwordHash?: string;
-		locale?: "pt_BR" | "en";
+		locale?: AppLocale;
 	} = {};
 	if (payload.email !== undefined) data.email = payload.email;
 	if (payload.locale !== undefined) data.locale = payload.locale;

@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import type { AppLocale } from "@/lib/i18n";
+import { type AppLocale, pickLocaleText } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/utils";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -78,113 +78,255 @@ type DataOperationsManagerProps = {
 };
 
 export function DataOperationsManager({ locale }: DataOperationsManagerProps) {
-	const isPtBr = locale === "pt_BR";
+	const text = (pt: string, en: string, es?: string, zhCN?: string) =>
+		pickLocaleText(locale, { pt, en, es, zhCN });
+
 	const ui = {
-		operationFailed: isPtBr ? "Operação falhou." : "Operation failed.",
-		operationSuccess: isPtBr
-			? "Operação executada com sucesso."
-			: "Operation executed successfully.",
-		importJson: isPtBr ? "Importar JSON" : "Import JSON",
-		importCsv: isPtBr ? "Importar CSV" : "Import CSV",
-		restoreBackup: isPtBr ? "Restaurar Backup" : "Restore Backup",
-		restoreBackupDryRun: isPtBr
-			? "Restaurar Backup (Simulação)"
-			: "Restore Backup (Dry Run)",
-		importHistory: isPtBr ? "Histórico de Importações" : "Import History",
-		invalidJsonPayload: isPtBr
-			? "O payload de importação JSON não é um JSON válido."
-			: "JSON import payload is not valid JSON.",
-		csvRequired: isPtBr
-			? "Conteúdo CSV é obrigatório."
-			: "CSV content is required.",
-		confirmRestorePhrase: isPtBr
-			? 'Digite "RESTORE BACKUP" exatamente para confirmar a restauração destrutiva.'
-			: 'Type "RESTORE BACKUP" exactly to confirm destructive restore.',
-		backupMustBeJson: isPtBr
-			? "O payload de backup deve ser JSON válido exportado por /api/export/backup."
-			: "Backup payload must be valid JSON exported by /api/export/backup.",
-		failedLoadHistory: isPtBr
-			? "Falha ao carregar histórico de importações."
-			: "Failed to load import history.",
-		exportTitle: isPtBr ? "Exportação" : "Export",
-		exportDescription: isPtBr
-			? "Baixe dados operacionais em JSON/CSV ou backup criptografado completo."
-			: "Download operational data in JSON/CSV or full encrypted backup.",
-		includeArchived: isPtBr
-			? "Incluir contas arquivadas"
-			: "Include archived accounts",
-		includeArchivedHint: isPtBr
-			? "Ative para incluir contas arquivadas nos arquivos de exportação."
-			: "Enable to include archived accounts in export files.",
-		exportJson: isPtBr ? "Exportar JSON" : "Export JSON",
-		exportCsv: isPtBr ? "Exportar CSV" : "Export CSV",
-		exportEncryptedBackup: isPtBr
-			? "Exportar Backup Criptografado"
-			: "Export Encrypted Backup",
-		importJsonDescription: isPtBr
-			? "Aceita arrays de providers, accounts e usageSnapshots."
-			: "Supports providers, accounts and usageSnapshots arrays.",
-		importJsonHint: isPtBr
-			? "Use para carga estruturada completa, preservando relacionamentos."
-			: "Use for complete structured load while preserving relationships.",
-		clear: isPtBr ? "Limpar" : "Clear",
-		running: isPtBr ? "Executando..." : "Running...",
-		runJsonImport: isPtBr ? "Executar Importação JSON" : "Run JSON Import",
-		importCsvDescription: isPtBr
-			? "Colunas esperadas: providerSlug/providerName, displayName, identifier, planName, accountType, status, priority, tags, notesText."
-			: "Expected columns: providerSlug/providerName, displayName, identifier, planName, accountType, status, priority, tags, notesText.",
-		importCsvHint: isPtBr
-			? "Ideal para importação rápida em lote via planilhas."
-			: "Ideal for quick bulk import from spreadsheets.",
-		runCsvImport: isPtBr ? "Executar Importação CSV" : "Run CSV Import",
-		restoreTitle: isPtBr
-			? "Restaurar Backup Criptografado"
-			: "Restore Encrypted Backup",
-		restoreDescription: isPtBr
-			? "A restauração substitui os dados atuais do banco. Use apenas artefatos de backup confiáveis."
-			: "Restore replaces current database data. Use only trusted backup artifacts.",
-		restoreDryRunHint: isPtBr
-			? "A simulação valida estrutura e integridade sem alterar o banco."
-			: "Dry run validates structure and integrity without changing the database.",
-		restoreConfirmHint: isPtBr
-			? "A restauração real exige a frase exata para evitar execução acidental."
-			: "Real restore requires the exact phrase to prevent accidental execution.",
-		restoreConfirmPlaceholder: isPtBr
-			? "Frase de confirmação para restauração destrutiva: RESTORE BACKUP"
-			: "Confirmation phrase for destructive restore: RESTORE BACKUP",
-		dryRunRestore: isPtBr ? "Simular Restauração" : "Dry Run Restore",
-		restoreNow: isPtBr ? "Restaurar Backup" : "Restore Backup",
-		restoring: isPtBr ? "Restaurando..." : "Restoring...",
-		historyDescription: isPtBr
-			? "Execuções recentes de importação e restauração com status e resumo."
-			: "Recent import and restore executions with status and summary.",
-		historySummaryHint: isPtBr
-			? "Resumo: P = providers, A = accounts, U = usage snapshots."
-			: "Summary: P = providers, A = accounts, U = usage snapshots.",
-		refresh: isPtBr ? "Atualizar" : "Refresh",
-		searchFileName: isPtBr
-			? "Buscar por nome do arquivo"
-			: "Search by file name",
-		allStatuses: isPtBr ? "Todos os status" : "All statuses",
-		allFileTypes: isPtBr ? "Todos os tipos de arquivo" : "All file types",
-		clearFilters: isPtBr ? "Limpar filtros" : "Clear filters",
-		loadingHistory: isPtBr
-			? "Carregando histórico de importações..."
-			: "Loading import history...",
-		noRecords: isPtBr
-			? "Nenhum registro de importação encontrado para os filtros atuais."
-			: "No import records found for current filters.",
-		thWhen: isPtBr ? "Quando" : "When",
-		thFile: isPtBr ? "Arquivo" : "File",
-		thType: isPtBr ? "Tipo" : "Type",
-		thStatus: isPtBr ? "Status" : "Status",
-		thSummary: isPtBr ? "Resumo" : "Summary",
-		loadMore: isPtBr ? "Carregar mais" : "Load more",
-		loading: isPtBr ? "Carregando..." : "Loading...",
-		statusPending: isPtBr ? "pendente" : "pending",
-		statusSuccess: isPtBr ? "sucesso" : "success",
-		statusPartial: isPtBr ? "parcial" : "partial",
-		statusFailed: isPtBr ? "falha" : "failed",
+		operationFailed: text(
+			"Operação falhou.",
+			"Operation failed.",
+			"La operación falló.",
+			"操作失败。",
+		),
+		operationSuccess: text(
+			"Operação executada com sucesso.",
+			"Operation executed successfully.",
+			"Operación ejecutada correctamente.",
+			"操作执行成功。",
+		),
+		importJson: text(
+			"Importar JSON",
+			"Import JSON",
+			"Importar JSON",
+			"导入 JSON",
+		),
+		importCsv: text("Importar CSV", "Import CSV", "Importar CSV", "导入 CSV"),
+		restoreBackup: text(
+			"Restaurar Backup",
+			"Restore Backup",
+			"Restaurar copia de seguridad",
+			"恢复备份",
+		),
+		restoreBackupDryRun: text(
+			"Restaurar Backup (Simulação)",
+			"Restore Backup (Dry Run)",
+			"Restaurar copia (simulación)",
+			"恢复备份（模拟）",
+		),
+		importHistory: text(
+			"Histórico de Importações",
+			"Import History",
+			"Historial de importaciones",
+			"导入历史",
+		),
+		invalidJsonPayload: text(
+			"O payload de importação JSON não é um JSON válido.",
+			"JSON import payload is not valid JSON.",
+			"El payload de importación JSON no es válido.",
+			"JSON 导入内容无效。",
+		),
+		csvRequired: text(
+			"Conteúdo CSV é obrigatório.",
+			"CSV content is required.",
+			"El contenido CSV es obligatorio.",
+			"CSV 内容是必填项。",
+		),
+		confirmRestorePhrase: text(
+			'Digite "RESTORE BACKUP" exatamente para confirmar a restauração destrutiva.',
+			'Type "RESTORE BACKUP" exactly to confirm destructive restore.',
+			'Escribe "RESTORE BACKUP" exactamente para confirmar la restauración destructiva.',
+			'请准确输入 "RESTORE BACKUP" 以确认破坏性恢复。',
+		),
+		backupMustBeJson: text(
+			"O payload de backup deve ser JSON válido exportado por /api/export/backup.",
+			"Backup payload must be valid JSON exported by /api/export/backup.",
+			"El payload de respaldo debe ser un JSON válido exportado por /api/export/backup.",
+			"备份内容必须是由 /api/export/backup 导出的有效 JSON。",
+		),
+		failedLoadHistory: text(
+			"Falha ao carregar histórico de importações.",
+			"Failed to load import history.",
+			"Error al cargar el historial de importaciones.",
+			"加载导入历史失败。",
+		),
+		exportTitle: text("Exportação", "Export", "Exportación", "导出"),
+		exportDescription: text(
+			"Baixe dados operacionais em JSON/CSV ou backup criptografado completo.",
+			"Download operational data in JSON/CSV or full encrypted backup.",
+			"Descarga datos operativos en JSON/CSV o una copia cifrada completa.",
+			"可下载 JSON/CSV 运营数据或完整加密备份。",
+		),
+		includeArchived: text(
+			"Incluir contas arquivadas",
+			"Include archived accounts",
+			"Incluir cuentas archivadas",
+			"包含已归档账号",
+		),
+		includeArchivedHint: text(
+			"Ative para incluir contas arquivadas nos arquivos de exportação.",
+			"Enable to include archived accounts in export files.",
+			"Activa para incluir cuentas archivadas en los archivos de exportación.",
+			"启用后，导出文件将包含已归档账号。",
+		),
+		exportJson: text(
+			"Exportar JSON",
+			"Export JSON",
+			"Exportar JSON",
+			"导出 JSON",
+		),
+		exportCsv: text("Exportar CSV", "Export CSV", "Exportar CSV", "导出 CSV"),
+		exportEncryptedBackup: text(
+			"Exportar Backup Criptografado",
+			"Export Encrypted Backup",
+			"Exportar copia cifrada",
+			"导出加密备份",
+		),
+		importJsonDescription: text(
+			"Aceita arrays de providers, accounts e usageSnapshots.",
+			"Supports providers, accounts and usageSnapshots arrays.",
+			"Admite arrays de providers, accounts y usageSnapshots.",
+			"支持 providers、accounts 和 usageSnapshots 数组。",
+		),
+		importJsonHint: text(
+			"Use para carga estruturada completa, preservando relacionamentos.",
+			"Use for complete structured load while preserving relationships.",
+			"Úsalo para una carga estructurada completa preservando relaciones.",
+			"用于完整结构化导入并保留关联关系。",
+		),
+		clear: text("Limpar", "Clear", "Limpiar", "清空"),
+		running: text("Executando...", "Running...", "Ejecutando...", "执行中..."),
+		runJsonImport: text(
+			"Executar Importação JSON",
+			"Run JSON Import",
+			"Ejecutar importación JSON",
+			"执行 JSON 导入",
+		),
+		importCsvDescription: text(
+			"Colunas esperadas: providerSlug/providerName, displayName, identifier, planName, accountType, status, priority, tags, notesText.",
+			"Expected columns: providerSlug/providerName, displayName, identifier, planName, accountType, status, priority, tags, notesText.",
+			"Columnas esperadas: providerSlug/providerName, displayName, identifier, planName, accountType, status, priority, tags, notesText.",
+			"预期列：providerSlug/providerName、displayName、identifier、planName、accountType、status、priority、tags、notesText。",
+		),
+		importCsvHint: text(
+			"Ideal para importação rápida em lote via planilhas.",
+			"Ideal for quick bulk import from spreadsheets.",
+			"Ideal para importación masiva rápida desde hojas de cálculo.",
+			"适合从表格快速批量导入。",
+		),
+		runCsvImport: text(
+			"Executar Importação CSV",
+			"Run CSV Import",
+			"Ejecutar importación CSV",
+			"执行 CSV 导入",
+		),
+		restoreTitle: text(
+			"Restaurar Backup Criptografado",
+			"Restore Encrypted Backup",
+			"Restaurar copia cifrada",
+			"恢复加密备份",
+		),
+		restoreDescription: text(
+			"A restauração substitui os dados atuais do banco. Use apenas artefatos de backup confiáveis.",
+			"Restore replaces current database data. Use only trusted backup artifacts.",
+			"La restauración reemplaza los datos actuales de la base. Usa solo respaldos confiables.",
+			"恢复会替换当前数据库数据。仅使用可信备份文件。",
+		),
+		restoreDryRunHint: text(
+			"A simulação valida estrutura e integridade sem alterar o banco.",
+			"Dry run validates structure and integrity without changing the database.",
+			"La simulación valida estructura e integridad sin alterar la base.",
+			"模拟恢复会校验结构和完整性，不会修改数据库。",
+		),
+		restoreConfirmHint: text(
+			"A restauração real exige a frase exata para evitar execução acidental.",
+			"Real restore requires the exact phrase to prevent accidental execution.",
+			"La restauración real exige la frase exacta para evitar ejecución accidental.",
+			"正式恢复要求输入准确短语，以防误操作。",
+		),
+		restoreConfirmPlaceholder: text(
+			"Frase de confirmação para restauração destrutiva: RESTORE BACKUP",
+			"Confirmation phrase for destructive restore: RESTORE BACKUP",
+			"Frase de confirmación para restauración destructiva: RESTORE BACKUP",
+			"破坏性恢复确认短语：RESTORE BACKUP",
+		),
+		dryRunRestore: text(
+			"Simular Restauração",
+			"Dry Run Restore",
+			"Simular restauración",
+			"模拟恢复",
+		),
+		restoreNow: text(
+			"Restaurar Backup",
+			"Restore Backup",
+			"Restaurar copia de seguridad",
+			"立即恢复备份",
+		),
+		restoring: text(
+			"Restaurando...",
+			"Restoring...",
+			"Restaurando...",
+			"恢复中...",
+		),
+		historyDescription: text(
+			"Execuções recentes de importação e restauração com status e resumo.",
+			"Recent import and restore executions with status and summary.",
+			"Ejecuciones recientes de importación y restauración con estado y resumen.",
+			"最近的导入与恢复执行记录（含状态与摘要）。",
+		),
+		historySummaryHint: text(
+			"Resumo: P = providers, A = accounts, U = usage snapshots.",
+			"Summary: P = providers, A = accounts, U = usage snapshots.",
+			"Resumen: P = providers, A = accounts, U = usage snapshots.",
+			"摘要：P = providers，A = accounts，U = usage snapshots。",
+		),
+		refresh: text("Atualizar", "Refresh", "Actualizar", "刷新"),
+		searchFileName: text(
+			"Buscar por nome do arquivo",
+			"Search by file name",
+			"Buscar por nombre de archivo",
+			"按文件名搜索",
+		),
+		allStatuses: text(
+			"Todos os status",
+			"All statuses",
+			"Todos los estados",
+			"全部状态",
+		),
+		allFileTypes: text(
+			"Todos os tipos de arquivo",
+			"All file types",
+			"Todos los tipos de archivo",
+			"全部文件类型",
+		),
+		clearFilters: text(
+			"Limpar filtros",
+			"Clear filters",
+			"Limpiar filtros",
+			"清除筛选",
+		),
+		loadingHistory: text(
+			"Carregando histórico de importações...",
+			"Loading import history...",
+			"Cargando historial de importaciones...",
+			"正在加载导入历史...",
+		),
+		noRecords: text(
+			"Nenhum registro de importação encontrado para os filtros atuais.",
+			"No import records found for current filters.",
+			"No se encontraron registros de importación para los filtros actuales.",
+			"当前筛选条件下未找到导入记录。",
+		),
+		thWhen: text("Quando", "When", "Cuándo", "时间"),
+		thFile: text("Arquivo", "File", "Archivo", "文件"),
+		thType: text("Tipo", "Type", "Tipo", "类型"),
+		thStatus: text("Status", "Status", "Estado", "状态"),
+		thSummary: text("Resumo", "Summary", "Resumen", "摘要"),
+		loadMore: text("Carregar mais", "Load more", "Cargar más", "加载更多"),
+		loading: text("Carregando...", "Loading...", "Cargando...", "加载中..."),
+		statusPending: text("pendente", "pending", "pendiente", "待处理"),
+		statusSuccess: text("sucesso", "success", "éxito", "成功"),
+		statusPartial: text("parcial", "partial", "parcial", "部分成功"),
+		statusFailed: text("falha", "failed", "fallido", "失败"),
 	};
 
 	const [includeArchived, setIncludeArchived] = useState(false);

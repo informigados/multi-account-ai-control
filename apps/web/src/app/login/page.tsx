@@ -1,10 +1,40 @@
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LoginForm } from "@/features/auth/components/login-form";
-import { DEFAULT_LOCALE, getDictionary } from "@/lib/i18n";
+import { DEFAULT_LOCALE, getDictionary, normalizeLocale } from "@/lib/i18n";
 import { ShieldCheck } from "lucide-react";
+import { headers } from "next/headers";
+
+function detectLocaleFromAcceptLanguage(acceptLanguage: string | null) {
+	if (!acceptLanguage) return DEFAULT_LOCALE;
+	// Map common Accept-Language BCP 47 tags to AppLocale
+	const mapping: Record<string, string> = {
+		"pt-BR": "pt_BR",
+		"pt-br": "pt_BR",
+		"pt-PT": "pt_PT",
+		"pt-pt": "pt_PT",
+		pt: "pt_BR",
+		en: "en",
+		es: "es",
+		"zh-CN": "zh_CN",
+		"zh-cn": "zh_CN",
+		zh: "zh_CN",
+	};
+	const langs = acceptLanguage
+		.split(",")
+		.map((l) => l.split(";")[0]?.trim() ?? "");
+	for (const lang of langs) {
+		// Try exact match first, then prefix (e.g. "en-US" → "en")
+		if (mapping[lang]) return normalizeLocale(mapping[lang]);
+		const prefix = lang.split("-")[0] ?? "";
+		if (mapping[prefix]) return normalizeLocale(mapping[prefix]);
+	}
+	return DEFAULT_LOCALE;
+}
 
 export default async function LoginPage() {
-	const locale = DEFAULT_LOCALE;
+	const headerList = await headers();
+	const acceptLanguage = headerList.get("accept-language");
+	const locale = detectLocaleFromAcceptLanguage(acceptLanguage);
 	const t = getDictionary(locale);
 
 	return (

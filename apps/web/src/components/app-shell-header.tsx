@@ -13,6 +13,7 @@ import {
 	ShieldCheck,
 	UsersRound,
 	Waypoints,
+	X,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -112,10 +113,11 @@ export function AppShellHeader({
 								</div>
 								<button
 									type="button"
-									className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
+									aria-label={t.shell.actions.closeMenu}
+									className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border hover:bg-muted"
 									onClick={() => setMenuOpen(false)}
 								>
-									X
+									<X className="h-4 w-4" />
 								</button>
 							</div>
 							<p className="mt-2 text-sm text-muted-foreground">
@@ -157,7 +159,7 @@ export function AppShellHeader({
 
 	return (
 		<>
-			<header className="relative rounded-xl border border-border bg-card/70 p-4 shadow-sm backdrop-blur">
+			<header className="sticky top-0 z-40 rounded-xl border border-border bg-card/80 p-4 shadow-sm backdrop-blur">
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0 space-y-1">
 						<div className="flex items-center gap-2">

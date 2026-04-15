@@ -1,7 +1,12 @@
+import { resolveProviderCatalogDefaults } from "@/features/providers/provider-catalog";
 import { writeActivityLog } from "@/lib/audit/log";
 import { requireApiUser } from "@/lib/auth/require-auth";
 import { db } from "@/lib/db";
 import { toSlug } from "@/lib/normalization";
+import {
+	SENSITIVE_CONNECTOR_CONFIRMATION_HEADER,
+	evaluateConnectorGate,
+} from "@/lib/security/connector-gate";
 import { enforceCsrfProtection } from "@/lib/security/csrf";
 import { providerUpdateSchema } from "@/schemas/provider";
 import { Prisma } from "@prisma/client";
@@ -61,6 +66,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 	const resolvedSlug =
 		payload.slug !== undefined ? toSlug(payload.slug) : undefined;
+	const nextSlug = resolvedSlug ?? currentProvider.slug;
+	const catalogDefaults = resolveProviderCatalogDefaults(nextSlug);
 
 	if (payload.slug !== undefined && !resolvedSlug) {
 		return NextResponse.json(
@@ -69,15 +76,58 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 		);
 	}
 
+	if (payload.connectorType !== undefined) {
+		const connectorGate = evaluateConnectorGate({
+			actorRole: user.role,
+			previousConnectorType: currentProvider.connectorType,
+			nextConnectorType: payload.connectorType,
+			confirmationPhrase: request.headers.get(
+				SENSITIVE_CONNECTOR_CONFIRMATION_HEADER,
+			),
+		});
+
+		if (!connectorGate.ok) {
+			await writeActivityLog({
+				actorUserId: user.id,
+				entityType: "provider",
+				entityId: currentProvider.id,
+				eventType: "provider_connector_gate_denied",
+				message: connectorGate.message,
+				metadata: {
+					reason: connectorGate.code,
+					previousConnectorType: currentProvider.connectorType,
+					nextConnectorType: payload.connectorType,
+				},
+			});
+
+			return NextResponse.json(
+				{ message: connectorGate.message },
+				{ status: connectorGate.status },
+			);
+		}
+	}
+
 	try {
 		const provider = await db.provider.update({
 			where: { id: currentProvider.id },
 			data: {
 				name: payload.name,
 				slug: resolvedSlug,
-				icon: payload.icon,
-				color: payload.color,
-				description: payload.description,
+				icon:
+					payload.icon ??
+					currentProvider.icon ??
+					catalogDefaults?.icon ??
+					undefined,
+				color:
+					payload.color ??
+					currentProvider.color ??
+					catalogDefaults?.color ??
+					undefined,
+				description:
+					payload.description ??
+					currentProvider.description ??
+					catalogDefaults?.description ??
+					undefined,
 				connectorType: payload.connectorType,
 				isActive: payload.isActive,
 			},
@@ -91,6 +141,36 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 			message: `Provider ${provider.name} updated`,
 			metadata: { providerId: provider.id },
 		});
+
+		if (
+			payload.connectorType !== undefined &&
+			payload.connectorType !== currentProvider.connectorType
+		) {
+			const connectorGate = evaluateConnectorGate({
+				actorRole: user.role,
+				previousConnectorType: currentProvider.connectorType,
+				nextConnectorType: payload.connectorType,
+				confirmationPhrase: request.headers.get(
+					SENSITIVE_CONNECTOR_CONFIRMATION_HEADER,
+				),
+			});
+
+			if (connectorGate.ok && connectorGate.level !== "none") {
+				await writeActivityLog({
+					actorUserId: user.id,
+					entityType: "provider",
+					entityId: provider.id,
+					eventType: "provider_connector_gate_passed",
+					message: `Sensitive connector gate passed for provider ${provider.name}`,
+					metadata: {
+						providerId: provider.id,
+						previousConnectorType: currentProvider.connectorType,
+						nextConnectorType: payload.connectorType,
+						level: connectorGate.level,
+					},
+				});
+			}
+		}
 
 		return NextResponse.json({ provider }, { status: 200 });
 	} catch (error) {

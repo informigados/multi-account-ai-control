@@ -2,6 +2,10 @@ import { writeActivityLog } from "@/lib/audit/log";
 import { requireApiUser } from "@/lib/auth/require-auth";
 import { db } from "@/lib/db";
 import { encryptSecret } from "@/lib/security/encryption";
+import {
+	BACKUP_CHECKSUM_ALGORITHM,
+	computeSha256Hex,
+} from "@/lib/security/integrity";
 import { type NextRequest, NextResponse } from "next/server";
 
 type WithId = { id: string };
@@ -131,11 +135,18 @@ export async function GET(request: NextRequest) {
 		},
 	};
 
-	const encryptedBackup = encryptSecret(JSON.stringify(plainPayload));
+	const plainPayloadText = JSON.stringify(plainPayload);
+	const payloadChecksum = computeSha256Hex(plainPayloadText);
+	const payloadBytes = Buffer.byteLength(plainPayloadText, "utf8");
+	const encryptedBackup = encryptSecret(plainPayloadText);
 	const backupPayload = {
-		version: 1,
+		version: 2,
 		exportType: "backup",
+		metadataVersion: 1,
 		algorithm: "aes-256-gcm",
+		checksumAlgorithm: BACKUP_CHECKSUM_ALGORITHM,
+		payloadChecksum,
+		payloadBytes,
 		exportedAt: exportedAt.toISOString(),
 		encryptedPayload: encryptedBackup,
 	};
@@ -159,6 +170,12 @@ export async function GET(request: NextRequest) {
 				settings: settings.length,
 			},
 			authUsersExcluded: true,
+			integrity: {
+				checksumAlgorithm: BACKUP_CHECKSUM_ALGORITHM,
+				payloadChecksum,
+				payloadBytes,
+				metadataVersion: 1,
+			},
 		},
 	});
 

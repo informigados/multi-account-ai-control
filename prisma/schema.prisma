@@ -14,7 +14,10 @@ enum UserRole {
 
 enum UserLocale {
   pt_BR
+  pt_PT
   en
+  es
+  zh_CN
 }
 
 enum ProviderConnectorType {

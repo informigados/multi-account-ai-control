@@ -46,6 +46,14 @@ checks.push({
 	name: "Rustc available",
 	ok: commandAvailable("rustc"),
 });
+checks.push({
+	name: "Cargo Tauri CLI available",
+	ok: commandAvailable("cargo", ["tauri", "--version"]),
+});
+checks.push({
+	name: "Cargo audit CLI available",
+	ok: commandAvailable("cargo", ["audit", "--version"]),
+});
 
 const failed = checks.filter((check) => !check.ok);
 

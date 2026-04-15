@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import type { AppLocale } from "@/lib/i18n";
+import { type AppLocale, pickLocaleText } from "@/lib/i18n";
 import { useState } from "react";
 
 type AccountSecretViewerProps = {
@@ -34,28 +34,70 @@ export function AccountSecretViewer({
 	hasSecret,
 	locale,
 }: AccountSecretViewerProps) {
-	const isPtBr = locale === "pt_BR";
+	const text = (pt: string, en: string, es?: string, zhCN?: string) =>
+		pickLocaleText(locale, { pt, en, es, zhCN });
+
 	const ui = {
-		title: isPtBr ? "Revelação de Segredo" : "Secret Reveal",
-		noSecret: isPtBr
-			? "Nenhum segredo criptografado está armazenado para esta conta."
-			: "No encrypted secret payload is stored for this account.",
-		protectedAccess: isPtBr
-			? "Acesso protegido ao segredo"
-			: "Protected secret access",
-		subtitle: isPtBr
-			? "Reautentique com sua senha para revelar o segredo desta conta."
-			: "Re-authenticate with your password to reveal this account secret payload.",
-		hideSecret: isPtBr ? "Ocultar Segredo" : "Hide Secret",
-		passwordPlaceholder: isPtBr ? "Senha da conta" : "Account password",
-		failedReveal: isPtBr
-			? "Falha ao revelar segredo."
-			: "Failed to reveal secret.",
-		reauthenticating: isPtBr ? "Reautenticando..." : "Re-authenticating...",
-		revealSecret: isPtBr ? "Revelar Segredo" : "Reveal Secret",
-		securityHint: isPtBr
-			? "Mostre o segredo somente quando necessário e oculte novamente após uso."
-			: "Reveal secrets only when necessary and hide again after use.",
+		title: text(
+			"Revelação de Segredo",
+			"Secret Reveal",
+			"Revelación de secreto",
+			"密钥查看",
+		),
+		noSecret: text(
+			"Nenhum segredo criptografado está armazenado para esta conta.",
+			"No encrypted secret payload is stored for this account.",
+			"No hay un secreto cifrado almacenado para esta cuenta.",
+			"该账号没有存储加密密钥。",
+		),
+		protectedAccess: text(
+			"Acesso protegido ao segredo",
+			"Protected secret access",
+			"Acceso protegido al secreto",
+			"受保护的密钥访问",
+		),
+		subtitle: text(
+			"Reautentique com sua senha para revelar o segredo desta conta.",
+			"Re-authenticate with your password to reveal this account secret payload.",
+			"Vuelve a autenticarte con tu contraseña para revelar el secreto de esta cuenta.",
+			"请使用密码重新验证后再查看该账号密钥。",
+		),
+		hideSecret: text(
+			"Ocultar Segredo",
+			"Hide Secret",
+			"Ocultar secreto",
+			"隐藏密钥",
+		),
+		passwordPlaceholder: text(
+			"Senha da conta",
+			"Account password",
+			"Contraseña de la cuenta",
+			"账号密码",
+		),
+		failedReveal: text(
+			"Falha ao revelar segredo.",
+			"Failed to reveal secret.",
+			"Error al revelar el secreto.",
+			"显示密钥失败。",
+		),
+		reauthenticating: text(
+			"Reautenticando...",
+			"Re-authenticating...",
+			"Reautenticando...",
+			"正在重新验证...",
+		),
+		revealSecret: text(
+			"Revelar Segredo",
+			"Reveal Secret",
+			"Revelar secreto",
+			"显示密钥",
+		),
+		securityHint: text(
+			"Mostre o segredo somente quando necessário e oculte novamente após uso.",
+			"Reveal secrets only when necessary and hide again after use.",
+			"Revela secretos solo cuando sea necesario y vuelve a ocultarlos después.",
+			"仅在必要时显示密钥，使用后请立即隐藏。",
+		),
 	};
 
 	const [password, setPassword] = useState("");

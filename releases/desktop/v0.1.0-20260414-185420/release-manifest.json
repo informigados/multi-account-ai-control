@@ -1,0 +1,17 @@
+{
+  "version": "0.1.0",
+  "releaseStamp": "20260414-185420",
+  "generatedAt": "2026-04-14T21:54:21.088Z",
+  "artifacts": [
+    {
+      "relativePath": "msi/Multi Account AI Control_0.1.0_x64_en-US.msi",
+      "sizeBytes": 44040260,
+      "sha256": "262a0cd0a016996275a2ab1e121642ede987478a6a54216cc31db450d43034c0"
+    },
+    {
+      "relativePath": "nsis/Multi Account AI Control_0.1.0_x64-setup.exe",
+      "sizeBytes": 17465881,
+      "sha256": "067d2c95edd565524af3072a96069bbb674ecf6237c7a3ef90a4e028e930584c"
+    }
+  ]
+}

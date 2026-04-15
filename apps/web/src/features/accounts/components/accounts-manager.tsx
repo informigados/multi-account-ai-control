@@ -8,9 +8,10 @@ import type {
 	AccountView,
 	ProviderSummary,
 } from "@/features/accounts/account-types";
+import { ProviderBrand } from "@/features/providers/components/provider-brand";
 import { QuickUsageUpdate } from "@/features/usage/components/quick-usage-update";
 import type { UsageSnapshotView } from "@/features/usage/usage-types";
-import type { AppLocale } from "@/lib/i18n";
+import { type AppLocale, pickLocaleText } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/utils";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -124,137 +125,365 @@ type AccountsManagerProps = {
 };
 
 export function AccountsManager({ locale }: AccountsManagerProps) {
-	const isPtBr = locale === "pt_BR";
+	const text = (pt: string, en: string, es?: string, zhCN?: string) =>
+		pickLocaleText(locale, { pt, en, es, zhCN });
+
 	const ui = {
-		failedLoadProviders: isPtBr
-			? "Falha ao carregar provedores."
-			: "Failed to load providers.",
-		failedLoadAccounts: isPtBr
-			? "Falha ao carregar contas."
-			: "Failed to load accounts.",
-		failedSaveAccount: isPtBr
-			? "Falha ao salvar conta."
-			: "Failed to save account.",
-		failedArchiveAccount: isPtBr
-			? "Falha ao arquivar conta."
-			: "Failed to archive account.",
-		failedDeleteAccount: isPtBr
-			? "Falha ao excluir conta."
-			: "Failed to delete account.",
-		accountUpdated: isPtBr ? "Conta atualizada." : "Account updated.",
-		accountCreated: isPtBr ? "Conta criada." : "Account created.",
-		filterTitle: isPtBr ? "Filtros" : "Filters",
-		cards: isPtBr ? "Cartões" : "Cards",
-		table: isPtBr ? "Tabela" : "Table",
-		searchPlaceholder: isPtBr
-			? "Buscar por nome, identificador ou notas"
-			: "Search by name, id, notes",
-		allProviders: isPtBr ? "Todos os provedores" : "All providers",
-		allStatuses: isPtBr ? "Todos os status" : "All statuses",
-		tagPlaceholder: isPtBr ? "Tag" : "Tag",
-		includeArchived: isPtBr ? "Incluir arquivadas" : "Include archived",
-		editAccount: isPtBr ? "Editar Conta" : "Edit Account",
-		createAccount: isPtBr ? "Criar Conta" : "Create Account",
-		newButton: isPtBr ? "Novo" : "New",
-		displayName: isPtBr ? "Nome de exibição" : "Display name",
-		emailOrIdentifier: isPtBr
-			? "E-mail ou identificador"
-			: "Email or identifier",
-		plan: isPtBr ? "Plano" : "Plan",
-		type: isPtBr ? "Tipo" : "Type",
-		priority: isPtBr ? "Prioridade" : "Priority",
-		tagsCsv: isPtBr ? "Tags (separadas por vírgula)" : "Tags (comma separated)",
-		operationalNotes: isPtBr ? "Notas operacionais" : "Operational notes",
-		resetInterval: isPtBr ? "Intervalo de reset (min)" : "Reset interval (min)",
-		sensitiveMetadata: isPtBr ? "Metadados sensíveis" : "Sensitive metadata",
-		passwordOrToken: isPtBr ? "Senha ou token" : "Password or token",
-		apiKey: isPtBr ? "Chave de API" : "API key",
-		sessionToken: isPtBr ? "Token de sessão" : "Session token",
-		cookiesReference: isPtBr ? "Referência de cookies" : "Cookies reference",
-		secretNotes: isPtBr ? "Notas sensíveis" : "Secret notes",
-		clearSecretBlob: isPtBr
-			? "Limpar segredo armazenado"
-			: "Clear stored secret blob",
-		saving: isPtBr ? "Salvando..." : "Saving...",
-		updateAccount: isPtBr ? "Atualizar Conta" : "Update Account",
-		createAccountAction: isPtBr ? "Criar Conta" : "Create Account",
-		accountsTitle: isPtBr ? "Contas" : "Accounts",
-		totalSuffix: isPtBr ? "total" : "total",
-		loadingAccounts: isPtBr ? "Carregando contas" : "Loading accounts",
-		noAccounts: isPtBr ? "Nenhuma conta encontrada." : "No accounts found.",
-		unknownProvider: isPtBr ? "Provedor desconhecido" : "Unknown provider",
-		noPlan: isPtBr ? "Sem plano" : "No plan",
-		hasSecret: isPtBr ? "tem segredo" : "has secret",
-		nextReset: isPtBr ? "Próx. reset" : "Next reset",
-		usage: isPtBr ? "Uso" : "Usage",
-		lastMeasure: isPtBr ? "Última medição" : "Last measure",
-		open: isPtBr ? "Abrir" : "Open",
-		edit: isPtBr ? "Editar" : "Edit",
-		archive: isPtBr ? "Arquivar" : "Archive",
-		delete: isPtBr ? "Excluir" : "Delete",
-		thName: isPtBr ? "Nome" : "Name",
-		thProvider: isPtBr ? "Provedor" : "Provider",
-		thStatus: "Status",
-		thPriority: isPtBr ? "Prioridade" : "Priority",
-		thUsage: isPtBr ? "Uso" : "Usage",
-		thNextReset: isPtBr ? "Próx. reset" : "Next Reset",
-		thSecret: isPtBr ? "Segredo" : "Secret",
-		thActions: isPtBr ? "Ações" : "Actions",
-		secretStored: isPtBr ? "Armazenado" : "Stored",
-		secretNone: isPtBr ? "Nenhum" : "None",
-		loadMore: isPtBr ? "Carregar mais" : "Load more",
-		deleteAccountTitle: isPtBr ? "Excluir conta" : "Delete account",
+		failedLoadProviders: text(
+			"Falha ao carregar provedores.",
+			"Failed to load providers.",
+			"Error al cargar proveedores.",
+			"加载服务商失败。",
+		),
+		failedLoadAccounts: text(
+			"Falha ao carregar contas.",
+			"Failed to load accounts.",
+			"Error al cargar cuentas.",
+			"加载账号失败。",
+		),
+		failedSaveAccount: text(
+			"Falha ao salvar conta.",
+			"Failed to save account.",
+			"Error al guardar la cuenta.",
+			"保存账号失败。",
+		),
+		failedArchiveAccount: text(
+			"Falha ao arquivar conta.",
+			"Failed to archive account.",
+			"Error al archivar la cuenta.",
+			"归档账号失败。",
+		),
+		failedDeleteAccount: text(
+			"Falha ao excluir conta.",
+			"Failed to delete account.",
+			"Error al eliminar la cuenta.",
+			"删除账号失败。",
+		),
+		accountUpdated: text(
+			"Conta atualizada.",
+			"Account updated.",
+			"Cuenta actualizada.",
+			"账号已更新。",
+		),
+		accountCreated: text(
+			"Conta criada.",
+			"Account created.",
+			"Cuenta creada.",
+			"账号已创建。",
+		),
+		filterTitle: text("Filtros", "Filters", "Filtros", "筛选"),
+		cards: text("Cartões", "Cards", "Tarjetas", "卡片"),
+		table: text("Tabela", "Table", "Tabla", "表格"),
+		searchPlaceholder: text(
+			"Buscar por nome, identificador ou notas",
+			"Search by name, id, notes",
+			"Buscar por nombre, identificador o notas",
+			"按名称、标识或备注搜索",
+		),
+		allProviders: text(
+			"Todos os provedores",
+			"All providers",
+			"Todos los proveedores",
+			"全部服务商",
+		),
+		allStatuses: text(
+			"Todos os status",
+			"All statuses",
+			"Todos los estados",
+			"全部状态",
+		),
+		tagPlaceholder: text("Tag", "Tag", "Etiqueta", "标签"),
+		includeArchived: text(
+			"Incluir arquivadas",
+			"Include archived",
+			"Incluir archivadas",
+			"包含已归档",
+		),
+		editAccount: text(
+			"Editar Conta",
+			"Edit Account",
+			"Editar cuenta",
+			"编辑账号",
+		),
+		createAccount: text(
+			"Criar Conta",
+			"Create Account",
+			"Crear cuenta",
+			"创建账号",
+		),
+		newButton: text("Novo", "New", "Nuevo", "新建"),
+		displayName: text(
+			"Nome de exibição",
+			"Display name",
+			"Nombre para mostrar",
+			"显示名称",
+		),
+		emailOrIdentifier: text(
+			"E-mail ou identificador",
+			"Email or identifier",
+			"Correo o identificador",
+			"邮箱或标识",
+		),
+		plan: text("Plano", "Plan", "Plan", "套餐"),
+		type: text("Tipo", "Type", "Tipo", "类型"),
+		priority: text("Prioridade", "Priority", "Prioridad", "优先级"),
+		tagsCsv: text(
+			"Tags (separadas por vírgula)",
+			"Tags (comma separated)",
+			"Etiquetas (separadas por coma)",
+			"标签（逗号分隔）",
+		),
+		operationalNotes: text(
+			"Notas operacionais",
+			"Operational notes",
+			"Notas operativas",
+			"运营备注",
+		),
+		resetInterval: text(
+			"Intervalo de reset (min)",
+			"Reset interval (min)",
+			"Intervalo de reinicio (min)",
+			"重置间隔（分钟）",
+		),
+		sensitiveMetadata: text(
+			"Metadados sensíveis",
+			"Sensitive metadata",
+			"Metadatos sensibles",
+			"敏感元数据",
+		),
+		passwordOrToken: text(
+			"Senha ou token",
+			"Password or token",
+			"Contraseña o token",
+			"密码或令牌",
+		),
+		apiKey: text("Chave de API", "API key", "Clave API", "API 密钥"),
+		sessionToken: text(
+			"Token de sessão",
+			"Session token",
+			"Token de sesión",
+			"会话令牌",
+		),
+		cookiesReference: text(
+			"Referência de cookies",
+			"Cookies reference",
+			"Referencia de cookies",
+			"Cookie 引用",
+		),
+		secretNotes: text(
+			"Notas sensíveis",
+			"Secret notes",
+			"Notas sensibles",
+			"敏感备注",
+		),
+		clearSecretBlob: text(
+			"Limpar segredo armazenado",
+			"Clear stored secret blob",
+			"Limpiar secreto almacenado",
+			"清除已存储密钥",
+		),
+		saving: text("Salvando...", "Saving...", "Guardando...", "保存中..."),
+		updateAccount: text(
+			"Atualizar Conta",
+			"Update Account",
+			"Actualizar cuenta",
+			"更新账号",
+		),
+		createAccountAction: text(
+			"Criar Conta",
+			"Create Account",
+			"Crear cuenta",
+			"创建账号",
+		),
+		accountsTitle: text("Contas", "Accounts", "Cuentas", "账号"),
+		totalSuffix: text("total", "total", "total", "总计"),
+		loadingAccounts: text(
+			"Carregando contas",
+			"Loading accounts",
+			"Cargando cuentas",
+			"正在加载账号",
+		),
+		noAccounts: text(
+			"Nenhuma conta encontrada.",
+			"No accounts found.",
+			"No se encontraron cuentas.",
+			"未找到账号。",
+		),
+		unknownProvider: text(
+			"Provedor desconhecido",
+			"Unknown provider",
+			"Proveedor desconocido",
+			"未知服务商",
+		),
+		noPlan: text("Sem plano", "No plan", "Sin plan", "无套餐"),
+		hasSecret: text("tem segredo", "has secret", "tiene secreto", "有密钥"),
+		nextReset: text("Próx. reset", "Next reset", "Próx. reinicio", "下次重置"),
+		usage: text("Uso", "Usage", "Uso", "用量"),
+		lastMeasure: text(
+			"Última medição",
+			"Last measure",
+			"Última medición",
+			"最近测量",
+		),
+		open: text("Abrir", "Open", "Abrir", "打开"),
+		edit: text("Editar", "Edit", "Editar", "编辑"),
+		archive: text("Arquivar", "Archive", "Archivar", "归档"),
+		delete: text("Excluir", "Delete", "Eliminar", "删除"),
+		thName: text("Nome", "Name", "Nombre", "名称"),
+		thProvider: text("Provedor", "Provider", "Proveedor", "服务商"),
+		thStatus: text("Status", "Status", "Estado", "状态"),
+		thPriority: text("Prioridade", "Priority", "Prioridad", "优先级"),
+		thUsage: text("Uso", "Usage", "Uso", "用量"),
+		thNextReset: text(
+			"Próx. reset",
+			"Next Reset",
+			"Próx. reinicio",
+			"下次重置",
+		),
+		thSecret: text("Segredo", "Secret", "Secreto", "密钥"),
+		thActions: text("Ações", "Actions", "Acciones", "操作"),
+		secretStored: text("Armazenado", "Stored", "Almacenado", "已存储"),
+		secretNone: text("Nenhum", "None", "Ninguno", "无"),
+		loadMore: text("Carregar mais", "Load more", "Cargar más", "加载更多"),
+		deleteAccountTitle: text(
+			"Excluir conta",
+			"Delete account",
+			"Eliminar cuenta",
+			"删除账号",
+		),
 		deleteAccountDescription: (name: string) =>
-			isPtBr
-				? `Excluir a conta "${name}"? Esta ação não pode ser desfeita.`
-				: `Delete account "${name}"? This action cannot be undone.`,
-		providerLabel: isPtBr ? "Provedor" : "Provider",
-		providerHint: isPtBr
-			? "Selecione o provedor correto para manter integridade de filtros e auditoria."
-			: "Select the correct provider to keep filters and audit integrity.",
-		identifierLabel: isPtBr ? "Identificador" : "Identifier",
-		identifierHint: isPtBr
-			? "Deve ser único dentro do mesmo provedor (e-mail, login ou ID externo)."
-			: "Must be unique within the same provider (email, login, or external ID).",
-		accountStatusLabel: isPtBr ? "Status da conta" : "Account status",
-		accountStatusHint: isPtBr
-			? "Use status para refletir risco operacional atual da conta."
-			: "Use status to reflect the account's current operational risk.",
-		accountTypeLabel: isPtBr ? "Tipo de conta" : "Account type",
-		resetDateTimeLabel: isPtBr
-			? "Data e hora do próximo reset"
-			: "Next reset datetime",
-		resetIntervalHint: isPtBr
-			? "Intervalo em minutos para projeção automática de próximo ciclo."
-			: "Interval in minutes for automatic next-cycle projection.",
-		resetDateHint: isPtBr
-			? "Use quando já souber a janela exata de renovação da conta."
-			: "Use when you already know the exact account reset window.",
-		passwordOrTokenLabel: isPtBr ? "Senha ou token" : "Password or token",
-		apiKeyLabel: isPtBr ? "Chave de API" : "API key",
-		sessionTokenLabel: isPtBr ? "Token de sessão" : "Session token",
-		cookiesReferenceLabel: isPtBr
-			? "Referência de cookies"
-			: "Cookies reference",
-		secretNotesLabel: isPtBr ? "Notas sensíveis" : "Secret notes",
-		sensitiveMetadataHint: isPtBr
-			? "Os campos abaixo são criptografados e só podem ser revelados com reautenticação."
-			: "Fields below are encrypted and can only be revealed with re-authentication.",
-		clearSecretHint: isPtBr
-			? "Marque apenas se quiser remover o segredo já armazenado no banco."
-			: "Check only if you want to remove the secret currently stored in the database.",
-		sensitiveMetadataCollapsedHint: isPtBr
-			? "Expandir apenas quando precisar registrar ou ajustar credenciais."
-			: "Expand only when you need to register or adjust credentials.",
+			text(
+				`Excluir a conta "${name}"? Esta ação não pode ser desfeita.`,
+				`Delete account "${name}"? This action cannot be undone.`,
+				`¿Eliminar la cuenta "${name}"? Esta acción no se puede deshacer.`,
+				`确定删除账号“${name}”？此操作不可撤销。`,
+			),
+		providerLabel: text("Provedor", "Provider", "Proveedor", "服务商"),
+		providerHint: text(
+			"Selecione o provedor correto para manter integridade de filtros e auditoria.",
+			"Select the correct provider to keep filters and audit integrity.",
+			"Selecciona el proveedor correcto para mantener la integridad de filtros y auditoría.",
+			"请选择正确的服务商以保持筛选和审计一致性。",
+		),
+		identifierLabel: text(
+			"Identificador",
+			"Identifier",
+			"Identificador",
+			"标识",
+		),
+		identifierHint: text(
+			"Deve ser único dentro do mesmo provedor (e-mail, login ou ID externo).",
+			"Must be unique within the same provider (email, login, or external ID).",
+			"Debe ser único dentro del mismo proveedor (correo, login o ID externo).",
+			"在同一服务商内必须唯一（邮箱、登录名或外部 ID）。",
+		),
+		accountStatusLabel: text(
+			"Status da conta",
+			"Account status",
+			"Estado de la cuenta",
+			"账号状态",
+		),
+		accountStatusHint: text(
+			"Use status para refletir risco operacional atual da conta.",
+			"Use status to reflect the account's current operational risk.",
+			"Usa el estado para reflejar el riesgo operativo actual de la cuenta.",
+			"请使用状态反映账号当前运营风险。",
+		),
+		accountTypeLabel: text(
+			"Tipo de conta",
+			"Account type",
+			"Tipo de cuenta",
+			"账号类型",
+		),
+		resetDateTimeLabel: text(
+			"Data e hora do próximo reset",
+			"Next reset datetime",
+			"Fecha y hora del próximo reinicio",
+			"下次重置日期时间",
+		),
+		resetIntervalHint: text(
+			"Intervalo em minutos para projeção automática de próximo ciclo.",
+			"Interval in minutes for automatic next-cycle projection.",
+			"Intervalo en minutos para proyección automática del siguiente ciclo.",
+			"以分钟为单位，用于自动推算下个周期。",
+		),
+		resetDateHint: text(
+			"Use quando já souber a janela exata de renovação da conta.",
+			"Use when you already know the exact account reset window.",
+			"Úsalo cuando ya conozcas la ventana exacta de renovación de la cuenta.",
+			"当你已知账号的准确重置窗口时使用。",
+		),
+		passwordOrTokenLabel: text(
+			"Senha ou token",
+			"Password or token",
+			"Contraseña o token",
+			"密码或令牌",
+		),
+		apiKeyLabel: text("Chave de API", "API key", "Clave API", "API 密钥"),
+		sessionTokenLabel: text(
+			"Token de sessão",
+			"Session token",
+			"Token de sesión",
+			"会话令牌",
+		),
+		cookiesReferenceLabel: text(
+			"Referência de cookies",
+			"Cookies reference",
+			"Referencia de cookies",
+			"Cookie 引用",
+		),
+		secretNotesLabel: text(
+			"Notas sensíveis",
+			"Secret notes",
+			"Notas sensibles",
+			"敏感备注",
+		),
+		sensitiveMetadataHint: text(
+			"Os campos abaixo são criptografados e só podem ser revelados com reautenticação.",
+			"Fields below are encrypted and can only be revealed with re-authentication.",
+			"Los campos de abajo están cifrados y solo se pueden revelar con reautenticación.",
+			"下方字段已加密，仅可通过重新验证后查看。",
+		),
+		clearSecretHint: text(
+			"Marque apenas se quiser remover o segredo já armazenado no banco.",
+			"Check only if you want to remove the secret currently stored in the database.",
+			"Marca solo si quieres eliminar el secreto ya almacenado en la base.",
+			"仅当你要删除数据库中已存储的密钥时勾选。",
+		),
+		sensitiveMetadataCollapsedHint: text(
+			"Expandir apenas quando precisar registrar ou ajustar credenciais.",
+			"Expand only when you need to register or adjust credentials.",
+			"Expandir solo cuando necesites registrar o ajustar credenciales.",
+			"仅在需要登记或调整凭据时展开。",
+		),
 		deleteAccountAria: (name: string) =>
-			isPtBr ? `Excluir conta ${name}` : `Delete account ${name}`,
-		statusActive: isPtBr ? "Ativa" : "Active",
-		statusWarning: isPtBr ? "Atenção" : "Warning",
-		statusLimited: isPtBr ? "Limitada" : "Limited",
-		statusExhausted: isPtBr ? "Esgotada" : "Exhausted",
-		statusDisabled: isPtBr ? "Desativada" : "Disabled",
-		statusError: isPtBr ? "Erro" : "Error",
-		statusArchived: isPtBr ? "Arquivada" : "Archived",
+			text(
+				`Excluir conta ${name}`,
+				`Delete account ${name}`,
+				`Eliminar cuenta ${name}`,
+				`删除账号 ${name}`,
+			),
+		accountArchived: (name: string) =>
+			text(
+				`Conta "${name}" arquivada.`,
+				`Account "${name}" archived.`,
+				`Cuenta "${name}" archivada.`,
+				`账号“${name}”已归档。`,
+			),
+		accountDeleted: (name: string) =>
+			text(
+				`Conta "${name}" excluída.`,
+				`Account "${name}" deleted.`,
+				`Cuenta "${name}" eliminada.`,
+				`账号“${name}”已删除。`,
+			),
+		statusActive: text("Ativa", "Active", "Activa", "活跃"),
+		statusWarning: text("Atenção", "Warning", "Advertencia", "警告"),
+		statusLimited: text("Limitada", "Limited", "Limitada", "受限"),
+		statusExhausted: text("Esgotada", "Exhausted", "Agotada", "已耗尽"),
+		statusDisabled: text("Desativada", "Disabled", "Desactivada", "已禁用"),
+		statusError: text("Erro", "Error", "Error", "错误"),
+		statusArchived: text("Arquivada", "Archived", "Archivada", "已归档"),
 	};
 
 	const [providers, setProviders] = useState<ProviderSummary[]>([]);
@@ -522,9 +751,7 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 			}
 			setFeedback({
 				tone: "success",
-				message: isPtBr
-					? `Conta "${account.displayName}" arquivada.`
-					: `Account "${account.displayName}" archived.`,
+				message: ui.accountArchived(account.displayName),
 			});
 			setRequestCursor(null);
 			setNextCursor(null);
@@ -552,9 +779,7 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 			}
 			setFeedback({
 				tone: "success",
-				message: isPtBr
-					? `Conta "${account.displayName}" excluída.`
-					: `Account "${account.displayName}" deleted.`,
+				message: ui.accountDeleted(account.displayName),
 			});
 			setPendingDeleteAccount(null);
 			setRequestCursor(null);
@@ -1003,10 +1228,18 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 											<p className="text-sm text-muted-foreground">
 												{account.identifier}
 											</p>
-											<p className="mt-1 text-xs text-muted-foreground">
-												{account.provider?.name ?? ui.unknownProvider} •{" "}
-												{account.planName ?? ui.noPlan}
-											</p>
+											<div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+												<ProviderBrand
+													name={account.provider?.name ?? ui.unknownProvider}
+													icon={account.provider?.icon}
+													color={account.provider?.color}
+													size="sm"
+												/>
+												<span aria-hidden>•</span>
+												<span className="truncate">
+													{account.planName ?? ui.noPlan}
+												</span>
+											</div>
 										</div>
 										<span
 											className={`rounded-md px-2 py-1 text-xs ${
@@ -1142,7 +1375,12 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 												</p>
 											</td>
 											<td className="px-3 py-2">
-												{account.provider?.name ?? "-"}
+												<ProviderBrand
+													name={account.provider?.name ?? ui.unknownProvider}
+													icon={account.provider?.icon}
+													color={account.provider?.color}
+													size="sm"
+												/>
 											</td>
 											<td className="px-3 py-2">
 												{statusLabel(account.status)}

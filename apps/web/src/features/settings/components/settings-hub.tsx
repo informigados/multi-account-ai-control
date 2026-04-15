@@ -14,7 +14,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Role = "admin" | "operator";
-type Locale = "pt_BR" | "en";
+type Locale = AppLocale;
 type AuditRetentionDays = 30 | 60 | 90 | 180 | 360;
 
 type AuthUser = {
@@ -125,47 +125,49 @@ function toUserDraft(user: ManagedUser): UserDraft {
 
 export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 	const t = getDictionary(locale);
-	const isPtBr = locale === "pt_BR";
+	const isPortuguese = locale === "pt_BR" || locale === "pt_PT";
 	const isAdmin = currentUser.role === "admin";
 	const ui = {
-		profilePasswordHint: isPtBr
+		profilePasswordHint: isPortuguese
 			? "Use no mínimo 12 caracteres para manter o padrão de segurança."
 			: "Use at least 12 characters to keep the security standard.",
-		createPasswordHint: isPtBr
+		createPasswordHint: isPortuguese
 			? "Senha inicial obrigatória (mínimo de 12 caracteres)."
 			: "Initial password is required (minimum 12 characters).",
-		roleHint: isPtBr
+		roleHint: isPortuguese
 			? "operator = operação diária, admin = gestão completa de usuários e configurações."
 			: "operator = daily operations, admin = full user and settings management.",
-		protectedAdminHint: isPtBr
+		protectedAdminHint: isPortuguese
 			? "Usuário admin protegido: username imutável e exclusão bloqueada por segurança."
 			: "Protected admin user: immutable username and blocked deletion for security.",
-		roleOperatorLabel: isPtBr ? "Operador" : "Operator",
-		roleAdminLabel: isPtBr ? "Administrador" : "Administrator",
-		loadingUsers: isPtBr ? "Carregando usuários..." : "Loading users...",
-		emptyUsers: isPtBr ? "Nenhum usuário cadastrado." : "No users registered.",
-		failedUpdateProfile: isPtBr
+		roleOperatorLabel: isPortuguese ? "Operador" : "Operator",
+		roleAdminLabel: isPortuguese ? "Administrador" : "Administrator",
+		loadingUsers: isPortuguese ? "Carregando usuários..." : "Loading users...",
+		emptyUsers: isPortuguese
+			? "Nenhum usuário cadastrado."
+			: "No users registered.",
+		failedUpdateProfile: isPortuguese
 			? "Falha ao atualizar perfil."
 			: "Failed to update profile.",
-		failedCreateUser: isPtBr
+		failedCreateUser: isPortuguese
 			? "Falha ao criar usuário."
 			: "Failed to create user.",
-		failedUpdateUser: isPtBr
+		failedUpdateUser: isPortuguese
 			? "Falha ao atualizar usuário."
 			: "Failed to update user.",
-		failedDeleteUser: isPtBr
+		failedDeleteUser: isPortuguese
 			? "Falha ao excluir usuário."
 			: "Failed to delete user.",
-		failedLoadAuditRetention: isPtBr
+		failedLoadAuditRetention: isPortuguese
 			? "Falha ao carregar política de retenção."
 			: "Failed to load retention policy.",
-		failedUpdateAuditRetention: isPtBr
+		failedUpdateAuditRetention: isPortuguese
 			? "Falha ao atualizar política de retenção."
 			: "Failed to update retention policy.",
-		failedLoadIdleLock: isPtBr
+		failedLoadIdleLock: isPortuguese
 			? "Falha ao carregar proteção de inatividade."
 			: "Failed to load idle lock configuration.",
-		failedUpdateIdleLock: isPtBr
+		failedUpdateIdleLock: isPortuguese
 			? "Falha ao atualizar proteção de inatividade."
 			: "Failed to update idle lock configuration.",
 	};
@@ -216,7 +218,10 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 	const localeOptions = useMemo(
 		() => [
 			{ value: "pt_BR" as const, label: "Português (Brasil)" },
+			{ value: "pt_PT" as const, label: "Português (Portugal)" },
 			{ value: "en" as const, label: "English" },
+			{ value: "es" as const, label: "Español" },
+			{ value: "zh_CN" as const, label: "Chinese (Simplified)" },
 		],
 		[],
 	);
@@ -954,7 +959,7 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 							>
 								{auditRetentionOptions.map((days) => (
 									<option key={days} value={days}>
-										{isPtBr ? `${days} dias` : `${days} days`}
+										{isPortuguese ? `${days} dias` : `${days} days`}
 									</option>
 								))}
 							</select>

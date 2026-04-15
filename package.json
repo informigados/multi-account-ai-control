@@ -1,6 +1,6 @@
 {
   "name": "multi-account-ai-control",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "private": true,
   "workspaces": [
     "apps/*"
@@ -12,7 +12,11 @@
     "lint": "npm --prefix apps/web run lint",
     "typecheck": "npm --prefix apps/web run typecheck",
     "test:critical": "node scripts/run-critical-tests.mjs",
+    "security:audit": "node scripts/security-audit.mjs",
     "desktop:preflight": "node scripts/desktop-preflight.mjs",
+    "desktop:prepare-runtime": "node scripts/desktop-prepare-runtime.mjs",
+    "desktop:bundle": "node scripts/desktop-release.mjs --bundle-only",
+    "desktop:release": "node scripts/desktop-release.mjs",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",

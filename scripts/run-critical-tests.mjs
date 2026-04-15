@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,6 +23,40 @@ const env = {
 		process.env.SESSION_SECRET ??
 		"test-session-secret-with-at-least-32-chars",
 };
+
+function runOrThrow(command, commandArgs, cwd, commandEnv) {
+	let commandName = command;
+	let args = commandArgs;
+
+	if (command === "npm") {
+		const npmExecPath = commandEnv.npm_execpath;
+		if (typeof npmExecPath === "string" && npmExecPath.length > 0) {
+			commandName = process.execPath;
+			args = [npmExecPath, ...commandArgs];
+		} else if (process.platform === "win32") {
+			commandName = "npm.cmd";
+		}
+	}
+
+	const result = spawnSync(commandName, args, {
+		cwd,
+		env: commandEnv,
+		stdio: "inherit",
+		shell: false,
+	});
+
+	if (result.error) {
+		throw new Error(
+			`Command failed to start: ${commandName} ${args.join(" ")} (${result.error.message})`,
+		);
+	}
+
+	if (result.status !== 0) {
+		throw new Error(
+			`Command failed: ${commandName} ${args.join(" ")} (exit ${result.status ?? "unknown"})`,
+		);
+	}
+}
 
 process.env.NODE_ENV = env.NODE_ENV;
 process.env.DATABASE_URL = env.DATABASE_URL;
@@ -60,9 +94,4 @@ for (const migrationFile of migrationFiles) {
 }
 await prisma.$disconnect();
 
-execSync("npm --workspace apps/web run test:run", {
-	cwd: repoRoot,
-	env,
-	stdio: "inherit",
-	shell: true,
-});
+runOrThrow("npm", ["--workspace", "apps/web", "run", "test:run"], repoRoot, env);

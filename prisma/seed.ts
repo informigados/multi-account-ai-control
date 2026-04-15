@@ -2,10 +2,13 @@ import bcrypt from "bcryptjs";
 import {
   Prisma,
   PrismaClient,
-  ProviderConnectorType,
   UserLocale,
   UserRole,
 } from "@prisma/client";
+import {
+  PROVIDER_CATALOG,
+  type ProviderCatalogEntry,
+} from "../apps/web/src/features/providers/provider-catalog";
 
 type GlobalWithPrisma = typeof globalThis & { __seedPrisma?: PrismaClient };
 
@@ -70,43 +73,15 @@ const PASSWORD_SPECIAL_CHAR_REGEX = new RegExp(
   `[${escapeForRegexCharacterClass(ALLOWED_PASSWORD_SPECIAL_CHARACTERS)}]`,
 );
 
-const providerSeeds = [
-  {
-    name: "OpenAI / ChatGPT",
-    slug: "openai-chatgpt",
-    connectorType: ProviderConnectorType.manual,
-    color: "#0EA5E9",
-    description: "OpenAI provider profiles and account controls.",
-  },
-  {
-    name: "Google / Gemini",
-    slug: "google-gemini",
-    connectorType: ProviderConnectorType.manual,
-    color: "#10B981",
-    description: "Gemini account and quota tracking.",
-  },
-  {
-    name: "Anthropic / Claude",
-    slug: "anthropic-claude",
-    connectorType: ProviderConnectorType.manual,
-    color: "#F59E0B",
-    description: "Claude account and plan management.",
-  },
-  {
-    name: "Custom",
-    slug: "custom",
-    connectorType: ProviderConnectorType.custom_script,
-    color: "#3B82F6",
-    description: "Custom internal provider definitions.",
-  },
-  {
-    name: "Other",
-    slug: "other",
-    connectorType: ProviderConnectorType.manual,
-    color: "#6B7280",
-    description: "Catch-all provider for miscellaneous accounts.",
-  },
-];
+const providerSeeds = PROVIDER_CATALOG.map((entry: ProviderCatalogEntry) => ({
+  name: entry.displayName,
+  slug: entry.slug,
+  icon: entry.iconAsset,
+  connectorType: entry.defaultConnectorType,
+  color: entry.brandColor,
+  description: entry.description,
+  isActive: entry.isActiveByDefault,
+}));
 
 type AdminBaseData = {
   username: string;
@@ -645,12 +620,13 @@ async function main() {
           where: { slug: provider.slug },
           update: {
             name: provider.name,
+            icon: provider.icon,
             connectorType: provider.connectorType,
             color: provider.color,
             description: provider.description,
-            isActive: true,
+            isActive: provider.isActive,
           },
-          create: { ...provider, isActive: true },
+          create: provider,
         });
       } catch (error) {
         const errorMessage =

@@ -1,6 +1,7 @@
 import { writeActivityLog } from "@/lib/audit/log";
 import { requireApiUser } from "@/lib/auth/require-auth";
 import { db } from "@/lib/db";
+import type { AppLocale } from "@/lib/i18n";
 import { enforceCsrfProtection } from "@/lib/security/csrf";
 import { hashPassword } from "@/lib/security/password";
 import { userUpdateSchema } from "@/schemas/user";
@@ -103,7 +104,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 		email?: string;
 		passwordHash?: string;
 		role?: "admin" | "operator";
-		locale?: "pt_BR" | "en";
+		locale?: AppLocale;
 		isActive?: boolean;
 	} = {};
 

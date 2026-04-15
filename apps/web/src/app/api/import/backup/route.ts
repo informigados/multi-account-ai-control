@@ -9,6 +9,10 @@ import { db } from "@/lib/db";
 import { enforceCsrfProtection } from "@/lib/security/csrf";
 import { decryptSecret } from "@/lib/security/encryption";
 import {
+	compareHexChecksums,
+	computeSha256Hex,
+} from "@/lib/security/integrity";
+import {
 	backupArtifactSchema,
 	backupPlainPayloadSchema,
 	backupRestoreRequestSchema,
@@ -74,6 +78,43 @@ export async function POST(request: NextRequest) {
 		);
 	}
 
+	const payloadBytes = Buffer.byteLength(decryptedJsonText, "utf8");
+	const expectedPayloadBytes = artifactParse.data.payloadBytes ?? null;
+	if (expectedPayloadBytes !== null && expectedPayloadBytes !== payloadBytes) {
+		return NextResponse.json(
+			{
+				message: "Backup integrity check failed: payload size mismatch.",
+			},
+			{ status: 400 },
+		);
+	}
+
+	const expectedChecksum = artifactParse.data.payloadChecksum ?? null;
+	const checksumAlgorithm = artifactParse.data.checksumAlgorithm ?? null;
+	let checksumVerified = false;
+	if (expectedChecksum) {
+		if (checksumAlgorithm && checksumAlgorithm !== "sha256") {
+			return NextResponse.json(
+				{
+					message: `Unsupported backup checksum algorithm: ${checksumAlgorithm}.`,
+				},
+				{ status: 400 },
+			);
+		}
+
+		const actualChecksum = computeSha256Hex(decryptedJsonText);
+		checksumVerified = compareHexChecksums(expectedChecksum, actualChecksum);
+
+		if (!checksumVerified) {
+			return NextResponse.json(
+				{
+					message: "Backup integrity check failed: checksum mismatch.",
+				},
+				{ status: 400 },
+			);
+		}
+	}
+
 	let plainObject: unknown;
 	try {
 		plainObject = JSON.parse(decryptedJsonText);
@@ -127,6 +168,15 @@ export async function POST(request: NextRequest) {
 				dryRun,
 				restoreUsers,
 				sourceExportedAt: plainParse.data.exportedAt.toISOString(),
+				integrity: {
+					checksumVerified,
+					checksumProvided: Boolean(expectedChecksum),
+					checksumAlgorithm: checksumAlgorithm ?? "sha256",
+					payloadBytes,
+					expectedPayloadBytes,
+					artifactVersion: artifactParse.data.version,
+					metadataVersion: artifactParse.data.metadataVersion ?? null,
+				},
 			} as Prisma.InputJsonValue,
 		},
 		select: {
@@ -149,6 +199,15 @@ export async function POST(request: NextRequest) {
 			dryRun,
 			restoreUsers,
 			sourceExportedAt: plainParse.data.exportedAt.toISOString(),
+			integrity: {
+				checksumVerified,
+				checksumProvided: Boolean(expectedChecksum),
+				checksumAlgorithm: checksumAlgorithm ?? "sha256",
+				payloadBytes,
+				expectedPayloadBytes,
+				artifactVersion: artifactParse.data.version,
+				metadataVersion: artifactParse.data.metadataVersion ?? null,
+			},
 		},
 	});
 
@@ -159,6 +218,13 @@ export async function POST(request: NextRequest) {
 			dryRun,
 			restoreUsers,
 			summary,
+			integrity: {
+				checksumVerified,
+				checksumProvided: Boolean(expectedChecksum),
+				payloadBytes,
+				artifactVersion: artifactParse.data.version,
+				metadataVersion: artifactParse.data.metadataVersion ?? null,
+			},
 		},
 		{ status: 200 },
 	);

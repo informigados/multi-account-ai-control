@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const userRoleSchema = z.enum(["admin", "operator"]);
-export const userLocaleSchema = z.enum(["pt_BR", "en"]);
+export const userLocaleSchema = z.enum(["pt_BR", "pt_PT", "en", "es", "zh_CN"]);
 
 const usernameSchema = z
 	.string()

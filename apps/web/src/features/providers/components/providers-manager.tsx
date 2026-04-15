@@ -3,7 +3,12 @@
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { AppLocale } from "@/lib/i18n";
+import { ProviderBrand } from "@/features/providers/components/provider-brand";
+import { type AppLocale, pickLocaleText } from "@/lib/i18n";
+import {
+	HIGH_RISK_CONNECTOR_CONFIRMATION_PHRASE,
+	SENSITIVE_CONNECTOR_CONFIRMATION_HEADER,
+} from "@/lib/security/connector-gate";
 import { useCallback, useEffect, useState } from "react";
 
 type ConnectorType =
@@ -64,91 +69,232 @@ type ProvidersManagerProps = {
 };
 
 export function ProvidersManager({ locale }: ProvidersManagerProps) {
-	const isPtBr = locale === "pt_BR";
+	const text = (pt: string, en: string, es?: string, zhCN?: string) =>
+		pickLocaleText(locale, { pt, en, es, zhCN });
 	const ui = {
-		failedFetch: isPtBr
-			? "Falha ao carregar provedores."
-			: "Failed to load providers.",
-		failedSave: isPtBr
-			? "Falha ao salvar provedor."
-			: "Failed to save provider.",
-		failedDelete: isPtBr
-			? "Falha ao excluir provedor."
-			: "Failed to delete provider.",
-		providerUpdated: isPtBr ? "Provedor atualizado." : "Provider updated.",
-		providerCreated: isPtBr ? "Provedor criado." : "Provider created.",
-		providerRemoved: isPtBr ? "Provedor removido." : "Provider removed.",
-		editProvider: isPtBr ? "Editar Provedor" : "Edit Provider",
-		createProvider: isPtBr ? "Criar Provedor" : "Create Provider",
-		newButton: isPtBr ? "Novo" : "New",
-		name: isPtBr ? "Nome" : "Name",
-		slugOptional: isPtBr ? "Slug (opcional)" : "Slug (optional)",
-		slugPlaceholder: isPtBr
-			? "gerado-automaticamente-se-vazio"
-			: "auto-generated-if-empty",
-		slugHint: isPtBr
-			? "Use um slug estável para integrações, importação e automações."
-			: "Use a stable slug for integrations, import, and automations.",
-		color: isPtBr ? "Cor" : "Color",
-		colorHint: isPtBr
-			? "Aceita hexadecimal (#RRGGBB) para identificação visual consistente."
-			: "Accepts hexadecimal (#RRGGBB) for consistent visual identification.",
+		failedFetch: text(
+			"Falha ao carregar provedores.",
+			"Failed to load providers.",
+			"Error al cargar proveedores.",
+			"加载服务商失败。",
+		),
+		failedSave: text(
+			"Falha ao salvar provedor.",
+			"Failed to save provider.",
+			"Error al guardar proveedor.",
+			"保存服务商失败。",
+		),
+		failedDelete: text(
+			"Falha ao excluir provedor.",
+			"Failed to delete provider.",
+			"Error al eliminar proveedor.",
+			"删除服务商失败。",
+		),
+		providerUpdated: text(
+			"Provedor atualizado.",
+			"Provider updated.",
+			"Proveedor actualizado.",
+			"服务商已更新。",
+		),
+		providerCreated: text(
+			"Provedor criado.",
+			"Provider created.",
+			"Proveedor creado.",
+			"服务商已创建。",
+		),
+		providerRemoved: text(
+			"Provedor removido.",
+			"Provider removed.",
+			"Proveedor eliminado.",
+			"服务商已删除。",
+		),
+		editProvider: text(
+			"Editar Provedor",
+			"Edit Provider",
+			"Editar Proveedor",
+			"编辑服务商",
+		),
+		createProvider: text(
+			"Criar Provedor",
+			"Create Provider",
+			"Crear Proveedor",
+			"创建服务商",
+		),
+		newButton: text("Novo", "New", "Nuevo", "新建"),
+		name: text("Nome", "Name", "Nombre", "名称"),
+		slugOptional: text(
+			"Slug (opcional)",
+			"Slug (optional)",
+			"Slug (opcional)",
+			"Slug（可选）",
+		),
+		slugPlaceholder: text(
+			"gerado-automaticamente-se-vazio",
+			"auto-generated-if-empty",
+			"autogenerado-si-está-vacío",
+			"留空自动生成",
+		),
+		slugHint: text(
+			"Use um slug estável para integrações, importação e automações.",
+			"Use a stable slug for integrations, import, and automations.",
+			"Usa un slug estable para integraciones, importación y automatizaciones.",
+			"请使用稳定的 slug 以支持集成、导入和自动化。",
+		),
+		color: text("Cor", "Color", "Color", "颜色"),
+		colorHint: text(
+			"Aceita hexadecimal (#RRGGBB) para identificação visual consistente.",
+			"Accepts hexadecimal (#RRGGBB) for consistent visual identification.",
+			"Acepta hexadecimal (#RRGGBB) para una identificación visual consistente.",
+			"支持十六进制 (#RRGGBB) 以保持视觉一致性。",
+		),
 		icon: "Icon",
-		iconPlaceholder: isPtBr ? "nome lucide / url" : "lucide name / url",
-		iconHint: isPtBr
-			? "Informe nome de ícone Lucide ou URL de ícone customizado."
-			: "Provide a Lucide icon name or a custom icon URL.",
-		connectorType: isPtBr ? "Tipo de Conector" : "Connector Type",
-		connectorHint: isPtBr
-			? "Define como as contas deste provedor serão operadas no sistema."
-			: "Defines how accounts for this provider are operated in the system.",
-		description: isPtBr ? "Descrição" : "Description",
-		descriptionHint: isPtBr
-			? "Documente limites, pré-requisitos ou observações operacionais."
-			: "Document limits, prerequisites, or operational notes.",
-		activeProvider: isPtBr ? "Provedor ativo" : "Active provider",
-		saving: isPtBr ? "Salvando..." : "Saving...",
-		updateProvider: isPtBr ? "Atualizar Provedor" : "Update Provider",
-		createProviderAction: isPtBr ? "Criar Provedor" : "Create Provider",
-		providersTitle: isPtBr ? "Provedores" : "Providers",
-		providersSubtitle: isPtBr
-			? "Organize contas por provedor e estratégia de conector."
-			: "Group accounts by provider and connector strategy.",
-		loadingProviders: isPtBr ? "Carregando provedores" : "Loading providers",
-		noProviders: isPtBr
-			? "Nenhum provedor cadastrado."
-			: "No providers registered.",
-		thName: isPtBr ? "Nome" : "Name",
+		iconPlaceholder: text(
+			"nome lucide / url",
+			"lucide name / url",
+			"nombre lucide / url",
+			"lucide 名称 / url",
+		),
+		iconHint: text(
+			"Informe nome de ícone Lucide ou URL de ícone customizado.",
+			"Provide a Lucide icon name or a custom icon URL.",
+			"Indica un nombre de icono Lucide o URL de icono personalizado.",
+			"请输入 Lucide 图标名或自定义图标 URL。",
+		),
+		iconPreview: text("Pré-visualização", "Preview", "Vista previa", "预览"),
+		connectorType: text(
+			"Tipo de Conector",
+			"Connector Type",
+			"Tipo de Conector",
+			"连接器类型",
+		),
+		connectorHint: text(
+			"Define como as contas deste provedor serão operadas no sistema.",
+			"Defines how accounts for this provider are operated in the system.",
+			"Define cómo se operan en el sistema las cuentas de este proveedor.",
+			"定义该服务商账号在系统中的运行方式。",
+		),
+		description: text("Descrição", "Description", "Descripción", "描述"),
+		descriptionHint: text(
+			"Documente limites, pré-requisitos ou observações operacionais.",
+			"Document limits, prerequisites, or operational notes.",
+			"Documenta límites, requisitos previos u observaciones operativas.",
+			"记录限制、前置条件或运营说明。",
+		),
+		activeProvider: text(
+			"Provedor ativo",
+			"Active provider",
+			"Proveedor activo",
+			"启用服务商",
+		),
+		saving: text("Salvando...", "Saving...", "Guardando...", "保存中..."),
+		updateProvider: text(
+			"Atualizar Provedor",
+			"Update Provider",
+			"Actualizar Proveedor",
+			"更新服务商",
+		),
+		createProviderAction: text(
+			"Criar Provedor",
+			"Create Provider",
+			"Crear Proveedor",
+			"创建服务商",
+		),
+		providersTitle: text("Provedores", "Providers", "Proveedores", "服务商"),
+		providersSubtitle: text(
+			"Organize contas por provedor e estratégia de conector.",
+			"Group accounts by provider and connector strategy.",
+			"Organiza cuentas por proveedor y estrategia de conector.",
+			"按服务商和连接器策略组织账号。",
+		),
+		loadingProviders: text(
+			"Carregando provedores",
+			"Loading providers",
+			"Cargando proveedores",
+			"正在加载服务商",
+		),
+		noProviders: text(
+			"Nenhum provedor cadastrado.",
+			"No providers registered.",
+			"No hay proveedores registrados.",
+			"暂无服务商。",
+		),
+		thName: text("Nome", "Name", "Nombre", "名称"),
 		thSlug: "Slug",
-		thConnector: isPtBr ? "Conector" : "Connector",
+		thConnector: text("Conector", "Connector", "Conector", "连接器"),
 		thStatus: "Status",
-		thActions: isPtBr ? "Ações" : "Actions",
-		statusActive: isPtBr ? "Ativo" : "Active",
-		statusInactive: isPtBr ? "Inativo" : "Inactive",
-		edit: isPtBr ? "Editar" : "Edit",
-		delete: isPtBr ? "Excluir" : "Delete",
-		loadMore: isPtBr ? "Carregar mais" : "Load more",
-		loadingMore: isPtBr ? "Carregando..." : "Loading...",
-		deleteProviderTitle: isPtBr ? "Excluir provedor" : "Delete provider",
+		thActions: text("Ações", "Actions", "Acciones", "操作"),
+		statusActive: text("Ativo", "Active", "Activo", "启用"),
+		statusInactive: text("Inativo", "Inactive", "Inactivo", "停用"),
+		edit: text("Editar", "Edit", "Editar", "编辑"),
+		delete: text("Excluir", "Delete", "Eliminar", "删除"),
+		loadMore: text("Carregar mais", "Load more", "Cargar más", "加载更多"),
+		loadingMore: text(
+			"Carregando...",
+			"Loading...",
+			"Cargando...",
+			"加载中...",
+		),
+		deleteProviderTitle: text(
+			"Excluir provedor",
+			"Delete provider",
+			"Eliminar proveedor",
+			"删除服务商",
+		),
 		deleteProviderDescription: (providerName: string) =>
-			isPtBr
-				? `Excluir o provedor "${providerName}"? Esta ação não pode ser desfeita.`
-				: `Delete provider "${providerName}"? This action cannot be undone.`,
+			text(
+				`Excluir o provedor "${providerName}"? Esta ação não pode ser desfeita.`,
+				`Delete provider "${providerName}"? This action cannot be undone.`,
+				`¿Eliminar el proveedor "${providerName}"? Esta acción no se puede deshacer.`,
+				`要删除服务商“${providerName}”吗？此操作不可撤销。`,
+			),
+		sensitiveConnectorTitle: text(
+			"Confirmação de Conector Sensível",
+			"Sensitive Connector Confirmation",
+			"Confirmación de conector sensible",
+			"敏感连接器确认",
+		),
+		sensitiveConnectorHint: text(
+			"Para Automação Web ou Script Customizado, confirme explicitamente a alteração.",
+			"For Web Automation or Custom Script, explicitly confirm this change.",
+			"Para Automatización Web o Script Personalizado, confirma explícitamente este cambio.",
+			"对于网页自动化或自定义脚本，请明确确认此更改。",
+		),
+		sensitiveConnectorPhraseLabel: text(
+			'Digite a frase: "ENABLE HIGH-RISK CONNECTOR"',
+			'Type phrase: "ENABLE HIGH-RISK CONNECTOR"',
+			'Escribe la frase: "ENABLE HIGH-RISK CONNECTOR"',
+			'输入短语："ENABLE HIGH-RISK CONNECTOR"',
+		),
 	};
 	const connectorOptions: Array<{ value: ConnectorType; label: string }> = [
 		{ value: "manual", label: "Manual" },
 		{ value: "api", label: "API" },
 		{
 			value: "cookie_session",
-			label: isPtBr ? "Sessão por Cookie" : "Cookie Session",
+			label: text(
+				"Sessão por Cookie",
+				"Cookie Session",
+				"Sesión por Cookie",
+				"Cookie 会话",
+			),
 		},
 		{
 			value: "web_automation",
-			label: isPtBr ? "Automação Web" : "Web Automation",
+			label: text(
+				"Automação Web",
+				"Web Automation",
+				"Automatización Web",
+				"网页自动化",
+			),
 		},
 		{
 			value: "custom_script",
-			label: isPtBr ? "Script Customizado" : "Custom Script",
+			label: text(
+				"Script Customizado",
+				"Custom Script",
+				"Script Personalizado",
+				"自定义脚本",
+			),
 		},
 	];
 
@@ -156,10 +302,25 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 		if (value === "manual") return "Manual";
 		if (value === "api") return "API";
 		if (value === "cookie_session")
-			return isPtBr ? "Sessão por Cookie" : "Cookie Session";
+			return text(
+				"Sessão por Cookie",
+				"Cookie Session",
+				"Sesión por Cookie",
+				"Cookie 会话",
+			);
 		if (value === "web_automation")
-			return isPtBr ? "Automação Web" : "Web Automation";
-		return isPtBr ? "Script Customizado" : "Custom Script";
+			return text(
+				"Automação Web",
+				"Web Automation",
+				"Automatización Web",
+				"网页自动化",
+			);
+		return text(
+			"Script Customizado",
+			"Custom Script",
+			"Script Personalizado",
+			"自定义脚本",
+		);
 	}
 
 	const [providers, setProviders] = useState<Provider[]>([]);
@@ -175,6 +336,16 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 	const [nextCursor, setNextCursor] = useState<string | null>(null);
 	const [hasMore, setHasMore] = useState(false);
 	const [reloadToken, setReloadToken] = useState(0);
+	const [sensitiveConfirmPhrase, setSensitiveConfirmPhrase] = useState("");
+	const [editingOriginalConnector, setEditingOriginalConnector] =
+		useState<ConnectorType | null>(null);
+
+	const isHighRiskConnector =
+		form.connectorType === "web_automation" ||
+		form.connectorType === "custom_script";
+	const isSensitiveConnectorChange =
+		isHighRiskConnector &&
+		(editingId === null || editingOriginalConnector !== form.connectorType);
 
 	const loadProviders = useCallback(async () => {
 		void reloadToken;
@@ -233,6 +404,8 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 	function startCreate() {
 		setEditingId(null);
 		setForm(initialForm);
+		setSensitiveConfirmPhrase("");
+		setEditingOriginalConnector(null);
 	}
 
 	function startEdit(provider: Provider) {
@@ -246,6 +419,8 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 			connectorType: provider.connectorType,
 			isActive: provider.isActive,
 		});
+		setSensitiveConfirmPhrase("");
+		setEditingOriginalConnector(provider.connectorType);
 	}
 
 	async function saveProvider(event: React.FormEvent<HTMLFormElement>) {
@@ -268,7 +443,15 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 				editingId ? `/api/providers/${editingId}` : "/api/providers",
 				{
 					method: editingId ? "PUT" : "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						...(sensitiveConfirmPhrase.trim().length > 0
+							? {
+									[SENSITIVE_CONNECTOR_CONFIRMATION_HEADER]:
+										sensitiveConfirmPhrase.trim(),
+								}
+							: {}),
+					},
 					body: JSON.stringify(body),
 				},
 			);
@@ -284,6 +467,8 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 			});
 			setForm(initialForm);
 			setEditingId(null);
+			setSensitiveConfirmPhrase("");
+			setEditingOriginalConnector(null);
 			setRequestCursor(null);
 			setNextCursor(null);
 			setHasMore(false);
@@ -409,6 +594,13 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 								placeholder={ui.iconPlaceholder}
 							/>
 							<p className="text-xs text-muted-foreground">{ui.iconHint}</p>
+							<div className="pt-1">
+								<ProviderBrand
+									name={form.name || ui.iconPreview}
+									icon={form.icon || null}
+									color={form.color || null}
+								/>
+							</div>
 						</div>
 					</div>
 
@@ -435,6 +627,33 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 						</select>
 						<p className="text-xs text-muted-foreground">{ui.connectorHint}</p>
 					</div>
+
+					{isHighRiskConnector ? (
+						<div className="space-y-1.5 rounded-md border border-warning/40 bg-warning/10 p-3">
+							<p className="text-sm font-medium text-warning">
+								{ui.sensitiveConnectorTitle}
+							</p>
+							<p className="text-xs text-muted-foreground">
+								{ui.sensitiveConnectorHint}
+							</p>
+							<label
+								htmlFor="provider-sensitive-confirm"
+								className="text-xs text-muted-foreground"
+							>
+								{ui.sensitiveConnectorPhraseLabel}
+							</label>
+							<input
+								id="provider-sensitive-confirm"
+								value={sensitiveConfirmPhrase}
+								onChange={(event) =>
+									setSensitiveConfirmPhrase(event.target.value)
+								}
+								placeholder={HIGH_RISK_CONNECTOR_CONFIRMATION_PHRASE}
+								required={isSensitiveConnectorChange}
+								className="h-10 w-full rounded-md border border-warning/40 bg-card px-3 text-sm outline-none ring-warning transition focus:ring-2"
+							/>
+						</div>
+					) : null}
 
 					<div className="space-y-1.5">
 						<label
@@ -524,7 +743,13 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 								<tbody>
 									{providers.map((provider) => (
 										<tr key={provider.id} className="border-t border-border/80">
-											<td className="px-3 py-2 font-medium">{provider.name}</td>
+											<td className="px-3 py-2 font-medium">
+												<ProviderBrand
+													name={provider.name}
+													icon={provider.icon}
+													color={provider.color}
+												/>
+											</td>
 											<td className="px-3 py-2 text-muted-foreground">
 												{provider.slug}
 											</td>
@@ -556,11 +781,12 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 													<Button
 														variant="ghost"
 														size="sm"
-														aria-label={
-															isPtBr
-																? `Excluir provedor ${provider.name}`
-																: `Delete provider ${provider.name}`
-														}
+														aria-label={text(
+															`Excluir provedor ${provider.name}`,
+															`Delete provider ${provider.name}`,
+															`Eliminar proveedor ${provider.name}`,
+															`删除服务商 ${provider.name}`,
+														)}
 														onClick={() => setPendingDelete(provider)}
 													>
 														{ui.delete}

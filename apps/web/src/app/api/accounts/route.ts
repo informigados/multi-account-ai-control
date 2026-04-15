@@ -36,6 +36,16 @@ export async function GET(request: NextRequest) {
 			includeArchived ? {} : { archivedAt: null },
 			providerId ? { providerId } : {},
 			status ? { status } : {},
+			// Tag filter: SQLite stores tagsJson as a JSON array string; use
+			// string_contains to find the normalized tag value inside the JSON blob.
+			// This avoids in-memory post-filtering which breaks cursor pagination.
+			tag
+				? {
+						tagsJson: {
+							string_contains: tag.toLowerCase(),
+						},
+					}
+				: {},
 			search
 				? {
 						OR: [
@@ -63,6 +73,7 @@ export async function GET(request: NextRequest) {
 					id: true,
 					name: true,
 					slug: true,
+					icon: true,
 					color: true,
 				},
 			},
@@ -78,13 +89,10 @@ export async function GET(request: NextRequest) {
 	const slice = hasMore ? accounts.slice(0, limit) : accounts;
 	const nextCursor = hasMore ? (slice[slice.length - 1]?.id ?? null) : null;
 	const presented = slice.map(presentAccount);
-	const filteredByTag = tag
-		? presented.filter((account) => account.tags.includes(tag.toLowerCase()))
-		: presented;
 
 	return NextResponse.json(
 		{
-			accounts: filteredByTag,
+			accounts: presented,
 			page: {
 				limit,
 				nextCursor,
@@ -155,6 +163,7 @@ export async function POST(request: NextRequest) {
 						id: true,
 						name: true,
 						slug: true,
+						icon: true,
 						color: true,
 					},
 				},

@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import type { UsageSnapshotView } from "@/features/usage/usage-types";
-import type { AppLocale } from "@/lib/i18n";
+import { type AppLocale, pickLocaleText } from "@/lib/i18n";
 import { useId, useMemo, useState } from "react";
 
 type QuickUsageUpdateProps = {
@@ -32,28 +32,61 @@ export function QuickUsageUpdate({
 	buttonLabel,
 	locale = "pt_BR",
 }: QuickUsageUpdateProps) {
-	const isPtBr = locale === "pt_BR";
+	const text = (pt: string, en: string, es?: string, zhCN?: string) =>
+		pickLocaleText(locale, { pt, en, es, zhCN });
 	const ui = {
-		defaultButton: isPtBr ? "Atualizar uso" : "Update usage",
-		provideMetric: isPtBr
-			? "Informe pelo menos uma métrica."
-			: "Provide at least one metric.",
-		failedUpdate: isPtBr
-			? "Falha ao atualizar uso."
-			: "Failed to update usage.",
-		usageUpdated: isPtBr ? "Uso atualizado." : "Usage updated.",
-		totalQuota: isPtBr ? "Cota total" : "Total quota",
-		usedQuota: isPtBr ? "Cota usada" : "Used quota",
-		resetDateTime: isPtBr ? "Data e hora de reset" : "Reset date and time",
-		comments: isPtBr ? "Comentários de uso" : "Usage comments",
-		saveUsage: isPtBr ? "Salvar uso" : "Save usage",
-		saving: isPtBr ? "Salvando..." : "Saving...",
-		quotaHint: isPtBr
-			? "Você pode informar apenas os campos disponíveis; o restante permanece inalterado."
-			: "You may submit only available fields; the rest remains unchanged.",
-		resetHint: isPtBr
-			? "Preencha a data de reset quando souber a próxima janela real da conta."
-			: "Fill reset date when you know the account's next real reset window.",
+		defaultButton: text(
+			"Atualizar uso",
+			"Update usage",
+			"Actualizar uso",
+			"更新用量",
+		),
+		provideMetric: text(
+			"Informe pelo menos uma métrica.",
+			"Provide at least one metric.",
+			"Informa al menos una métrica.",
+			"请至少提供一项指标。",
+		),
+		failedUpdate: text(
+			"Falha ao atualizar uso.",
+			"Failed to update usage.",
+			"Error al actualizar uso.",
+			"更新用量失败。",
+		),
+		usageUpdated: text(
+			"Uso atualizado.",
+			"Usage updated.",
+			"Uso actualizado.",
+			"用量已更新。",
+		),
+		totalQuota: text("Cota total", "Total quota", "Cuota total", "总配额"),
+		usedQuota: text("Cota usada", "Used quota", "Cuota usada", "已用配额"),
+		resetDateTime: text(
+			"Data e hora de reset",
+			"Reset date and time",
+			"Fecha y hora de reinicio",
+			"重置日期和时间",
+		),
+		comments: text(
+			"Comentários de uso",
+			"Usage comments",
+			"Comentarios de uso",
+			"用量备注",
+		),
+		saveUsage: text("Salvar uso", "Save usage", "Guardar uso", "保存用量"),
+		saving: text("Salvando...", "Saving...", "Guardando...", "保存中..."),
+		quotaHint: text(
+			"Você pode informar apenas os campos disponíveis; o restante permanece inalterado.",
+			"You may submit only available fields; the rest remains unchanged.",
+			"Puedes enviar solo los campos disponibles; el resto permanece sin cambios.",
+			"你可以只提交可用字段，其余字段保持不变。",
+		),
+		resetHint: text(
+			"Preencha a data de reset quando souber a próxima janela real da conta.",
+			"Fill reset date when you know the account's next real reset window.",
+			"Rellena la fecha de reinicio cuando conozcas la próxima ventana real de la cuenta.",
+			"当你知道账号下一次真实重置窗口时再填写重置日期。",
+		),
 	};
 	const idBase = useId();
 	const [isOpen, setIsOpen] = useState(false);

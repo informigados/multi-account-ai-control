@@ -39,6 +39,10 @@
 	@apply border-border;
 }
 
+html {
+	scroll-behavior: smooth;
+}
+
 body {
 	@apply bg-background text-foreground antialiased;
 	font-family: var(--font-space-grotesk), "Sora", "Avenir Next", "Segoe UI",
@@ -53,4 +57,77 @@ body {
 			hsl(146 60% 50% / 0.09),
 			transparent
 		);
+	transition: background-color 0.3s ease, color 0.2s ease;
+}
+
+/* Premium card elevation animation on hover */
+.card-hover {
+	transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+.card-hover:hover {
+	box-shadow: 0 8px 30px -4px hsl(var(--primary) / 0.08), 0 2px 8px -2px
+		hsl(var(--primary) / 0.06);
+	transform: translateY(-1px);
+	border-color: hsl(var(--primary) / 0.25);
+}
+
+/* Smooth progress bar fill animation */
+.progress-fill {
+	transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Focus ring improvement */
+:focus-visible {
+	outline: 2px solid hsl(var(--primary) / 0.7);
+	outline-offset: 2px;
+	border-radius: 4px;
+}
+
+/* Animated gradient badge for critical status */
+@keyframes pulse-danger {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.7;
+	}
+}
+.badge-critical {
+	animation: pulse-danger 2s ease-in-out infinite;
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+	0% {
+		background-position: -200% 0;
+	}
+	100% {
+		background-position: 200% 0;
+	}
+}
+.animate-shimmer {
+	background: linear-gradient(
+		90deg,
+		hsl(var(--muted)) 0%,
+		hsl(var(--muted) / 0.5) 50%,
+		hsl(var(--muted)) 100%
+	);
+	background-size: 200% 100%;
+	animation: shimmer 1.8s ease-in-out infinite;
+}
+
+/* Page entry animation */
+@keyframes page-in {
+	from {
+		opacity: 0;
+		transform: translateY(6px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+.page-enter {
+	animation: page-in 0.35s ease-out forwards;
 }

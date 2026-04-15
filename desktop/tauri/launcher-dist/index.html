@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Multi Account AI Control</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: "Segoe UI", system-ui, sans-serif;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(circle at top right, #1f2937, #0b1220 55%);
+        color: #f8fafc;
+      }
+      .panel {
+        width: min(92vw, 520px);
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        border-radius: 16px;
+        padding: 24px;
+        background: rgba(15, 23, 42, 0.75);
+        backdrop-filter: blur(8px);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      }
+      h1 {
+        margin: 0 0 10px;
+        font-size: 1.15rem;
+        letter-spacing: 0.02em;
+      }
+      p {
+        margin: 0;
+        line-height: 1.55;
+        color: rgba(226, 232, 240, 0.92);
+      }
+      .status {
+        margin-top: 16px;
+        font-size: 0.9rem;
+        color: #38bdf8;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="panel">
+      <h1>Starting Multi Account AI Control</h1>
+      <p>The desktop runtime is initializing the local workspace service. This window will continue automatically.</p>
+      <p class="status">Initializing secure local server...</p>
+    </main>
+  </body>
+</html>

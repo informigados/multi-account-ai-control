@@ -218,6 +218,13 @@ export const backupArtifactSchema = z.object({
 	version: z.number().int().min(1),
 	exportType: z.literal("backup"),
 	algorithm: z.string().trim().min(1).optional(),
+	metadataVersion: z.number().int().min(1).optional(),
+	checksumAlgorithm: z.enum(["sha256"]).optional(),
+	payloadChecksum: z
+		.string()
+		.regex(/^[a-fA-F0-9]{64}$/)
+		.optional(),
+	payloadBytes: z.number().int().positive().optional(),
 	encryptedPayload: z.string().min(1),
 });
 

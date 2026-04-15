@@ -4,7 +4,7 @@
 ![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=000)
 ![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?logo=prisma&logoColor=white)
-[![Release](https://img.shields.io/badge/release-1.0.0-blue)](https://github.com/informigados/multi-account-ai-control/releases)
+[![Release](https://img.shields.io/badge/release-1.1.0-blue)](https://github.com/informigados/multi-account-ai-control/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/informigados/multi-account-ai-control)
 
@@ -21,7 +21,7 @@ A **local-first** operations panel for managing multiple AI accounts with strong
 - ⏱️ Cursor pagination for heavy endpoints (accounts/logs/notes/usage/providers/imports)
 - 🛡️ Re-authentication required to reveal secrets
 - 🖥️ Desktop baseline (Tauri) with preflight checks
-- 🌐 Language support: **Portuguese (Brazil) `pt-BR`** and **English `en`** only
+- 🌐 Language support: **Portuguese (Brazil) `pt-BR`**, **Portuguese (Portugal) `pt-PT`**, **English `en`**, **Spanish `es`**, and **Chinese (Simplified) `zh-CN`**
 
 ## 🔒 Authentication and Default Admin
 
@@ -81,7 +81,7 @@ Optional default admin seed values:
 
 - `DEFAULT_ADMIN_EMAIL` (required, e.g. `admin@example.com`)
 - `DEFAULT_ADMIN_PASSWORD` (required for seed; must include uppercase, lowercase, number, and special character)
-- `SEED_ADMIN_LOCALE` (default: `pt_BR`; supported values: `pt_BR`, `en`)
+- `SEED_ADMIN_LOCALE` (default: `pt_BR`; supported values: `pt_BR`, `pt_PT`, `en`, `es`, `zh_CN`)
 - `SEED_UPDATE_ADMIN_PASSWORD` (default: `false`; set `true` to force updating existing system admin password hash on seed runs)
 - `BCRYPT_SALT_ROUNDS` (default: `12`; valid range: `4` to `31`)
 
@@ -151,6 +151,7 @@ npm run build
 - `npm run lint` — lint checks
 - `npm run typecheck` — type checks
 - `npm run test:critical` — critical test suite (unit + API integration)
+- `npm run security:audit` — dependency vulnerability gate (`npm audit` + `cargo audit`; advisory warnings are reported and tracked)
 - `npm run desktop:preflight` — desktop baseline checks
 
 ## 🗂️ Project Structure
@@ -173,7 +174,15 @@ multi-account-ai-control/
 
 ## 📝 Changelog
 
-### 2026-04-12 (1.0.0)
+See [CHANGELOG.md](CHANGELOG.md) for the full history.
+
+### v1.1.0 — 2026-04-15 (Hardening & Premium UX)
+
+- **Security:** Fixed edge-layer route protection (proxy.ts convention), removed sensitive fields from login response, added HSTS header, improved cookie security, hardened decryptSecret, fixed tag filter to prevent pagination corruption, fixed public paths for password reset
+- **UX:** Mobile menu close button now accessible, sticky header, full i18n for idle lock screen, login auto-detects Accept-Language, proper loading skeletons for all routes
+- **Visual:** Premium card hover elevations, animated usage progress bars, pulsing critical badges, page-entry animations, polished 404 page with gradient number, smooth theme transition
+
+### v1.0.0 — 2026-04-12
 
 - Initial release.
 

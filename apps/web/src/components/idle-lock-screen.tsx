@@ -303,7 +303,7 @@ export function IdleLockScreen({ locale }: IdleLockScreenProps) {
 						<LockKeyhole className="h-4 w-4" />
 					</span>
 					<p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-						Idle Protection
+						{t.idleLock.badgeLabel ?? "Idle Protection"}
 					</p>
 				</div>
 				<h2 className="mt-2 text-2xl font-semibold">{t.idleLock.title}</h2>

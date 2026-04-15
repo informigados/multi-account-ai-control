@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { AppLocale } from "@/lib/i18n";
+import { type AppLocale, pickLocaleText } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -55,43 +55,123 @@ export function AccountNotesManager({
 	accountId,
 	locale,
 }: AccountNotesManagerProps) {
-	const isPtBr = locale === "pt_BR";
+	const text = (pt: string, en: string, es?: string, zhCN?: string) =>
+		pickLocaleText(locale, { pt, en, es, zhCN });
 	const ui = {
-		notes: isPtBr ? "Notas" : "Notes",
-		refresh: isPtBr ? "Atualizar" : "Refresh",
-		failedLoad: isPtBr ? "Falha ao carregar notas." : "Failed to load notes.",
-		failedSave: isPtBr ? "Falha ao salvar nota." : "Failed to save note.",
-		failedDelete: isPtBr ? "Falha ao excluir nota." : "Failed to delete note.",
-		noteUpdated: isPtBr ? "Nota atualizada." : "Note updated.",
-		noteCreated: isPtBr ? "Nota criada." : "Note created.",
-		noteDeleted: isPtBr ? "Nota excluída." : "Note deleted.",
-		writePlaceholder: isPtBr
-			? "Escreva uma nota operacional..."
-			: "Write operational note...",
-		saving: isPtBr ? "Salvando..." : "Saving...",
-		updateNote: isPtBr ? "Atualizar Nota" : "Update Note",
-		addNote: isPtBr ? "Adicionar Nota" : "Add Note",
-		cancel: isPtBr ? "Cancelar" : "Cancel",
-		loadingNotes: isPtBr ? "Carregando notas" : "Loading notes",
-		noNotes: isPtBr
-			? "Nenhuma nota registrada para esta conta."
-			: "No notes registered for this account.",
-		createFirstNote: isPtBr ? "Criar primeira nota" : "Create first note",
-		system: isPtBr ? "sistema" : "system",
-		edit: isPtBr ? "Editar" : "Edit",
-		delete: isPtBr ? "Excluir" : "Delete",
-		loadMore: isPtBr ? "Carregar mais notas" : "Load more notes",
-		deleteTitle: isPtBr ? "Excluir nota" : "Delete note",
+		notes: text("Notas", "Notes", "Notas", "备注"),
+		refresh: text("Atualizar", "Refresh", "Actualizar", "刷新"),
+		failedLoad: text(
+			"Falha ao carregar notas.",
+			"Failed to load notes.",
+			"Error al cargar notas.",
+			"加载备注失败。",
+		),
+		failedSave: text(
+			"Falha ao salvar nota.",
+			"Failed to save note.",
+			"Error al guardar nota.",
+			"保存备注失败。",
+		),
+		failedDelete: text(
+			"Falha ao excluir nota.",
+			"Failed to delete note.",
+			"Error al eliminar nota.",
+			"删除备注失败。",
+		),
+		noteUpdated: text(
+			"Nota atualizada.",
+			"Note updated.",
+			"Nota actualizada.",
+			"备注已更新。",
+		),
+		noteCreated: text(
+			"Nota criada.",
+			"Note created.",
+			"Nota creada.",
+			"备注已创建。",
+		),
+		noteDeleted: text(
+			"Nota excluída.",
+			"Note deleted.",
+			"Nota eliminada.",
+			"备注已删除。",
+		),
+		writePlaceholder: text(
+			"Escreva uma nota operacional...",
+			"Write operational note...",
+			"Escribe una nota operativa...",
+			"填写一条运营备注...",
+		),
+		saving: text("Salvando...", "Saving...", "Guardando...", "保存中..."),
+		updateNote: text(
+			"Atualizar Nota",
+			"Update Note",
+			"Actualizar Nota",
+			"更新备注",
+		),
+		addNote: text("Adicionar Nota", "Add Note", "Agregar Nota", "添加备注"),
+		cancel: text("Cancelar", "Cancel", "Cancelar", "取消"),
+		loadingNotes: text(
+			"Carregando notas",
+			"Loading notes",
+			"Cargando notas",
+			"正在加载备注",
+		),
+		noNotes: text(
+			"Nenhuma nota registrada para esta conta.",
+			"No notes registered for this account.",
+			"No hay notas registradas para esta cuenta.",
+			"该账号暂无备注。",
+		),
+		createFirstNote: text(
+			"Criar primeira nota",
+			"Create first note",
+			"Crear primera nota",
+			"创建第一条备注",
+		),
+		system: text("sistema", "system", "sistema", "系统"),
+		edit: text("Editar", "Edit", "Editar", "编辑"),
+		delete: text("Excluir", "Delete", "Eliminar", "删除"),
+		loadMore: text(
+			"Carregar mais notas",
+			"Load more notes",
+			"Cargar más notas",
+			"加载更多备注",
+		),
+		deleteTitle: text(
+			"Excluir nota",
+			"Delete note",
+			"Eliminar nota",
+			"删除备注",
+		),
 		deleteDescription: (type: string) =>
-			isPtBr
-				? `Excluir esta nota de tipo "${type}"? Esta ação não pode ser desfeita.`
-				: `Delete this ${type} note? This action cannot be undone.`,
+			text(
+				`Excluir esta nota de tipo "${type}"? Esta ação não pode ser desfeita.`,
+				`Delete this ${type} note? This action cannot be undone.`,
+				`¿Eliminar esta nota de tipo "${type}"? Esta acción no se puede deshacer.`,
+				`要删除类型为“${type}”的备注吗？此操作不可撤销。`,
+			),
 		deleteNoteAria: (id: string) =>
-			isPtBr ? `Excluir nota ${id}` : `Delete note ${id}`,
-		noteTypeGeneral: isPtBr ? "Geral" : "General",
-		noteTypeWarning: isPtBr ? "Alerta" : "Warning",
-		noteTypeOperational: isPtBr ? "Operacional" : "Operational",
-		noteTypeOwnership: isPtBr ? "Propriedade do Cliente" : "Client Ownership",
+			text(
+				`Excluir nota ${id}`,
+				`Delete note ${id}`,
+				`Eliminar nota ${id}`,
+				`删除备注 ${id}`,
+			),
+		noteTypeGeneral: text("Geral", "General", "General", "通用"),
+		noteTypeWarning: text("Alerta", "Warning", "Alerta", "告警"),
+		noteTypeOperational: text(
+			"Operacional",
+			"Operational",
+			"Operativa",
+			"运营",
+		),
+		noteTypeOwnership: text(
+			"Propriedade do Cliente",
+			"Client Ownership",
+			"Propiedad del Cliente",
+			"客户归属",
+		),
 	};
 	const noteTypeOptions: Array<{ value: NoteType; label: string }> = [
 		{ value: "general", label: ui.noteTypeGeneral },

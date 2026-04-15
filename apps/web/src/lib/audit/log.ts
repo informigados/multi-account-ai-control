@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { sanitizeAuditMetadata } from "@/lib/security/audit-redaction";
 import type { Prisma } from "@prisma/client";
 import { pruneActivityLogsByRetentionPolicy } from "./retention";
 
@@ -21,7 +22,7 @@ export async function writeActivityLog(input: ActivityLogInput) {
 			entityId: input.entityId ?? null,
 			eventType: input.eventType,
 			message: input.message,
-			metadataJson: input.metadata ?? {},
+			metadataJson: sanitizeAuditMetadata(input.metadata),
 		},
 	});
 }

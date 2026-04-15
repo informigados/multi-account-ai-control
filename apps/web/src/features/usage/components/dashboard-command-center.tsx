@@ -1,11 +1,12 @@
-"use client";
+﻿"use client";
 
 import type { AccountView } from "@/features/accounts/account-types";
+import { ProviderBrand } from "@/features/providers/components/provider-brand";
 import { QuickUsageUpdate } from "@/features/usage/components/quick-usage-update";
 import type { UsageSnapshotView } from "@/features/usage/usage-types";
-import type { AppLocale } from "@/lib/i18n";
+import { type AppLocale, pickLocaleText } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/utils";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type SummaryMetrics = {
 	totalAccounts: number;
@@ -26,6 +27,7 @@ type RecentSnapshot = UsageSnapshotView & {
 			id: string;
 			name: string;
 			slug: string;
+			icon?: string | null;
 			color: string | null;
 		};
 	};
@@ -88,49 +90,121 @@ export function DashboardCommandCenter({
 	recentSnapshots,
 	locale,
 }: DashboardCommandCenterProps) {
-	const isPtBr = locale === "pt_BR";
+	const text = (pt: string, en: string, es?: string, zhCN?: string) =>
+		pickLocaleText(locale, { pt, en, es, zhCN });
 	const ui = {
-		totalAccounts: isPtBr ? "Total de contas" : "Total Accounts",
-		active: isPtBr ? "Ativas" : "Active",
-		warning: isPtBr ? "Atenção" : "Warning",
-		exhausted: isPtBr ? "Esgotadas" : "Exhausted",
-		providers: isPtBr ? "Provedores" : "Providers",
-		nearReset: isPtBr ? "Próx. reset (24h)" : "Near Reset (24h)",
-		error: isPtBr ? "Erro" : "Error",
-		accountCards: isPtBr ? "Cartões de Conta" : "Account Cards",
-		accountCountSuffix: isPtBr ? "contas" : "accounts",
-		noAccounts: isPtBr
-			? "Nenhuma conta cadastrada."
-			: "No accounts registered.",
-		unknownProvider: isPtBr ? "Provedor desconhecido" : "Unknown provider",
-		noPlan: isPtBr ? "Sem plano" : "No plan",
-		usage: isPtBr ? "Uso" : "Usage",
-		noResetWindow: isPtBr ? "Sem janela de reset" : "No reset window",
-		resetReached: isPtBr ? "Janela de reset atingida" : "Reset window reached",
-		resetIn: isPtBr ? "Reset em" : "Reset in",
-		lastMeasure: isPtBr ? "Última medição" : "Last measure",
-		riskQueue: isPtBr ? "Fila de Risco" : "Risk Queue",
-		riskSubtitle: isPtBr
-			? "Contas que exigem atenção imediata."
-			: "Accounts needing attention now.",
-		noHighRisk: isPtBr
-			? "Nenhuma conta em alto risco."
-			: "No high-risk accounts.",
-		recentMeasurements: isPtBr ? "Medições Recentes" : "Recent Measurements",
-		noSnapshots: isPtBr
-			? "Sem medições de uso ainda."
-			: "No usage snapshots yet.",
-		unknownAccount: isPtBr ? "Conta desconhecida" : "Unknown account",
-		statusActive: isPtBr ? "Ativa" : "Active",
-		statusWarning: isPtBr ? "Atenção" : "Warning",
-		statusLimited: isPtBr ? "Limitada" : "Limited",
-		statusExhausted: isPtBr ? "Esgotada" : "Exhausted",
-		statusDisabled: isPtBr ? "Desativada" : "Disabled",
-		statusError: isPtBr ? "Erro" : "Error",
-		statusArchived: isPtBr ? "Arquivada" : "Archived",
+		totalAccounts: text(
+			"Total de contas",
+			"Total Accounts",
+			"Total de cuentas",
+			"账户总数",
+		),
+		active: text("Ativas", "Active", "Activas", "活跃"),
+		warning: text("Atenção", "Warning", "Atención", "警告"),
+		exhausted: text("Esgotadas", "Exhausted", "Agotadas", "已耗尽"),
+		providers: text("Provedores", "Providers", "Proveedores", "服务商"),
+		nearReset: text(
+			"Próx. reset (24h)",
+			"Near Reset (24h)",
+			"Próx. reinicio (24h)",
+			"临近重置 (24h)",
+		),
+		error: text("Erro", "Error", "Error", "错误"),
+		accountCards: text(
+			"Cartões de Conta",
+			"Account Cards",
+			"Tarjetas de cuenta",
+			"账号卡片",
+		),
+		accountCountSuffix: text("contas", "accounts", "cuentas", "个账号"),
+		noAccounts: text(
+			"Nenhuma conta cadastrada.",
+			"No accounts registered.",
+			"No hay cuentas registradas.",
+			"暂无已登记账号。",
+		),
+		unknownProvider: text(
+			"Provedor desconhecido",
+			"Unknown provider",
+			"Proveedor desconocido",
+			"未知服务商",
+		),
+		noPlan: text("Sem plano", "No plan", "Sin plan", "无套餐"),
+		usage: text("Uso", "Usage", "Uso", "用量"),
+		noResetWindow: text(
+			"Sem janela de reset",
+			"No reset window",
+			"Sin ventana de reinicio",
+			"无重置窗口",
+		),
+		resetReached: text(
+			"Janela de reset atingida",
+			"Reset window reached",
+			"Ventana de reinicio alcanzada",
+			"已到达重置窗口",
+		),
+		resetIn: text("Reset em", "Reset in", "Reinicio en", "重置于"),
+		lastMeasure: text(
+			"Última medição",
+			"Last measure",
+			"Última medición",
+			"最近测量",
+		),
+		riskQueue: text(
+			"Fila de Risco",
+			"Risk Queue",
+			"Cola de riesgo",
+			"风险队列",
+		),
+		riskSubtitle: text(
+			"Contas que exigem atenção imediata.",
+			"Accounts needing attention now.",
+			"Cuentas que requieren atención inmediata.",
+			"需要立即关注的账号。",
+		),
+		noHighRisk: text(
+			"Nenhuma conta em alto risco.",
+			"No high-risk accounts.",
+			"No hay cuentas de alto riesgo.",
+			"暂无高风险账号。",
+		),
+		recentMeasurements: text(
+			"Medições Recentes",
+			"Recent Measurements",
+			"Mediciones recientes",
+			"最近测量",
+		),
+		noSnapshots: text(
+			"Sem medições de uso ainda.",
+			"No usage snapshots yet.",
+			"Aún no hay mediciones de uso.",
+			"尚无用量快照。",
+		),
+		unknownAccount: text(
+			"Conta desconhecida",
+			"Unknown account",
+			"Cuenta desconocida",
+			"未知账号",
+		),
+		statusActive: text("Ativa", "Active", "Activa", "活跃"),
+		statusWarning: text("Atenção", "Warning", "Atención", "警告"),
+		statusLimited: text("Limitada", "Limited", "Limitada", "受限"),
+		statusExhausted: text("Esgotada", "Exhausted", "Agotada", "已耗尽"),
+		statusDisabled: text("Desativada", "Disabled", "Desactivada", "已禁用"),
+		statusError: text("Erro", "Error", "Error", "错误"),
+		statusArchived: text("Arquivada", "Archived", "Archivada", "已归档"),
 	};
 
 	const [accountCards, setAccountCards] = useState(accounts);
+	// Tick every 60 seconds to refresh reset countdown values in real time.
+	const [, setTick] = useState(0);
+	const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+	useEffect(() => {
+		tickRef.current = setInterval(() => setTick((n) => n + 1), 60_000);
+		return () => {
+			if (tickRef.current !== null) clearInterval(tickRef.current);
+		};
+	}, []);
 
 	function updateAccountUsage(
 		accountId: string,
@@ -181,7 +255,7 @@ export function DashboardCommandCenter({
 	}
 
 	return (
-		<section className="space-y-5">
+		<section className="space-y-5 page-enter">
 			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
 				{widgetOrder.map((item) => (
 					<article
@@ -224,7 +298,7 @@ export function DashboardCommandCenter({
 							{accountCards.map((account) => (
 								<article
 									key={account.id}
-									className="rounded-xl border border-border bg-background/40 p-4"
+									className="card-hover rounded-xl border border-border bg-background/40 p-4"
 								>
 									<div className="flex items-start justify-between gap-3">
 										<div>
@@ -234,19 +308,27 @@ export function DashboardCommandCenter({
 											<p className="text-sm text-muted-foreground">
 												{account.identifier}
 											</p>
-											<p className="mt-1 text-xs text-muted-foreground">
-												{account.provider?.name ?? ui.unknownProvider} •{" "}
-												{account.planName ?? ui.noPlan}
-											</p>
+											<div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+												<ProviderBrand
+													name={account.provider?.name ?? ui.unknownProvider}
+													icon={account.provider?.icon}
+													color={account.provider?.color}
+													size="sm"
+												/>
+												<span aria-hidden>•</span>
+												<span className="truncate">
+													{account.planName ?? ui.noPlan}
+												</span>
+											</div>
 										</div>
 										<span
-											className={`rounded-md px-2 py-1 text-xs ${
+											className={`rounded-md px-2 py-1 text-xs font-medium ${
 												account.status === "active"
 													? "bg-success/15 text-success"
 													: account.status === "warning" ||
 															account.status === "limited"
 														? "bg-warning/15 text-warning"
-														: "bg-danger/15 text-danger"
+														: "badge-critical bg-danger/15 text-danger"
 											}`}
 										>
 											{statusLabel(account.status)}
@@ -260,7 +342,7 @@ export function DashboardCommandCenter({
 										</div>
 										<div className="h-2 overflow-hidden rounded-full bg-muted">
 											<div
-												className={`h-full ${
+												className={`progress-fill h-full rounded-full ${
 													usagePercent(account) >= 90
 														? "bg-danger"
 														: usagePercent(account) >= 70

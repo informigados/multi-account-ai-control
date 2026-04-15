@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { AppLocale } from "@/lib/i18n";
+import { type AppLocale, pickLocaleText } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/utils";
 import { useCallback, useEffect, useState } from "react";
 
@@ -59,51 +59,132 @@ export function AuditLogViewer({
 	hideFilters = false,
 	locale = "pt_BR",
 }: AuditLogViewerProps) {
-	const isPtBr = locale === "pt_BR";
+	const text = (pt: string, en: string, es?: string, zhCN?: string) =>
+		pickLocaleText(locale, { pt, en, es, zhCN });
 	const ui = {
-		defaultTitle: isPtBr ? "Logs de Atividade" : "Activity Logs",
-		refresh: isPtBr ? "Atualizar" : "Refresh",
-		searchPlaceholder: isPtBr
-			? "Buscar em mensagem/evento"
-			: "Search message/event",
-		searchAria: isPtBr ? "Buscar logs" : "Search logs",
-		eventTypePlaceholder: isPtBr ? "Tipo de evento" : "Event type",
-		eventTypeAria: isPtBr
-			? "Filtrar por tipo de evento"
-			: "Filter by event type",
-		entityTypePlaceholder: isPtBr ? "Tipo de entidade" : "Entity type",
-		entityTypeAria: isPtBr
-			? "Filtrar por tipo de entidade"
-			: "Filter by entity type",
-		pageSizeAria: isPtBr ? "Tamanho da página de logs" : "Logs page size",
-		last25: isPtBr ? "Últimos 25" : "Last 25",
-		last50: isPtBr ? "Últimos 50" : "Last 50",
-		last100: isPtBr ? "Últimos 100" : "Last 100",
-		last200: isPtBr ? "Últimos 200" : "Last 200",
-		fromDateAria: isPtBr ? "Filtrar a partir de data" : "Filter from date",
-		toDateAria: isPtBr ? "Filtrar até data" : "Filter to date",
-		last24h: isPtBr ? "Últimas 24h" : "Last 24h",
-		last7d: isPtBr ? "Últimos 7d" : "Last 7d",
-		last30d: isPtBr ? "Últimos 30d" : "Last 30d",
-		clearPeriod: isPtBr ? "Limpar período" : "Clear period",
-		filtersHint: isPtBr
-			? "Dica: combine período + evento + entidade para investigações mais precisas."
-			: "Tip: combine period + event + entity for more precise investigations.",
-		failedLoadLogs: isPtBr ? "Falha ao carregar logs." : "Failed to load logs.",
-		retryLoadLogs: isPtBr ? "Tentar novamente" : "Retry loading logs",
-		loadingLogs: isPtBr ? "Carregando logs" : "Loading logs",
-		noLogsFound: isPtBr
-			? "Nenhum log encontrado para os filtros atuais."
-			: "No logs found for the current filters.",
-		clearFilters: isPtBr ? "Limpar filtros" : "Clear filters",
-		thWhen: isPtBr ? "Quando" : "When",
-		thEvent: isPtBr ? "Evento" : "Event",
-		thEntity: isPtBr ? "Entidade" : "Entity",
-		thActor: isPtBr ? "Ator" : "Actor",
-		thMessage: isPtBr ? "Mensagem" : "Message",
-		system: isPtBr ? "sistema" : "system",
-		metadata: isPtBr ? "metadados" : "metadata",
-		loadMoreLogs: isPtBr ? "Carregar mais logs" : "Load more logs",
+		defaultTitle: text(
+			"Logs de Atividade",
+			"Activity Logs",
+			"Registros de actividad",
+			"活动日志",
+		),
+		refresh: text("Atualizar", "Refresh", "Actualizar", "刷新"),
+		searchPlaceholder: text(
+			"Buscar em mensagem/evento",
+			"Search message/event",
+			"Buscar por mensaje/evento",
+			"按消息/事件搜索",
+		),
+		searchAria: text(
+			"Buscar logs",
+			"Search logs",
+			"Buscar registros",
+			"搜索日志",
+		),
+		eventTypePlaceholder: text(
+			"Tipo de evento",
+			"Event type",
+			"Tipo de evento",
+			"事件类型",
+		),
+		eventTypeAria: text(
+			"Filtrar por tipo de evento",
+			"Filter by event type",
+			"Filtrar por tipo de evento",
+			"按事件类型筛选",
+		),
+		entityTypePlaceholder: text(
+			"Tipo de entidade",
+			"Entity type",
+			"Tipo de entidad",
+			"实体类型",
+		),
+		entityTypeAria: text(
+			"Filtrar por tipo de entidade",
+			"Filter by entity type",
+			"Filtrar por tipo de entidad",
+			"按实体类型筛选",
+		),
+		pageSizeAria: text(
+			"Tamanho da página de logs",
+			"Logs page size",
+			"Tamaño de página de registros",
+			"日志分页大小",
+		),
+		last25: text("Últimos 25", "Last 25", "Últimos 25", "最近 25 条"),
+		last50: text("Últimos 50", "Last 50", "Últimos 50", "最近 50 条"),
+		last100: text("Últimos 100", "Last 100", "Últimos 100", "最近 100 条"),
+		last200: text("Últimos 200", "Last 200", "Últimos 200", "最近 200 条"),
+		fromDateAria: text(
+			"Filtrar a partir de data",
+			"Filter from date",
+			"Filtrar desde fecha",
+			"按起始日期筛选",
+		),
+		toDateAria: text(
+			"Filtrar até data",
+			"Filter to date",
+			"Filtrar hasta fecha",
+			"按结束日期筛选",
+		),
+		last24h: text("Últimas 24h", "Last 24h", "Últimas 24h", "最近 24 小时"),
+		last7d: text("Últimos 7d", "Last 7d", "Últimos 7d", "最近 7 天"),
+		last30d: text("Últimos 30d", "Last 30d", "Últimos 30d", "最近 30 天"),
+		clearPeriod: text(
+			"Limpar período",
+			"Clear period",
+			"Limpiar período",
+			"清除时间范围",
+		),
+		filtersHint: text(
+			"Dica: combine período + evento + entidade para investigações mais precisas.",
+			"Tip: combine period + event + entity for more precise investigations.",
+			"Consejo: combina período + evento + entidad para investigaciones más precisas.",
+			"提示：组合时间范围 + 事件 + 实体可获得更精确的排查结果。",
+		),
+		failedLoadLogs: text(
+			"Falha ao carregar logs.",
+			"Failed to load logs.",
+			"Error al cargar registros.",
+			"加载日志失败。",
+		),
+		retryLoadLogs: text(
+			"Tentar novamente",
+			"Retry loading logs",
+			"Reintentar carga",
+			"重试加载日志",
+		),
+		loadingLogs: text(
+			"Carregando logs",
+			"Loading logs",
+			"Cargando registros",
+			"正在加载日志",
+		),
+		noLogsFound: text(
+			"Nenhum log encontrado para os filtros atuais.",
+			"No logs found for the current filters.",
+			"No se encontraron registros para los filtros actuales.",
+			"当前筛选条件下没有找到日志。",
+		),
+		clearFilters: text(
+			"Limpar filtros",
+			"Clear filters",
+			"Limpiar filtros",
+			"清除筛选",
+		),
+		thWhen: text("Quando", "When", "Cuándo", "时间"),
+		thEvent: text("Evento", "Event", "Evento", "事件"),
+		thEntity: text("Entidade", "Entity", "Entidad", "实体"),
+		thActor: text("Ator", "Actor", "Actor", "操作者"),
+		thMessage: text("Mensagem", "Message", "Mensaje", "消息"),
+		system: text("sistema", "system", "sistema", "系统"),
+		metadata: text("metadados", "metadata", "metadatos", "元数据"),
+		loadMoreLogs: text(
+			"Carregar mais logs",
+			"Load more logs",
+			"Cargar más registros",
+			"加载更多日志",
+		),
 	};
 
 	const [logs, setLogs] = useState<ActivityLog[]>([]);
