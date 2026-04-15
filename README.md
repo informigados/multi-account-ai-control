@@ -188,8 +188,8 @@ See [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 ## 👥 Authors
 
-- INformigados: https://github.com/informigados/
-- Alex Brito: https://github.com/alexbritodev
+- INformigados: [github.com/informigados](https://github.com/informigados/)
+- Alex Brito: [github.com/alexbritodev](https://github.com/alexbritodev)
 
 ## 📜 License
 

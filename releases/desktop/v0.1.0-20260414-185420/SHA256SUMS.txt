@@ -1,2 +1,0 @@
-262a0cd0a016996275a2ab1e121642ede987478a6a54216cc31db450d43034c0  msi/Multi Account AI Control_0.1.0_x64_en-US.msi
-067d2c95edd565524af3072a96069bbb674ecf6237c7a3ef90a4e028e930584c  nsis/Multi Account AI Control_0.1.0_x64-setup.exe

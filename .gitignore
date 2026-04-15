@@ -51,3 +51,12 @@ junit.xml
 vitest-results*
 vitest-report*
 *.tsbuildinfo
+
+# release artifacts and changelog — managed manually by maintainer
+CHANGELOG.md
+releases/
+*.msi
+*.exe
+*.nsis
+*.AppImage
+*.dmg

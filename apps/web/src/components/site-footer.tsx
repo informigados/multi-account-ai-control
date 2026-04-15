@@ -27,7 +27,7 @@ export function SiteFooter({ locale }: SiteFooterProps) {
 					<a
 						href="https://informigados.github.io/"
 						target="_blank"
-						rel="noreferrer"
+						rel="noopener noreferrer"
 						className="font-medium text-foreground/80 transition hover:text-foreground hover:underline"
 					>
 						INformigados

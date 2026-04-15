@@ -6,14 +6,7 @@ export default function NotFoundPage() {
 			<div className="page-enter w-full max-w-lg text-center">
 				{/* Giant gradient 404 number */}
 				<p
-					className="select-none text-[8rem] font-bold leading-none"
-					style={{
-						background:
-							"linear-gradient(135deg, hsl(var(--primary)), hsl(var(--info)))",
-						WebkitBackgroundClip: "text",
-						WebkitTextFillColor: "transparent",
-						backgroundClip: "text",
-					}}
+					className="gradient-404 select-none text-[8rem] font-bold leading-none"
 					aria-hidden
 				>
 					404

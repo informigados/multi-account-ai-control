@@ -16,7 +16,13 @@ import {
 	Users,
 	XCircle,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+	type CSSProperties,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 
 type SummaryMetrics = {
 	totalAccounts: number;
@@ -433,10 +439,12 @@ export function DashboardCommandCenter({
 											</div>
 											<div className="h-1.5 overflow-hidden rounded-full bg-muted">
 												<div
-													className={`progress-fill h-full rounded-full ${toneC.bar}`}
-													style={{
-														width: `${Math.min(100, Math.max(0, pct))}%`,
-													}}
+													className={`progress-fill progress-dynamic h-full rounded-full ${toneC.bar}`}
+													style={
+														{
+															"--pw": `${Math.min(100, Math.max(0, pct))}%`,
+														} as CSSProperties
+													}
 												/>
 											</div>
 										</div>
@@ -512,8 +520,12 @@ export function DashboardCommandCenter({
 												}
 											>
 												<div
-													className={`progress-fill h-full rounded-full ${pct >= 90 ? "bg-danger" : "bg-warning"}`}
-													style={{ width: `${Math.min(100, pct)}%` }}
+													className={`progress-fill progress-dynamic h-full rounded-full ${pct >= 90 ? "bg-danger" : "bg-warning"}`}
+													style={
+														{
+															"--pw": `${Math.min(100, pct)}%`,
+														} as CSSProperties
+													}
 												/>
 											</div>
 										</li>

@@ -291,7 +291,7 @@ export default async function AboutPage() {
 							<a
 								href="https://github.com/informigados/"
 								target="_blank"
-								rel="noreferrer"
+								rel="noopener noreferrer"
 								className="mt-1 inline-block text-sm text-primary hover:underline"
 							>
 								github.com/informigados
@@ -299,7 +299,7 @@ export default async function AboutPage() {
 							<a
 								href="https://informigados.github.io/"
 								target="_blank"
-								rel="noreferrer"
+								rel="noopener noreferrer"
 								className="mt-1 block text-xs text-muted-foreground hover:underline"
 							>
 								informigados.github.io
@@ -324,7 +324,7 @@ export default async function AboutPage() {
 							<a
 								href="https://github.com/alexbritodev"
 								target="_blank"
-								rel="noreferrer"
+								rel="noopener noreferrer"
 								className="mt-1 inline-block text-sm text-primary hover:underline"
 							>
 								github.com/alexbritodev
@@ -332,7 +332,7 @@ export default async function AboutPage() {
 							<a
 								href="https://alexbritodev.github.io/"
 								target="_blank"
-								rel="noreferrer"
+								rel="noopener noreferrer"
 								className="mt-1 block text-xs text-muted-foreground hover:underline"
 							>
 								alexbritodev.github.io
@@ -347,7 +347,7 @@ export default async function AboutPage() {
 						<a
 							href="https://github.com/informigados/multi-account-ai-control/"
 							target="_blank"
-							rel="noreferrer"
+							rel="noopener noreferrer"
 							className="mt-3 inline-flex h-9 items-center justify-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-5 text-sm font-medium text-primary transition-all hover:bg-primary/20"
 						>
 							{ui.viewRepository}
