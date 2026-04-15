@@ -187,7 +187,7 @@ try {
         `$token = `$token.Trim()
         # Allow common bearer-token chars only, disallow control chars/whitespace.
         # Also enforce a minimum length to reduce malformed header usage.
-        if (`$token -match '^[A-Za-z0-9._~+/=-]{16,8192}`$') {
+        if (`$token -match '^[A-Za-z0-9._~+/-]{16,8192}={0,2}`$') {
             `$headers['Authorization'] = "Bearer `$token"
         } else {
             Write-EventLog -LogName Application -Source '$EventSource' -EntryType Warning -EventId 1003 -Message "Invalid MAAC_BACKUP_TOKEN format detected; sending backup request without authentication header." -ErrorAction SilentlyContinue
@@ -244,8 +244,9 @@ try {
     # This script runs via a scheduled task with elevated privileges.
     $acl = Get-Acl -Path $TaskScriptPath
     $acl.SetAccessRuleProtection($true, $false) # disable inheritance, remove inherited rules
-    foreach ($rule in $acl.Access) {
-        [void]$acl.RemoveAccessRule($rule)
+    $existingRules = @($acl.Access)
+    foreach ($rule in $existingRules) {
+        [void]$acl.RemoveAccessRuleAll($rule)
     }
 
     $inheritanceFlags = [System.Security.AccessControl.InheritanceFlags]::None
