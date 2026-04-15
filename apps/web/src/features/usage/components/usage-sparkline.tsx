@@ -67,7 +67,6 @@ export function UsageSparkline({
 }: UsageSparklineProps) {
 	const [points, setPoints] = useState<number[] | null>(null);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: accountId/limit stable per render
 	useEffect(() => {
 		let alive = true;
 		async function load() {

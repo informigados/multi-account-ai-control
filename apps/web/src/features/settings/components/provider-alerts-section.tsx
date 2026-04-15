@@ -64,7 +64,6 @@ export function ProviderAlertsSection({
 		saving: isPortuguese ? "..." : "...",
 	};
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: load on mount only
 	useEffect(() => {
 		async function load() {
 			setIsLoading(true);

@@ -1425,7 +1425,7 @@ function QuotaConfigSection({ isPortuguese }: QuotaConfigSectionProps) {
 	const loadErrorRef = useRef(ui.loadError);
 	loadErrorRef.current = ui.loadError;
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally runs once on mount; loadErrorRef.current is always current
+	// intentionally runs once on mount; loadErrorRef.current is always current
 	useEffect(() => {
 		async function load() {
 			setIsLoading(true);
@@ -1623,7 +1623,6 @@ function GroupsConfigSection({ isPortuguese }: { isPortuguese: boolean }) {
 	const loadErrorRef = useRef(ui.loadError);
 	loadErrorRef.current = ui.loadError;
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: load on mount only
 	useEffect(() => {
 		async function load() {
 			setIsLoading(true);

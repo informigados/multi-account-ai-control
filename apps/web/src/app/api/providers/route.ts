@@ -43,6 +43,9 @@ export async function GET(request: NextRequest) {
 				}
 			: {}),
 		orderBy: [{ id: "asc" }],
+		include: {
+			_count: { select: { accounts: true } },
+		},
 	});
 
 	const hasMore = providers.length > limit;

@@ -30,6 +30,7 @@ type Provider = {
 	isActive: boolean;
 	createdAt: string;
 	updatedAt: string;
+	_count?: { accounts: number };
 };
 
 type ProviderFormState = {
@@ -228,6 +229,7 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 		thSlug: "Slug",
 		thConnector: text("Conector", "Connector", "Conector", "连接器"),
 		thStatus: "Status",
+		thAccounts: text("Contas", "Accounts", "Cuentas", "账号数"),
 		thActions: text("Ações", "Actions", "Acciones", "操作"),
 		statusActive: text("Ativo", "Active", "Activo", "启用"),
 		statusInactive: text("Inativo", "Inactive", "Inactivo", "停用"),
@@ -909,6 +911,7 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 										<th className="px-3 py-2">{ui.thSlug}</th>
 										<th className="px-3 py-2">{ui.thConnector}</th>
 										<th className="px-3 py-2">{ui.thStatus}</th>
+										<th className="px-3 py-2 tabular-nums">{ui.thAccounts}</th>
 										<th className="px-3 py-2 text-right">{ui.thActions}</th>
 									</tr>
 								</thead>
@@ -947,6 +950,20 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 														? ui.statusActive
 														: ui.statusInactive}
 												</span>
+											</td>
+											{/* Account count badge */}
+											<td className="px-3 py-2">
+												{provider._count !== undefined ? (
+													<span
+														className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs tabular-nums font-medium ${
+															provider._count.accounts === 0
+																? "bg-muted text-muted-foreground"
+																: "bg-info/10 text-info"
+														}`}
+													>
+														{provider._count.accounts}
+													</span>
+												) : null}
 											</td>
 											<td className="px-3 py-2 text-right">
 												<div className="inline-flex gap-2">
