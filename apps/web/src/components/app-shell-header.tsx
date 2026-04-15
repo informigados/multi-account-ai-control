@@ -1,5 +1,6 @@
 "use client";
 
+import { CommandPalette } from "@/components/command-palette";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LogoutButton } from "@/features/auth/components/logout-button";
 import { type AppLocale, getDictionary } from "@/lib/i18n";
@@ -159,6 +160,7 @@ export function AppShellHeader({
 
 	return (
 		<>
+			<CommandPalette locale={locale} />
 			<header className="sticky top-0 z-40 rounded-xl border border-border bg-card/90 shadow-sm backdrop-blur-md">
 				{/* Top row: logo + user + actions */}
 				<div className="flex items-center justify-between gap-3 px-4 pb-1 pt-3">
@@ -175,12 +177,42 @@ export function AppShellHeader({
 						</div>
 					</div>
 
-					{/* Desktop: user chip + actions */}
+					{/* Desktop: user chip + search + actions */}
 					<div className="hidden items-center gap-2 md:flex">
 						<span className="rounded-md border border-border bg-muted/60 px-3 py-1 text-xs font-medium text-muted-foreground">
 							{t.shell.loggedInAs}{" "}
 							<span className="font-semibold text-foreground">{username}</span>
 						</span>
+						{/* Search / Command Palette trigger */}
+						<button
+							type="button"
+							aria-label="Open command palette (Ctrl+K)"
+							onClick={() =>
+								window.dispatchEvent(new Event("open-command-palette"))
+							}
+							className="inline-flex h-8 items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 text-xs text-muted-foreground transition hover:bg-muted hover:text-foreground"
+						>
+							<svg
+								viewBox="0 0 20 20"
+								fill="currentColor"
+								className="h-3.5 w-3.5"
+								aria-hidden="true"
+							>
+								<path
+									fillRule="evenodd"
+									d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+									clipRule="evenodd"
+								/>
+							</svg>
+							<span className="hidden lg:inline">
+								{locale === "pt_BR" || locale === "pt_PT"
+									? "Buscar..."
+									: "Search..."}
+							</span>
+							<kbd className="hidden rounded border border-border bg-background px-1 py-0.5 font-mono text-[9px] lg:inline">
+								Ctrl+K
+							</kbd>
+						</button>
 						<ThemeToggle />
 						<LogoutButton label={t.shell.actions.logout} />
 					</div>
