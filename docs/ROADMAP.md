@@ -477,7 +477,123 @@ Criterios de aceite:
 - [x] v3/Fase C: novos idiomas (`pt_PT`, `es`, `zh_CN`) com validacao automatizada
 - [x] v3/Fase D: hardening extra (redacao de segredos, integridade de backup, gates sensiveis)
 - [ ] v3/Fase E: modernizacao visual responsiva e acessibilidade final
-- [ ] v4/Fase F: importacao local de sessao + conectores avancados (ver secao 14)
+- [x] v4/Fase F: importacao local de sessao + conectores Rust (desktop)
+- [ ] v4/Fase F: alertas nativos do SO (tauri-plugin-notification)
+- [ ] v4/Fase F: backup agendado automatico
+- [ ] v4/Fase F: TOTP / 2FA Manager
+
+---
+
+## 15. Status de Execucao Fase F (2026-04-15)
+
+### F.1 - Leitura local de sessao (Tauri connectors Rust)
+
+- [x] Estrutura base (`desktop/tauri/src-tauri/src/connectors.rs`)
+- [x] Conector Gemini CLI (`~/.gemini/oauth_creds.json`)
+- [x] Conector Codex CLI (`~/.codex/auth.json`)
+- [x] Conector Zed (`~/.config/zed/accounts.json` / `Library/Application Support/Zed`)
+- [x] Conector Cursor (`state.vscdb` SQLite; requer feature `sqlite` para leitura real)
+- [x] Comando Tauri `detect_local_accounts` registrado em `main.rs`
+- [x] UI: `LocalImportDialog` com graceful fallback em modo web
+- [x] Cursor: placeholder quando feature sqlite nao ativada (evita falha silenciosa)
+- [ ] Conector GitHub Copilot (safe-storage criptografado, complexidade alta)
+- [ ] Conector Windsurf (similar a Cursor, requer analise do path exato)
+- [ ] Feature `sqlite` ativada no Cargo.toml para Cursor leitura real do vscdb
+- [ ] Leitura de multiplas contas por provedor (ex: varios perfis Zed)
+- [ ] Persistir token detectado de forma segura (criptografado no banco)
+
+### F.2 - Auto-refresh de cota por provedor
+
+- [x] Hook `useAccountsAutoRefresh` com polling em background
+- [x] Intervalo configuravel via `AppSetting` (`quota-config`)
+- [x] Indicador de `ultima atualizacao` nos cards
+- [x] API `GET/POST /api/settings/quota-config`
+- [ ] Pagina de Settings com UI para configurar intervalo de refresh
+- [ ] Chamada real de API por provedor (cada provedor tem endpoint diferente)
+  - Gemini: `https://generativelanguage.googleapis.com/` (autenticacao OAuth)
+  - Codex / OpenAI: nao tem endpoint de quota oficial publico
+  - Cursor/Windsurf/Zed: sem API de quota publica documentada
+- [ ] Salvar snapshot automatico no banco a cada ciclo de polling
+
+### F.3 - Alertas de cota
+
+- [x] Componente `QuotaAlertBanner` in-app com limiar configuravel
+- [x] Limiar salvo em `AppSetting` (`quota-config.alertThresholdPercent`)
+- [ ] Notificacao nativa do SO via `tauri-plugin-notification`
+- [ ] Registro do evento `quota_alert` no `activity_log`
+- [ ] Config de alerta por provedor individual (nao apenas global)
+
+### F.4 - Operacoes em lote
+
+- [x] Checkbox de selecao multi-conta nos cards
+- [x] `BatchActionBar` flutuante com acoes: Arquivar, Excluir, Exportar
+- [x] API `POST /api/accounts/bulk` (archive + delete)
+- [x] Confirmacao explicita para acoes destrutivas
+- [x] Exportar selecionados como JSON (`exportSelectedAsJson`)
+- [ ] Operacao em lote: Mover entre grupos
+- [ ] Operacao em lote em modo tabela (alem dos cards)
+
+### F.5 - Grupos de contas
+
+- [x] CRUD de grupos (`GET/POST /api/settings/account-groups`)
+- [x] Endpoint por ID (`PATCH/DELETE /api/settings/account-groups/[id]`)
+- [x] Componente `AccountGroupsManager`
+- [x] Filtro por grupo na listagem principal
+- [x] Persistencia em `AppSetting` com JSON
+- [ ] Mover contas entre grupos via UI (arrastar ou dropdown)
+- [ ] Limite de grupos configuravel (evitar proliferacao infinita)
+
+### F.6 - Backup Manager (agendador)
+
+- [ ] Background job agendado (1 backup/dia)
+- [ ] Retencao configuravel (7/14/30 dias)
+- [ ] Listagem de backups com data/tamanho no painel `/data`
+- [ ] Botao de restore e exclusao de backup agendado
+- Nota: requer Tauri para rodar como daemon (nao funciona em modo web)
+
+### F.7 - 2FA / TOTP Manager
+
+- [ ] Armazenar segredos TOTP (Base32) com AES-256-GCM
+- [ ] Gerar codigos OTP de 6 digitos com countdown de 30s
+- [ ] Interface: lista, favoritos, copiar codigo
+- [ ] Importar/Exportar como JSON criptografado
+- Nota: esta fase pode funcionar em modo web (nao requer Tauri)
+
+---
+
+## 16. O que ainda falta para o sistema estar "completo" (priorizado)
+
+### Prioridade ALTA (bloqueia experiencia completa)
+
+1. **Settings UI para quota-config** — o usuario nao consegue mudar o intervalo de refresh ou o limiar de alerta sem acesso direto ao banco. Criar UI em `/settings` para configurar `refreshIntervalMinutes` e `alertThresholdPercent`.
+
+2. **Feature sqlite no Cargo.toml** — sem isso, a importacao do Cursor exibe apenas um placeholder. Habilitar `cargo tauri build --features sqlite` para ativar leitura real do `state.vscdb`.
+
+3. **Fase E: modernizacao visual final** — a identidade visual ainda usa classes ad-hoc. Consolidar `design tokens` (cores, tipografia, sombras) em CSS variables centralizadas e revisar responsividade em mobile/tablet/desktop.
+
+4. **Providers em `/settings`** — a tela de Settings ainda nao tem secao para configurar quota-config por provedor individualmente.
+
+### Prioridade MEDIA (melhora funcionalidade)
+
+5. **Mover contas entre grupos via UI** — hoje o usuario cria grupos mas nao consegue mover contas para eles pela interface (so via edicao de conta).
+
+6. **Unarchive via API dedicada** — o botao `Desarquivar` usa `/api/accounts/:id` com `PUT { status: "active" }`. Validar que o endpoint aceita esse payload (pode precisar de tratamento especial para contas arquivadas).
+
+7. **Tauri notification plugin** — registrar `tauri-plugin-notification` no `Cargo.toml` e `main.rs` para habilitar alertas nativos do SO quando cota ultrapassa o limiar.
+
+8. **Conector GitHub Copilot e Windsurf** — os caminhos de sessao sao diferentes e requerem analise. Copilot usa safe-storage (criptografado pelo SO), o que pode exigir permissoes extras.
+
+### Prioridade BAIXA (evolucao futura)
+
+9. **F.6 Backup Manager agendado** — requer Tauri com acesso ao sistema de arquivos e um daemon em background.
+
+10. **F.7 TOTP Manager** — pode ser implementado em web (nao requer Tauri). Valor operacional real para usuarios com 2FA em multiplas contas.
+
+11. **Leitura de multiplas sessoes por provedor** — hoje cada conector retorna apenas a primeira conta detectada. Evoluir para retornar uma lista e o usuario escolher qual importar.
+
+12. **Viewer de logs em tempo real** — tail do arquivo de log do app (Tauri only).
+
+13. **macOS e Linux** — o pipeline desktop atual e apenas Windows. Adicionar targets em `tauri.conf.json` apos estabilidade do canal Windows.
 
 ---
 

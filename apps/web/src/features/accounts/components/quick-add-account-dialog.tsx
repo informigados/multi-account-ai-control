@@ -83,6 +83,8 @@ export function QuickAddAccountDialog({
 		message: string;
 	} | null>(null);
 	const [showExamples, setShowExamples] = useState(false);
+	/** Provider override for JSON import — user selects manually when slug not detected */
+	const [jsonOverrideProviderId, setJsonOverrideProviderId] = useState("");
 	const dialogRef = useRef<HTMLDialogElement>(null);
 
 	useEffect(() => {
@@ -92,6 +94,7 @@ export function QuickAddAccountDialog({
 			setJsonText("");
 			setFeedback(null);
 			setTab("manual");
+			setJsonOverrideProviderId(providers[0]?.id ?? "");
 		} else {
 			dialogRef.current?.close();
 		}
@@ -156,17 +159,50 @@ export function QuickAddAccountDialog({
 			// Submit each account sequentially
 			for (const item of items) {
 				const body = item as Record<string, unknown>;
+
+				// ── Smart provider resolution ──────────────────────────────────────
+				// Priority: JSON.provider.slug > JSON.provider.name > JSON.providerSlug
+				//           > JSON.providerName > user override select > first provider
+				const provObj = body.provider as Record<string, string> | undefined;
+				const slugHint =
+					provObj?.slug ?? (body.providerSlug as string | undefined) ?? "";
+				const nameHint =
+					provObj?.name ?? (body.providerName as string | undefined) ?? "";
+
+				const matched =
+					// 1. Exact slug match
+					providers.find(
+						(p) => slugHint && p.slug?.toLowerCase() === slugHint.toLowerCase(),
+					) ??
+					// 2. Name contains slug or vice-versa
+					providers.find(
+						(p) =>
+							slugHint && p.name.toLowerCase().includes(slugHint.toLowerCase()),
+					) ??
+					// 3. Name hint match
+					providers.find(
+						(p) =>
+							nameHint &&
+							(p.name.toLowerCase().includes(nameHint.toLowerCase()) ||
+								nameHint.toLowerCase().includes(p.name.toLowerCase())),
+					);
+
+				// Use matched provider, or fall back to the user's manual override
+				const resolvedProviderId =
+					matched?.id ?? jsonOverrideProviderId ?? providers[0]?.id ?? "";
+				// ──────────────────────────────────────────────────────────────────
+
 				const response = await fetch("/api/accounts", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
-						providerId: body.providerId ?? providers[0]?.id ?? "",
+						providerId: resolvedProviderId,
 						displayName: body.displayName ?? body.identifier ?? "Importado",
 						identifier: body.identifier ?? body.email ?? "",
 						planName: body.planName ?? undefined,
 						accountType: body.accountType ?? undefined,
 						status: "active",
-						priority: 5,
+						priority: typeof body.priority === "number" ? body.priority : 5,
 						tags: Array.isArray(body.tags) ? body.tags : [],
 					}),
 				});
@@ -426,6 +462,32 @@ export function QuickAddAccountDialog({
 								className="min-h-[120px] w-full rounded-md border border-border bg-card px-3 py-2 font-mono text-xs outline-none ring-primary transition focus:ring-2"
 								required
 							/>
+
+							{/* Provider override — used when the JSON does not carry a recognizable slug */}
+							<div className="space-y-1">
+								<label
+									htmlFor="qa-json-provider"
+									className="block text-xs text-muted-foreground"
+								>
+									Provedor de destino{" "}
+									<span className="text-muted-foreground/60">
+										(detectado automaticamente pelo slug; selecione se não for
+										reconhecido)
+									</span>
+								</label>
+								<select
+									id="qa-json-provider"
+									value={jsonOverrideProviderId}
+									onChange={(e) => setJsonOverrideProviderId(e.target.value)}
+									className="h-9 w-full rounded-md border border-border bg-card px-3 text-sm outline-none ring-primary transition focus:ring-2"
+								>
+									{providers.map((p) => (
+										<option key={p.id} value={p.id}>
+											{p.name}
+										</option>
+									))}
+								</select>
+							</div>
 
 							{feedback ? (
 								<p

@@ -20,8 +20,58 @@ A **local-first** operations panel for managing multiple AI accounts with strong
 - ♻️ Backup restore with `dryRun` and explicit confirmation phrase
 - ⏱️ Cursor pagination for heavy endpoints (accounts/logs/notes/usage/providers/imports)
 - 🛡️ Re-authentication required to reveal secrets
-- 🖥️ Desktop baseline (Tauri) with preflight checks
+- 🏷️ Account tags (up to 10 per account) for filtering and differentiation
+- ☑️ Multi-select batch operations: archive, delete, and export selected accounts
+- 🔄 Auto-refresh quota polling (configurable interval, default 10 min)
+- 🚨 In-app quota alerts when usage exceeds configurable threshold
+- 📂 Account groups with CRUD and filter-by-group support
+- 🖥️ Desktop baseline (Tauri) with local session import (desktop-only, see below)
 - 🌐 Language support: **Portuguese (Brazil) `pt-BR`**, **Portuguese (Portugal) `pt-PT`**, **English `en`**, **Spanish `es`**, and **Chinese (Simplified) `zh-CN`**
+
+---
+
+## 🖥️ Desktop vs Web — Feature Matrix
+
+The system runs in two modes:
+
+| Mode | How to run |
+|---|---|
+| **Web (dev/server)** | `npm run dev` or any server via PowerShell |
+| **Desktop (installable)** | Install the `.msi` / `.exe` from `releases/desktop/` |
+
+Some features **only work in the installable desktop app** because they require native OS access (file system, notifications, etc.) that a web server cannot provide:
+
+### ✅ Works in both Web and Desktop
+
+| Feature | Notes |
+|---|---|
+| Full CRUD (Providers, Accounts, Usage, Notes) | ✅ |
+| Dashboard metrics, charts and filters | ✅ |
+| Batch operations (select, archive, delete, export) | ✅ |
+| Auto-refresh quota polling (frontend timer) | ✅ |
+| In-app quota alert banner | ✅ |
+| Account groups / folders | ✅ |
+| Import JSON/CSV (manual paste) | ✅ |
+| Export JSON / encrypted backup | ✅ |
+| Audit logs, notes, account detail workspace | ✅ |
+| Multi-language UI | ✅ |
+| Password reset by email (requires SMTP config) | ✅ |
+| Idle-lock screen (configurable timeout) | ✅ |
+
+### 🔒 Desktop executable only (`.msi` / `.exe`)
+
+| Feature | Why it requires desktop | Status |
+|---|---|---|
+| **Import local session** (Gemini CLI, Zed, Cursor, Codex) | Reads credential files from local disk (e.g. `~/.gemini/oauth_creds.json`, `state.vscdb`) — impossible from a web server which cannot access the user's file system | ✅ Implemented (Rust connectors) |
+| **Native OS quota alerts** (system notifications) | Uses Tauri `notification` plugin to push native OS notifications | 🔜 Planned (F.3) |
+| **Scheduled backup manager** | Background daemon that runs a daily automated backup | 🔜 Planned (F.6) |
+| **Real-time log tail** (app.log viewer) | Tail native log files on disk | 🔜 Planned (F.6+) |
+| **2FA / TOTP Manager** | Generates OTP codes from Base32 secrets stored locally | 🔜 Planned (F.7) |
+| **OAuth browser flow** (silent token capture) | Opens embedded browser + captures redirect locally | 🔜 Future (high complexity) |
+
+> **Important:** When you click "Importar do app local" in web mode, the system shows an informative notice explaining the feature is exclusive to the desktop executable, and guides the user to download the installer.
+
+---
 
 ## 🔒 Authentication and Default Admin
 
@@ -175,6 +225,16 @@ multi-account-ai-control/
 ## 📝 Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for the full history.
+
+### v1.2.0 — 2026-04-15 (Phase F — Premium Suite)
+
+- **Batch operations:** floating batch action bar for multi-select archive, delete, and export
+- **Auto-refresh:** background quota polling (configurable interval, persisted per session)
+- **Quota alerts:** in-app alert banner when any account exceeds the configured usage threshold
+- **Account groups:** create/rename/delete groups and filter the accounts list by group
+- **Sort persistence:** account list sort order saved to `localStorage` across sessions
+- **Local import (desktop):** Tauri `detect_local_accounts` command implemented in Rust for Gemini CLI, Codex, Zed, and Cursor; graceful web fallback with download prompt
+- **UX fixes:** Edit button now scrolls-to and highlights the form panel; archived accounts show an inline banner with a one-click Unarchive button; the archived filter is now a visible toggle button; JSON import has smart provider matching by slug/name
 
 ### v1.1.0 — 2026-04-15 (Hardening & Premium UX)
 
