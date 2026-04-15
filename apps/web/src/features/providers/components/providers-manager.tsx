@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -661,6 +661,76 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 							</div>
 						</div>
 					</div>
+
+					{/* --- Custom icon upload: only when editing an existing provider --- */}
+					{editingId ? (
+						<div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+							<div className="flex items-center gap-3">
+								<ProviderBrand
+									name={form.name || ui.iconPreview}
+									icon={form.icon || null}
+									color={form.color || null}
+									size="lg"
+									showName={false}
+								/>
+								<div className="flex-1">
+									<p className="text-xs font-medium">{"Ícone personalizado"}</p>
+									<p className="text-[10px] text-muted-foreground">
+										{
+											"SVG, PNG, ICO, WEBP • Máx. 512 KB • Fundo transparente recomendado"
+										}
+									</p>
+								</div>
+							</div>
+							<div className="flex flex-wrap gap-2">
+								<input
+									ref={fileInputRef}
+									type="file"
+									accept=".svg,.png,.jpg,.jpeg,.webp,.ico"
+									className="sr-only"
+									id="provider-icon-file"
+									onChange={(e) => {
+										const file = e.target.files?.[0];
+										if (file) void uploadIcon(file);
+										e.target.value = "";
+									}}
+								/>
+								<button
+									type="button"
+									className="inline-flex h-8 items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-3 text-xs font-medium text-primary transition hover:bg-primary/20 disabled:opacity-50"
+									disabled={iconUpload.status === "uploading"}
+									onClick={() => fileInputRef.current?.click()}
+								>
+									{iconUpload.status === "uploading"
+										? "Enviando..."
+										: "Escolher arquivo"}
+								</button>
+								{form.icon ? (
+									<button
+										type="button"
+										className="inline-flex h-8 items-center gap-1.5 rounded-md border border-danger/30 bg-danger/10 px-3 text-xs font-medium text-danger transition hover:bg-danger/20"
+										onClick={() => void removeIcon()}
+										disabled={iconUpload.status === "uploading"}
+									>
+										{"Remover ícone"}
+									</button>
+								) : null}
+							</div>
+							{iconUpload.status !== "idle" ? (
+								<p
+									className={`text-xs ${iconUpload.status === "done" ? "text-success" : iconUpload.status === "error" ? "text-danger" : "text-muted-foreground"}`}
+								>
+									{iconUpload.message}
+								</p>
+							) : null}
+						</div>
+					) : (
+						<p className="text-xs text-muted-foreground">
+							{
+								"💡 Salve o provedor primeiro para habilitar o upload de ícone personalizado."
+							}
+						</p>
+					)}
 
 					<div className="space-y-1.5">
 						<label
