@@ -59,13 +59,14 @@
 
 .NOTES
     Task name: MAAC-AutoBackup
+    Runtime task script: maac-backup-task.ps1 (written next to this script)
     The backup payload is stored in the app database (AppSetting key:
     "app.backup_schedule_log"), visible in the Data > Backups section.
     Optional authentication: set MAAC_BACKUP_TOKEN in the task user
     environment to send Authorization: Bearer <token> on backup calls.
-    Endpoint settings are embedded into the scheduled task action at
-    registration time (Protocol/Host/Port). If these values change later,
-    run this script with -Remove and then register again with updated values.
+    Endpoint settings are written into the runtime task script at registration
+    time (Protocol/Host/Port). Re-run this script to refresh that runtime file
+    with updated endpoint values.
 #>
 
 param(
@@ -90,6 +91,7 @@ param(
 $TaskName   = "MAAC-AutoBackup"
 $TaskPath   = "\MAAC\"
 $EventSource = "MAAC-AutoBackup"
+$TaskScriptPath = Join-Path $PSScriptRoot "maac-backup-task.ps1"
 
 # ── Require administrator privileges ───────────────────────────────────────────
 $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -101,10 +103,44 @@ if (-not $isAdministrator) {
     exit 1
 }
 
+function Test-MaacServerHost {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$HostValue
+    )
+
+    if ($HostValue -eq 'localhost') {
+        return $true
+    }
+
+    # Bracketed IPv6 is required when used with :port in a URI.
+    if ($HostValue -match '^\[[0-9A-Fa-f:]+\]$') {
+        $ipv6 = $HostValue.TrimStart('[').TrimEnd(']')
+        $parsedIp = $null
+        return [Net.IPAddress]::TryParse($ipv6, [ref]$parsedIp) -and $parsedIp.AddressFamily -eq [Net.Sockets.AddressFamily]::InterNetworkV6
+    }
+
+    # IPv4 with octet range validation.
+    if ($HostValue -match '^\d{1,3}(\.\d{1,3}){3}$') {
+        $octets = $HostValue.Split('.')
+        return ($octets | Where-Object { [int]$_ -lt 0 -or [int]$_ -gt 255 }).Count -eq 0
+    }
+
+    # DNS hostname (labels 1-63 chars, alnum/hyphen, no leading/trailing hyphen).
+    if ($HostValue -match '^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])$') {
+        return $true
+    }
+
+    return $false
+}
+
 # ── Remove existing task ───────────────────────────────────────────────────────
 if ($Remove) {
     try {
         Unregister-ScheduledTask -TaskName $TaskName -TaskPath $TaskPath -Confirm:$false -ErrorAction Stop
+        if (Test-Path -LiteralPath $TaskScriptPath) {
+            Remove-Item -LiteralPath $TaskScriptPath -Force -ErrorAction SilentlyContinue
+        }
         Write-Host "[OK] Task '$TaskName' removed successfully." -ForegroundColor Green
     } catch {
         Write-Warning "Task '$TaskName' not found or could not be removed: $_"
@@ -120,6 +156,11 @@ if ($existing) {
 }
 
 # ── Build the backup command ───────────────────────────────────────────────────
+if (-not (Test-MaacServerHost -HostValue $ServerHost)) {
+    Write-Error "Invalid -ServerHost value '$ServerHost'. Use localhost, a valid IPv4 address, a bracketed IPv6 address (e.g. [::1]), or a valid DNS hostname."
+    exit 1
+}
+
 $ApiUrl = "${Protocol}://${ServerHost}:$Port/api/export/backup/schedule"
 
 # ── Ensure the Event Log source exists (required before Write-EventLog can work) ─
@@ -143,7 +184,14 @@ try {
     `$token = [Environment]::GetEnvironmentVariable('MAAC_BACKUP_TOKEN')
     `$headers = @{}
     if (`$token) {
-        `$headers['Authorization'] = "Bearer `$token"
+        `$token = `$token.Trim()
+        # Allow common bearer-token chars only, disallow control chars/whitespace.
+        # Also enforce a minimum length to reduce malformed header usage.
+        if (`$token -match '^[A-Za-z0-9\-._~+/=]{16,4096}`$') {
+            `$headers['Authorization'] = "Bearer `$token"
+        } else {
+            Write-EventLog -LogName Application -Source '$EventSource' -EntryType Warning -EventId 1003 -Message "Invalid MAAC_BACKUP_TOKEN format detected; sending backup request without authentication header." -ErrorAction SilentlyContinue
+        }
     } else {
         Write-EventLog -LogName Application -Source '$EventSource' -EntryType Information -EventId 1002 -Message "Backup request sent without authentication token (MAAC_BACKUP_TOKEN not set)." -ErrorAction SilentlyContinue
     }
@@ -162,10 +210,21 @@ try {
         try {
             `$stream = `$ex.Response.GetResponseStream()
             if (`$stream) {
-                `$reader = New-Object System.IO.StreamReader(`$stream)
-                `$responseBody = `$reader.ReadToEnd()
-                if (`$responseBody) {
-                    `$msg += " | Response: `$responseBody"
+                try {
+                    `$reader = `$null
+                    try {
+                        `$reader = New-Object System.IO.StreamReader(`$stream)
+                        `$responseBody = `$reader.ReadToEnd()
+                        if (`$responseBody) {
+                            `$msg += " | Response: `$responseBody"
+                        }
+                    } finally {
+                        if (`$reader) {
+                            `$reader.Dispose()
+                        }
+                    }
+                } finally {
+                    `$stream.Dispose()
                 }
             }
         } catch {
@@ -177,12 +236,13 @@ try {
 }
 "@
 
-$EncodedScript = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($ScriptBlock))
+Set-Content -Path $TaskScriptPath -Value $ScriptBlock -Encoding UTF8
+Write-Host "  [OK] Task runtime script written to: $TaskScriptPath" -ForegroundColor Green
 
 # ── Create the scheduled task ──────────────────────────────────────────────────
 $Action  = New-ScheduledTaskAction `
     -Execute "powershell.exe" `
-    -Argument "-NonInteractive -WindowStyle Hidden -EncodedCommand $EncodedScript"
+    -Argument "-NonInteractive -WindowStyle Hidden -File `"$TaskScriptPath`""
 
 $Trigger = New-ScheduledTaskTrigger -Daily -At "${Hour}:00"
 
