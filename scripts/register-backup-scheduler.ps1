@@ -12,8 +12,8 @@
 
     Requirements:
     - Multi Account AI Control web server must be running (Next.js)
-    - The web server must be accessible at localhost using the configured
-      protocol/port (default: http://localhost:4173)
+    - The web server must be accessible using the configured
+      protocol/host/port (default: http://localhost:4173)
     - Windows PowerShell/PowerShell with Invoke-RestMethod available
     - Run this script as Administrator
 
@@ -26,6 +26,11 @@
 .PARAMETER Protocol
     Protocol used by the MAAC web server endpoint ("http" or "https").
     Default: http
+
+.PARAMETER ServerHost
+    Hostname or IP where the MAAC web server is reachable.
+    Alias: Host
+    Default: localhost
 
 .PARAMETER Remove
     If specified, removes the scheduled task instead of creating it.
@@ -40,6 +45,9 @@
     # Install using HTTPS endpoint
     ./register-backup-scheduler.ps1 -Protocol https
 
+    # Install targeting a non-localhost server
+    ./register-backup-scheduler.ps1 -Host 192.168.1.10 -Port 4173
+
     # Remove the scheduled task
     ./register-backup-scheduler.ps1 -Remove
 
@@ -47,6 +55,9 @@
     Task name: MAAC-AutoBackup
     The backup payload is stored in the app database (AppSetting key:
     "app.backup_schedule_log"), visible in the Data > Backups section.
+    Endpoint settings are embedded into the scheduled task action at
+    registration time (Protocol/Host/Port). If these values change later,
+    run this script with -Remove and then register again with updated values.
 #>
 
 param(
@@ -57,6 +68,10 @@ param(
 
     [ValidateSet('http', 'https')]
     [string]$Protocol = 'http',
+
+    [Alias('Host')]
+    [ValidateNotNullOrEmpty()]
+    [string]$ServerHost = 'localhost',
 
     [switch]$Remove
 )
@@ -84,7 +99,7 @@ if ($existing) {
 }
 
 # ── Build the backup command ───────────────────────────────────────────────────
-$ApiUrl = "${Protocol}://localhost:$Port/api/export/backup/schedule"
+$ApiUrl = "${Protocol}://${ServerHost}:$Port/api/export/backup/schedule"
 
 # ── Ensure the Event Log source exists (required before Write-EventLog can work) ─
 try {
@@ -148,7 +163,11 @@ $Settings = New-ScheduledTaskSettingsSet `
 
 # S4U (Service For User): runs without storing the user's password in Task Scheduler.
 # Requires the user to have logged in interactively at least once on this machine;
-# otherwise the task may fail. This avoids credential storage for improved security.
+# otherwise the task may register successfully but fail at runtime with a
+# Task Scheduler logon/start failure (check Task Scheduler History / Last Run Result).
+# Verification/remediation: sign in once interactively as "$env:USERDOMAIN\$env:USERNAME",
+# then run this script again (or re-run the task) so S4U has the required local logon context.
+# This avoids credential storage for improved security.
 # Runtime dependency note: the scheduled task only succeeds if the MAAC web server
 # is reachable at $ApiUrl at execution time. If the server is down/unreachable or
 # starts requiring authentication, the POST request fails and no backup is created.
