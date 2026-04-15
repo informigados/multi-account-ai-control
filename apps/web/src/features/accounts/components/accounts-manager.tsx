@@ -1187,18 +1187,21 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 						</span>
 					</div>
 
-					{feedback ? (
+					{feedback?.tone === "error" ? (
 						<p
-							role={feedback.tone === "error" ? "alert" : "status"}
-							aria-live="polite"
-							className={`mb-3 rounded-md border px-3 py-2 text-sm ${
-								feedback.tone === "success"
-									? "border-success/30 bg-success/10 text-success"
-									: "border-danger/30 bg-danger/10 text-danger"
-							}`}
+							role="alert"
+							aria-live="assertive"
+							className="mb-3 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger"
 						>
 							{feedback.message}
 						</p>
+					) : feedback?.tone === "success" ? (
+						<output
+							aria-live="polite"
+							className="mb-3 block rounded-md border border-success/30 bg-success/10 px-3 py-2 text-sm text-success"
+						>
+							{feedback.message}
+						</output>
 					) : null}
 
 					{isLoading ? (
@@ -1299,16 +1302,18 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 										</div>
 										<div className="h-2 overflow-hidden rounded-full bg-muted">
 											<div
-												className={`h-full ${
+												className={`progress-dynamic h-full ${
 													usagePercent(account) >= 90
 														? "bg-danger"
 														: usagePercent(account) >= 70
 															? "bg-warning"
 															: "bg-success"
 												}`}
-												style={{
-													width: `${Math.min(100, Math.max(0, usagePercent(account)))}%`,
-												}}
+												style={
+													{
+														"--pw": `${Math.min(100, Math.max(0, usagePercent(account)))}%`,
+													} as React.CSSProperties
+												}
 											/>
 										</div>
 										<p className="text-xs text-muted-foreground">

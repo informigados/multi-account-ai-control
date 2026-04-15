@@ -146,6 +146,11 @@ body {
 	width: var(--pw, 0%);
 }
 
+/* Provider brand icon: dynamic border color via CSS custom property --brand-border */
+.provider-brand-icon {
+	border: 1px solid var(--brand-border, hsl(var(--border) / 0.7));
+}
+
 /* Dialog entry animation */
 @keyframes dialog-in {
 	from {

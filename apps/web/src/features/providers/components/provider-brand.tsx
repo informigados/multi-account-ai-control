@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 type ProviderBrandProps = {
 	name: string;
 	icon: string | null | undefined;
@@ -31,8 +32,8 @@ export function ProviderBrand({
 			className={`inline-flex min-w-0 items-center gap-2 ${className ?? ""}`}
 		>
 			<span
-				className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/70 bg-muted ${sizeClass}`}
-				style={{ borderColor: safeColor }}
+				className={`provider-brand-icon relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted ${sizeClass}`}
+				style={{ "--brand-border": safeColor } as CSSProperties}
 			>
 				<img
 					src={resolvedIcon}

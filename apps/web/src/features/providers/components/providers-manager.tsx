@@ -821,18 +821,21 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 					</Button>
 				</form>
 
-				{feedback ? (
+				{feedback?.tone === "error" ? (
 					<p
-						role={feedback.tone === "error" ? "alert" : "status"}
-						aria-live="polite"
-						className={`mt-3 rounded-md border px-3 py-2 text-sm ${
-							feedback.tone === "success"
-								? "border-success/30 bg-success/10 text-success"
-								: "border-danger/30 bg-danger/10 text-danger"
-						}`}
+						role="alert"
+						aria-live="assertive"
+						className="mt-3 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger"
 					>
 						{feedback.message}
 					</p>
+				) : feedback?.tone === "success" ? (
+					<output
+						aria-live="polite"
+						className="mt-3 block rounded-md border border-success/30 bg-success/10 px-3 py-2 text-sm text-success"
+					>
+						{feedback.message}
+					</output>
 				) : null}
 			</article>
 
