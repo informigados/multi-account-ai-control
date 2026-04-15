@@ -187,7 +187,7 @@ try {
         `$token = `$token.Trim()
         # Allow common bearer-token chars only, disallow control chars/whitespace.
         # Also enforce a minimum length to reduce malformed header usage.
-        if (`$token -match '^[A-Za-z0-9._~+/-]{16,8192}={0,2}`$') {
+        if (`$token -match '^[A-Za-z0-9._~+/-]{16,2048}={0,2}`$') {
             `$headers['Authorization'] = "Bearer `$token"
         } else {
             Write-EventLog -LogName Application -Source '$EventSource' -EntryType Warning -EventId 1003 -Message "Invalid MAAC_BACKUP_TOKEN format detected; sending backup request without authentication header." -ErrorAction SilentlyContinue
@@ -236,10 +236,15 @@ try {
 }
 "@
 
-Set-Content -Path $TaskScriptPath -Value $ScriptBlock -Encoding UTF8
-Write-Host "  [OK] Task runtime script written to: $TaskScriptPath" -ForegroundColor Green
-
 try {
+    # Create/truncate first, then lock down ACLs before writing sensitive script content.
+    [void][System.IO.File]::Open(
+        $TaskScriptPath,
+        [System.IO.FileMode]::Create,
+        [System.IO.FileAccess]::Write,
+        [System.IO.FileShare]::None
+    ).Dispose()
+
     # Restrict task script permissions to prevent unauthorized read/modify.
     # This script runs via a scheduled task with elevated privileges.
     $acl = Get-Acl -Path $TaskScriptPath
@@ -272,6 +277,9 @@ try {
     $acl.AddAccessRule($systemRule)
     Set-Acl -Path $TaskScriptPath -AclObject $acl
     Write-Host "  [OK] Restricted task runtime script permissions (Administrators + SYSTEM)." -ForegroundColor Green
+
+    Set-Content -Path $TaskScriptPath -Value $ScriptBlock -Encoding UTF8
+    Write-Host "  [OK] Task runtime script written to: $TaskScriptPath" -ForegroundColor Green
 } catch {
     Write-Error "Failed to set secure permissions on task runtime script '$TaskScriptPath': $_"
     exit 1
@@ -296,7 +304,11 @@ $localHosts = @(
     "::1",
     "[::1]",
     $env:COMPUTERNAME,
-    "$($env:COMPUTERNAME).$($env:USERDNSDOMAIN)"
+    $(if (-not [string]::IsNullOrWhiteSpace($env:COMPUTERNAME) -and -not [string]::IsNullOrWhiteSpace($env:USERDNSDOMAIN)) {
+        "$($env:COMPUTERNAME).$($env:USERDNSDOMAIN)"
+    } else {
+        $null
+    })
 ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
 ForEach-Object { $_.ToLowerInvariant() }
 
