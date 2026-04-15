@@ -471,34 +471,36 @@ export function DashboardCommandCenter({
 
 	return (
 		<section className="space-y-5 page-enter">
-			{/* Health Score Banner */}
-			<div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-gradient-to-r from-card/90 to-card/60 px-5 py-3.5 shadow-token-sm backdrop-blur">
-				<div className="flex items-center gap-4">
-					<div className="relative flex items-center justify-center">
-						<HealthRing score={animatedHealth} />
-						<span
-							className={`absolute text-sm font-bold tabular-nums ${healthColor}`}
-						>
-							{animatedHealth}
-						</span>
-					</div>
-					<div>
-						<p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-							{ui.healthScore}
-						</p>
-						<p className="mt-0.5 text-lg font-bold tabular-nums">
-							{summary.activeAccounts}/{summary.totalAccounts}{" "}
-							<span className="text-sm font-normal text-muted-foreground">
-								{ui.active}
+			{/* Health Score Banner — only shown when there are accounts */}
+			{summary.totalAccounts > 0 && (
+				<div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-gradient-to-r from-card/90 to-card/60 px-5 py-3.5 shadow-token-sm backdrop-blur">
+					<div className="flex items-center gap-4">
+						<div className="relative flex items-center justify-center">
+							<HealthRing score={animatedHealth} />
+							<span
+								className={`absolute text-sm font-bold tabular-nums ${healthColor}`}
+							>
+								{animatedHealth}
 							</span>
-						</p>
+						</div>
+						<div>
+							<p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+								{ui.healthScore}
+							</p>
+							<p className="mt-0.5 text-lg font-bold tabular-nums">
+								{summary.activeAccounts}/{summary.totalAccounts}{" "}
+								<span className="text-sm font-normal text-muted-foreground">
+									{ui.active}
+								</span>
+							</p>
+						</div>
+					</div>
+					<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+						<Activity className="h-3.5 w-3.5 animate-pulse text-success" />
+						{ui.lastUpdated}
 					</div>
 				</div>
-				<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-					<Activity className="h-3.5 w-3.5 animate-pulse text-success" />
-					{ui.lastUpdated}
-				</div>
-			</div>
+			)}
 
 			{/* Metric widgets */}
 			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

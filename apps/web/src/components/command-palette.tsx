@@ -445,6 +445,27 @@ export function CommandPalette({ locale }: CommandPaletteProps) {
 					<kbd className="hidden rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground sm:inline">
 						ESC
 					</kbd>
+					{/* X close button */}
+					<button
+						type="button"
+						onClick={close}
+						aria-label={
+							isPt ? "Fechar paleta de comandos" : "Close command palette"
+						}
+						className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border bg-muted/60 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+					>
+						<svg
+							viewBox="0 0 16 16"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth={2}
+							strokeLinecap="round"
+							className="h-3 w-3"
+							aria-hidden="true"
+						>
+							<path d="M2 2l12 12M14 2L2 14" />
+						</svg>
+					</button>
 				</div>
 
 				{/* Results */}
