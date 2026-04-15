@@ -38,7 +38,7 @@ export default async function RootLayout({
 	const locale = await getRequestLocale();
 
 	return (
-		<html lang={toHtmlLang(locale)} suppressHydrationWarning>
+		<html lang={toHtmlLang(locale)} data-scroll-behavior="smooth" suppressHydrationWarning>
 			<body className={spaceGrotesk.variable}>
 				<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
 					<div className="flex min-h-screen flex-col">
