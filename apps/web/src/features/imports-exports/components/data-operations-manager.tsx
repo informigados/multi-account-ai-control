@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { BackupManager } from "@/features/imports-exports/components/backup-manager";
 import { type AppLocale, pickLocaleText } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/utils";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -536,6 +537,11 @@ export function DataOperationsManager({ locale }: DataOperationsManagerProps) {
 
 	return (
 		<section className="space-y-6">
+			{/* ── Backup Manager (backups salvos) ──────────────────────── */}
+			<article className="rounded-xl border border-border bg-card/80 p-5 shadow-token-sm backdrop-blur">
+				<BackupManager locale={locale} />
+			</article>
+
 			<article className="rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
 				<h2 className="text-lg font-semibold">{ui.exportTitle}</h2>
 				<p className="mt-1 text-sm text-muted-foreground">

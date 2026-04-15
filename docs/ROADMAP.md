@@ -756,3 +756,4 @@ Provedores de primeira linha:
 - Plugin tauri-plugin-notification para alertas nativos
 - Cada conector de provedor requer documentacao/analise dos ToS antes de implementacao
 
+

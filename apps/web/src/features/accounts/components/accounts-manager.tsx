@@ -1075,6 +1075,72 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 		URL.revokeObjectURL(url);
 	}
 
+	// Bulk move selected accounts to a group
+	async function executeBulkMoveToGroup(targetGroupId: string) {
+		const ids = Array.from(selection.selectedIds);
+		if (!ids.length || !targetGroupId) return;
+		setIsBulkLoading(true);
+		try {
+			// Update each group: add ids to targetGroup, remove from all others
+			const targetGroup = groups.find((g) => g.id === targetGroupId);
+			if (!targetGroup) throw new Error();
+
+			const mergedIds = Array.from(
+				new Set([...targetGroup.accountIds, ...ids]),
+			);
+			const res = await fetch(`/api/settings/account-groups/${targetGroupId}`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ accountIds: mergedIds }),
+			});
+			if (!res.ok) throw new Error();
+
+			// Remove ids from all other groups in one pass
+			await Promise.all(
+				groups
+					.filter(
+						(g) =>
+							g.id !== targetGroupId &&
+							ids.some((id) => g.accountIds.includes(id)),
+					)
+					.map((g) =>
+						fetch(`/api/settings/account-groups/${g.id}`, {
+							method: "PATCH",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({
+								accountIds: g.accountIds.filter((id) => !ids.includes(id)),
+							}),
+						}),
+					),
+			);
+
+			// Refresh groups state locally
+			setGroups((prev) =>
+				prev.map((g) => {
+					if (g.id === targetGroupId) return { ...g, accountIds: mergedIds };
+					return {
+						...g,
+						accountIds: g.accountIds.filter((id) => !ids.includes(id)),
+					};
+				}),
+			);
+
+			selection.clearAll();
+			const groupName = targetGroup.name;
+			setFeedback({
+				tone: "success",
+				message: `${ids.length} conta(s) movida(s) para "${groupName}".`,
+			});
+		} catch {
+			setFeedback({
+				tone: "error",
+				message: "Falha ao mover contas para o grupo.",
+			});
+		} finally {
+			setIsBulkLoading(false);
+		}
+	}
+
 	// Handle pre-filled import from local session
 	function handleLocalImport(detected: DetectedLocalAccount) {
 		// Find provider by slug
@@ -1633,6 +1699,81 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 							</select>
 						</div>
 					</div>
+
+					{/* Bulk action floating toolbar */}
+					{selection.hasSelection && (
+						<div
+							role="toolbar"
+							aria-label={`${selection.selectedIds.size} conta(s) selecionada(s)`}
+							className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5 shadow-token-sm"
+						>
+							<span className="mr-1 text-xs font-semibold text-primary">
+								{selection.selectedIds.size} selecionada(s)
+							</span>
+							<button
+								type="button"
+								onClick={() =>
+									selection.selectAll(sortedAccounts.map((a) => a.id))
+								}
+								className="text-xs text-primary underline-offset-2 hover:underline"
+								disabled={isBulkLoading}
+							>
+								Selecionar todas ({sortedAccounts.length})
+							</button>
+							<button
+								type="button"
+								onClick={exportSelectedAsJson}
+								disabled={isBulkLoading}
+								className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-xs font-medium transition hover:bg-muted disabled:opacity-50"
+							>
+								Exportar JSON
+							</button>
+							{groups.length > 0 && (
+								<select
+									aria-label="Mover para grupo"
+									defaultValue=""
+									onChange={(e) => {
+										if (e.target.value)
+											void executeBulkMoveToGroup(e.target.value);
+										e.target.value = "";
+									}}
+									disabled={isBulkLoading}
+									className="h-7 rounded-md border border-border bg-card px-2 text-xs outline-none ring-primary transition focus:ring-2 disabled:opacity-50"
+								>
+									<option value="">Mover para grupo…</option>
+									{groups.map((g) => (
+										<option key={g.id} value={g.id}>
+											{g.name}
+										</option>
+									))}
+								</select>
+							)}
+							<button
+								type="button"
+								onClick={() => setPendingBulkAction("archive")}
+								disabled={isBulkLoading}
+								className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-xs font-medium text-warning transition hover:bg-warning/10 disabled:opacity-50"
+							>
+								Arquivar
+							</button>
+							<button
+								type="button"
+								onClick={() => setPendingBulkAction("delete")}
+								disabled={isBulkLoading}
+								className="inline-flex h-7 items-center gap-1.5 rounded-md border border-danger/40 bg-danger/10 px-2.5 text-xs font-medium text-danger transition hover:bg-danger/20 disabled:opacity-50"
+							>
+								Excluir
+							</button>
+							<button
+								type="button"
+								onClick={() => selection.clearAll()}
+								className="ml-auto text-xs text-muted-foreground hover:text-foreground"
+								disabled={isBulkLoading}
+							>
+								Limpar seleção
+							</button>
+						</div>
+					)}
 
 					{feedback?.tone === "error" ? (
 						<p

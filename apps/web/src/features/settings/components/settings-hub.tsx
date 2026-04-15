@@ -1359,6 +1359,9 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 			<article className="min-w-0 rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
 				<TotpManager locale={locale} />
 			</article>
+
+			{/* ── Groups Limit (admin only) ─────────────────────────────────── */}
+			{isAdmin ? <GroupsConfigSection isPortuguese={isPortuguese} /> : null}
 		</section>
 	);
 }
@@ -1572,6 +1575,161 @@ function QuotaConfigSection({ isPortuguese }: QuotaConfigSectionProps) {
 					{error}
 				</p>
 			) : null}
+		</article>
+	);
+}
+
+/* ─── Groups Config Section ────────────────────────────────────────────── */
+function GroupsConfigSection({ isPortuguese }: { isPortuguese: boolean }) {
+	const [maxGroups, setMaxGroups] = useState<number | null>(null);
+	const [inputValue, setInputValue] = useState("");
+	const [isLoading, setIsLoading] = useState(true);
+	const [isSaving, setIsSaving] = useState(false);
+	const [feedback, setFeedback] = useState<string | null>(null);
+	const [error, setError] = useState<string | null>(null);
+
+	const ui = {
+		title: isPortuguese ? "Limite de Grupos" : "Groups Limit",
+		desc: isPortuguese
+			? "Controla o número máximo de grupos de contas que podem ser criados."
+			: "Controls the maximum number of account groups that can be created.",
+		label: isPortuguese ? "Máximo de grupos" : "Maximum groups",
+		hint: isPortuguese
+			? "Deixe vazio para ilimitado (padrão). Mínimo: 1, máximo: 200."
+			: "Leave empty for unlimited (default). Min: 1, max: 200.",
+		current: isPortuguese ? "Atual" : "Current",
+		unlimited: isPortuguese ? "Ilimitado" : "Unlimited",
+		save: isPortuguese ? "Salvar limite" : "Save limit",
+		saving: isPortuguese ? "Salvando..." : "Saving...",
+		saved: isPortuguese ? "Limite salvo." : "Limit saved.",
+		loadError: isPortuguese
+			? "Falha ao carregar configuração de grupos."
+			: "Failed to load groups configuration.",
+		saveError: isPortuguese
+			? "Falha ao salvar limite de grupos."
+			: "Failed to save groups limit.",
+	};
+
+	const loadErrorRef = useRef(ui.loadError);
+	loadErrorRef.current = ui.loadError;
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: load on mount only
+	useEffect(() => {
+		async function load() {
+			setIsLoading(true);
+			try {
+				const res = await fetch("/api/settings/groups-config");
+				if (!res.ok) throw new Error();
+				const data = (await res.json()) as {
+					config: { maxGroups: number | null };
+				};
+				setMaxGroups(data.config.maxGroups);
+				setInputValue(
+					data.config.maxGroups != null ? String(data.config.maxGroups) : "",
+				);
+			} catch {
+				setError(loadErrorRef.current);
+			} finally {
+				setIsLoading(false);
+			}
+		}
+		void load();
+	}, []);
+
+	async function handleSave(e: React.FormEvent) {
+		e.preventDefault();
+		setIsSaving(true);
+		setFeedback(null);
+		setError(null);
+		const parsed =
+			inputValue.trim() === "" ? null : Number.parseInt(inputValue, 10);
+		try {
+			const res = await fetch("/api/settings/groups-config", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ maxGroups: parsed }),
+			});
+			if (!res.ok) throw new Error();
+			setMaxGroups(parsed);
+			setFeedback(ui.saved);
+		} catch {
+			setError(ui.saveError);
+		} finally {
+			setIsSaving(false);
+		}
+	}
+
+	return (
+		<article className="min-w-0 rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
+			<h2 className="inline-flex items-center gap-2 text-lg font-semibold">
+				<span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth={2}
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						className="h-4 w-4"
+						aria-hidden="true"
+					>
+						<title>Groups limit icon</title>
+						<rect x="3" y="3" width="7" height="7" rx="1" />
+						<rect x="14" y="3" width="7" height="7" rx="1" />
+						<rect x="3" y="14" width="7" height="7" rx="1" />
+						<path d="M17.5 17.5v1M17.5 14v1M14 17.5h1M18 17.5h1" />
+					</svg>
+				</span>
+				{ui.title}
+			</h2>
+			<p className="mt-1 text-sm text-muted-foreground">{ui.desc}</p>
+
+			{isLoading ? (
+				<p className="mt-4 text-sm text-muted-foreground">
+					{isPortuguese ? "Carregando..." : "Loading..."}
+				</p>
+			) : (
+				<form className="mt-4 space-y-3" onSubmit={handleSave}>
+					<div className="space-y-1.5">
+						<label
+							htmlFor="groups-max-limit"
+							className="flex items-center justify-between text-sm text-muted-foreground"
+						>
+							<span>{ui.label}</span>
+							<span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
+								{ui.current}: {maxGroups !== null ? maxGroups : ui.unlimited}
+							</span>
+						</label>
+						<input
+							id="groups-max-limit"
+							type="number"
+							min={1}
+							max={200}
+							value={inputValue}
+							onChange={(e) => setInputValue(e.target.value)}
+							disabled={isSaving}
+							placeholder={
+								isPortuguese ? "Vazio = ilimitado" : "Empty = unlimited"
+							}
+							className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm outline-none ring-primary transition focus:ring-2 disabled:opacity-70"
+						/>
+						<p className="text-xs text-muted-foreground">{ui.hint}</p>
+					</div>
+					<Button type="submit" disabled={isSaving}>
+						{isSaving ? ui.saving : ui.save}
+					</Button>
+				</form>
+			)}
+			{feedback && (
+				<p className="mt-3 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
+					{feedback}
+				</p>
+			)}
+			{error && (
+				<p className="mt-3 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
+					{error}
+				</p>
+			)}
 		</article>
 	);
 }
