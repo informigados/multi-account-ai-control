@@ -185,10 +185,18 @@ export function AuditLogViewer({
 			"Cargar más registros",
 			"加载更多日志",
 		),
+		exportCsv: text("Exportar CSV", "Export CSV", "Exportar CSV", "导出 CSV"),
+		exportingCsv: text(
+			"Exportando...",
+			"Exporting...",
+			"Exportando...",
+			"导出中...",
+		),
 	};
 
 	const [logs, setLogs] = useState<ActivityLog[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
+	const [isExporting, setIsExporting] = useState(false);
 	const [feedback, setFeedback] = useState<FeedbackState | null>(null);
 	const [search, setSearch] = useState("");
 	const [eventType, setEventType] = useState("");
@@ -282,14 +290,58 @@ export function AuditLogViewer({
 		<section className={compact ? "space-y-3" : "space-y-4"}>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<h2 className="text-lg font-semibold">{title ?? ui.defaultTitle}</h2>
-				<Button
-					variant="outline"
-					size="sm"
-					onClick={() => void loadLogs(null)}
-					disabled={isLoading}
-				>
-					{ui.refresh}
-				</Button>
+				<div className="flex items-center gap-2">
+					{/* Export CSV button — downloads logs with current filter state */}
+					{!compact && logs.length > 0 && (
+						<Button
+							variant="outline"
+							size="sm"
+							disabled={isExporting}
+							onClick={async () => {
+								setIsExporting(true);
+								try {
+									const qs = buildQuery(null);
+									const res = await fetch(`/api/export/csv?${qs}`);
+									if (res.ok) {
+										const blob = await res.blob();
+										const url = URL.createObjectURL(blob);
+										const a = document.createElement("a");
+										a.href = url;
+										a.download = `audit-logs-${new Date().toISOString().slice(0, 10)}.csv`;
+										a.click();
+										URL.revokeObjectURL(url);
+									}
+								} catch {
+									// silent
+								} finally {
+									setIsExporting(false);
+								}
+							}}
+						>
+							<svg
+								viewBox="0 0 20 20"
+								fill="currentColor"
+								className="mr-1.5 h-3.5 w-3.5"
+								aria-hidden="true"
+							>
+								<path
+									fillRule="evenodd"
+									d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+									clipRule="evenodd"
+								/>
+							</svg>
+							{isExporting ? ui.exportingCsv : ui.exportCsv}
+						</Button>
+					)}
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => void loadLogs(null)}
+						disabled={isLoading}
+					>
+						{ui.refresh}
+					</Button>
+				</div>
 			</div>
 
 			{hideFilters ? null : (

@@ -552,7 +552,8 @@ Criterios de aceite:
 - [x] Listagem de backups com data/tamanho/checksum + badge LATEST
 - [x] Botao de download e exclusao por entrada
 - [x] Background job agendado web-mode: hook `useScheduledBackup` persiste timestamp em localStorage e cria backup a cada 24h enquanto o app esta aberto (`ScheduledBackupRunner` no dashboard)
-- [~] Background job daemon (1 backup/dia automatico sem o app aberto) — requer Tauri com acesso a sistema de arquivos e processo em background; fisicamente bloqueado pelo ambiente atual
+- [x] Background job daemon Tauri-mode: thread Rust em `main.rs` que acorda a cada 24h e faz HTTP POST para `/api/export/backup/schedule` enquanto o executavel Tauri esta rodando
+- [~] Background job daemon OS (sem o app aberto) — requer Windows Service ou Task Scheduler; documentado no README como opcao manual
 - [x] Retencao configuravel (7/14/30 dias) com expurgo automatico no BackupManager UI
 - [x] Botao de restore a partir de backup salvo (copia payload para clipboard com um clique)
 - Nota: agendamento automatico requer Tauri para rodar como daemon (nao funciona em modo web);
@@ -574,6 +575,13 @@ Criterios de aceite:
 
 - [x] `GET /api/health` rico: status, versao, uptime, metricas de BD (contas, provedores, snapshots, alertas 24h, TOTP, backups)
 - [x] Componente `SystemHealthPanel` na pagina `/about`: metricas ao vivo, auto-refresh 60s, botao de refresh manual, StatusDot animado, MetricCards com destaque por criticidade
+
+### F.9 - Command Palette e UX Enterprise
+
+- [x] Command Palette (`Ctrl+K`): busca fuzzy por paginas e acoes, navegacao por setas, Enter para abrir, ESC para fechar, dialogo nativo acessivel
+- [x] Botao de busca visivel no header desktop com badge `Ctrl+K`
+- [x] Animacao `command-in` CSS para entrada suave do modal
+- [x] Export CSV de logs de auditoria: botao "Exportar CSV" no `AuditLogViewer` que baixa o arquivo com os filtros ativos
 
 ---
 

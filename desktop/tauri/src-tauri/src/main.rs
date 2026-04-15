@@ -152,6 +152,50 @@ fn main() {
 					}
 				}
 			}
+			// ── Scheduled backup daemon ────────────────────────────────────────
+			// Spawns a background thread that creates an automatic backup every
+			// 24 hours while the Tauri app is running. This is the desktop
+			// equivalent of the web-mode useScheduledBackup hook.
+			//
+			// The thread wakes every 24h and POSTs to the Next.js backup API
+			// via raw HTTP. On first launch it waits 30 seconds to ensure the
+			// runtime is ready.
+			std::thread::spawn(move || {
+				const INITIAL_DELAY_SECS: u64 = 30;
+				const INTERVAL_SECS: u64 = 24 * 60 * 60; // 24 hours
+				let addr = format!("{LOCAL_RUNTIME_HOST}:{LOCAL_RUNTIME_PORT}");
+
+				// Wait for app to fully initialize before first backup attempt
+				sleep(Duration::from_secs(INITIAL_DELAY_SECS));
+
+				loop {
+					// Generate ISO-like date string from system time
+					let secs_since_epoch = std::time::SystemTime::now()
+						.duration_since(std::time::UNIX_EPOCH)
+						.unwrap_or_default()
+						.as_secs();
+					// Simplified date: days since epoch → rough YYYY-MM-DD approximation
+					let days = secs_since_epoch / 86400;
+					let label = format!("Auto-backup (desktop) day-{days}");
+
+					// Build JSON body
+					let body = format!("{{\"label\":\"{label}\"}}");
+					let request = format!(
+						"POST /api/export/backup/schedule HTTP/1.1\r\nHost: {LOCAL_RUNTIME_HOST}:{LOCAL_RUNTIME_PORT}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+						body.len()
+					);
+
+					// Best-effort HTTP POST — ignore errors silently
+					if let Ok(mut stream) = TcpStream::connect(&addr) {
+						use std::io::Write;
+						let _ = stream.write_all(request.as_bytes());
+					}
+
+					// Sleep for the full 24h interval
+					sleep(Duration::from_secs(INTERVAL_SECS));
+				}
+			});
+			// ── End of scheduled backup daemon ─────────────────────────────────────
 			Ok(())
 		})
 		.build(tauri::generate_context!())
