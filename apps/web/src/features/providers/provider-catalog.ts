@@ -237,9 +237,16 @@ export const PROVIDER_CATALOG: ProviderCatalogEntry[] = [
 	},
 ];
 
-const providerCatalogBySlug = new Map(
-	PROVIDER_CATALOG.map((entry) => [entry.slug, entry]),
-);
+let providerCatalogBySlug: Map<string, ProviderCatalogEntry> | null = null;
+
+function getProviderCatalogBySlug(): Map<string, ProviderCatalogEntry> {
+	if (!providerCatalogBySlug) {
+		providerCatalogBySlug = new Map(
+			PROVIDER_CATALOG.map((entry) => [entry.slug, entry]),
+		);
+	}
+	return providerCatalogBySlug;
+}
 
 export function findProviderCatalogEntryBySlug(
 	slug: string | null | undefined,
@@ -247,7 +254,7 @@ export function findProviderCatalogEntryBySlug(
 	if (!slug) {
 		return null;
 	}
-	return providerCatalogBySlug.get(slug) ?? null;
+	return getProviderCatalogBySlug().get(slug) ?? null;
 }
 
 export function resolveProviderCatalogDefaults(

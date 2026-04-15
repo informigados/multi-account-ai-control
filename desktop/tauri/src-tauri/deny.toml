@@ -1,0 +1,67 @@
+# cargo-deny configuration — Multi Account AI Control Desktop (Tauri)
+# Docs: https://embarkstudios.github.io/cargo-deny/
+
+[licenses]
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Unicode-3.0",
+  "Unicode-DFS-2016",
+  "MPL-2.0",
+  "LGPL-2.1",
+  "CC0-1.0",
+  "OpenSSL",
+  "Zlib",
+]
+
+[advisories]
+# Refuse all advisories by default; explicitly ignore known transitive-only ones below.
+version = 2
+
+ignore = [
+  # GHSA-c8qc-32wr-r4v6 — "Rand is unsound with a custom logger using rand::rng()"
+  # Severity: Low
+  # Affected: rand 0.7.3 (pulled by phf_generator 0.8.0 → phf_codegen → selectors 0.24.0 →
+  #            kuchikiki → tauri-utils — BUILD-TIME dependency only, not used at runtime)
+  # Note: rand::rng() was introduced in rand 0.9; this CVE does not apply to 0.7.x usage.
+  #       phf_generator 0.8.0 requires rand ^0.7 — cannot be upgraded without tauri-utils
+  #       updating its selectors/kuchikiki dependency.
+  # Fix path: Wait for tauri to update tauri-utils → kuchikiki → selectors → phf.
+  { id = "GHSA-c8qc-32wr-r4v6", reason = "rand 0.7.3 is a build-time-only transitive dep via phf_codegen/selectors/kuchikiki; rand::rng() (the vulnerable API) did not exist in 0.7.x" },
+
+  # GHSA-qhx3-hj44-gr6x — "Unsoundness in Iterator/DoubleEndedIterator for glib::VariantStrIter"
+  # Severity: Moderate
+  # Affected: glib 0.18.5 (Linux/GTK target-specific dependency via tauri's GTK backend)
+  # Note: glib is ONLY compiled on Linux (cfg(target_os = "linux")); on Windows and macOS
+  #       this crate is never built. This project's primary deployment target is Windows.
+  #       glib 0.19.9+ fixes the issue but requires tauri to update its GTK bindings.
+  # Fix path: Wait for tauri to bump its glib requirement to >=0.19.9.
+  { id = "GHSA-qhx3-hj44-gr6x", reason = "glib is Linux/GTK-only; not compiled on Windows (primary target). Fix requires tauri to update its GTK bindings to glib >=0.19.9" },
+]
+
+[bans]
+# Deny multiple versions of the same crate where avoidable,
+# but allow the known multi-version situations caused by tauri's dep tree.
+multiple-versions = "warn"
+
+deny = []
+
+skip = [
+  # phf and rand have multiple versions due to tauri-utils depending on old CSS selector libs.
+  { name = "phf_generator" },
+  { name = "phf_codegen" },
+  { name = "phf_shared" },
+  { name = "phf" },
+  { name = "rand" },
+  { name = "rand_core" },
+  { name = "rand_chacha" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

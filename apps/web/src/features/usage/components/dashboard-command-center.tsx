@@ -34,6 +34,12 @@ type SummaryMetrics = {
 	errorAccounts: number;
 };
 
+/** Maximum number of high-risk accounts shown in the Risk Queue widget. */
+const MAX_HIGH_RISK_ACCOUNTS_DISPLAY = 8;
+/** Percentage bounds used for progress-bar clamping. */
+const MIN_PERCENT = 0;
+const MAX_PERCENT = 100;
+
 type RecentSnapshot = UsageSnapshotView & {
 	account?: {
 		id: string;
@@ -277,7 +283,9 @@ export function DashboardCommandCenter({
 
 	const [accountCards, setAccountCards] = useState(accounts);
 	// Tick every 60 seconds to refresh reset countdown values in real time.
-	const [, setTick] = useState(0);
+	// `tick` is intentionally not read; updates force a periodic re-render.
+	const [tick, setTick] = useState(0);
+	void tick;
 	const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 	useEffect(() => {
 		tickRef.current = setInterval(() => setTick((n) => n + 1), 60_000);
@@ -499,7 +507,7 @@ export function DashboardCommandCenter({
 							<p className="mt-3 text-sm text-success">{ui.noHighRisk}</p>
 						) : (
 							<ul className="mt-3 space-y-2">
-								{highRiskAccounts.slice(0, 8).map((account) => {
+								{highRiskAccounts.slice(0, MAX_HIGH_RISK_ACCOUNTS_DISPLAY).map((account) => {
 									const pct = usagePercent(account);
 									return (
 										<li
@@ -523,7 +531,7 @@ export function DashboardCommandCenter({
 													className={`progress-fill progress-dynamic h-full rounded-full ${pct >= 90 ? "bg-danger" : "bg-warning"}`}
 													style={
 														{
-															"--pw": `${Math.min(100, pct)}%`,
+															"--pw": `${Math.min(MAX_PERCENT, Math.max(MIN_PERCENT, pct))}%`,
 														} as CSSProperties
 													}
 												/>
