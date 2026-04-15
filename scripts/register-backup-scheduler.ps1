@@ -12,7 +12,8 @@
 
     Requirements:
     - Multi Account AI Control web server must be running (Next.js)
-    - The web server must be accessible at http://localhost:4173
+    - The web server must be accessible at localhost using the configured
+      protocol/port (default: http://localhost:4173)
     - Windows PowerShell/PowerShell with Invoke-RestMethod available
     - Run this script as Administrator
 
@@ -21,6 +22,10 @@
 
 .PARAMETER Port
     Port of the MAAC web server. Default: 4173
+
+.PARAMETER Protocol
+    Protocol used by the MAAC web server endpoint ("http" or "https").
+    Default: http
 
 .PARAMETER Remove
     If specified, removes the scheduled task instead of creating it.
@@ -31,6 +36,9 @@
 
     # Install with custom hour (daily at 2 AM)
     ./register-backup-scheduler.ps1 -Hour 2
+
+    # Install using HTTPS endpoint
+    ./register-backup-scheduler.ps1 -Protocol https
 
     # Remove the scheduled task
     ./register-backup-scheduler.ps1 -Remove
@@ -46,6 +54,9 @@ param(
     [int]$Hour = 3,
 
     [int]$Port = 4173,
+
+    [ValidateSet('http', 'https')]
+    [string]$Protocol = 'http',
 
     [switch]$Remove
 )
@@ -73,7 +84,7 @@ if ($existing) {
 }
 
 # ── Build the backup command ───────────────────────────────────────────────────
-$ApiUrl = "http://localhost:$Port/api/export/backup/schedule"
+$ApiUrl = "${Protocol}://localhost:$Port/api/export/backup/schedule"
 
 # ── Ensure the Event Log source exists (required before Write-EventLog can work) ─
 try {
@@ -94,7 +105,29 @@ try {
     Invoke-RestMethod -Method Post -Uri '$ApiUrl' -Body `$body -ContentType 'application/json' -ErrorAction Stop
     Write-EventLog -LogName Application -Source '$EventSource' -EntryType Information -EventId 1000 -Message "Backup created: `$label" -ErrorAction SilentlyContinue
 } catch {
-    Write-EventLog -LogName Application -Source '$EventSource' -EntryType Warning -EventId 1001 -Message "Backup failed: `$_" -ErrorAction SilentlyContinue
+    `$ex = `$_.Exception
+    `$msg = "Backup failed: `$(`$ex.GetBaseException().Message)"
+
+    if (`$ex.Response -and `$ex.Response.StatusCode) {
+        `$statusCode = [int]`$ex.Response.StatusCode
+        `$statusText = `$ex.Response.StatusDescription
+        `$msg += " | HTTP `$statusCode `$statusText"
+
+        try {
+            `$stream = `$ex.Response.GetResponseStream()
+            if (`$stream) {
+                `$reader = New-Object System.IO.StreamReader(`$stream)
+                `$responseBody = `$reader.ReadToEnd()
+                if (`$responseBody) {
+                    `$msg += " | Response: `$responseBody"
+                }
+            }
+        } catch {
+            # Ignore response-body read errors to preserve original failure logging.
+        }
+    }
+
+    Write-EventLog -LogName Application -Source '$EventSource' -EntryType Warning -EventId 1001 -Message `$msg -ErrorAction SilentlyContinue
 }
 "@
 
@@ -116,6 +149,10 @@ $Settings = New-ScheduledTaskSettingsSet `
 # S4U (Service For User): runs without storing the user's password in Task Scheduler.
 # Requires the user to have logged in interactively at least once on this machine;
 # otherwise the task may fail. This avoids credential storage for improved security.
+# Runtime dependency note: the scheduled task only succeeds if the MAAC web server
+# is reachable at $ApiUrl at execution time. If the server is down/unreachable or
+# starts requiring authentication, the POST request fails and no backup is created.
+# Failures are recorded in Application Event Log (source: $EventSource).
 $Principal = New-ScheduledTaskPrincipal `
     -UserId "$env:USERDOMAIN\$env:USERNAME" `
     -LogonType S4U `

@@ -9,9 +9,7 @@ import type {
 	AccountView,
 	ProviderSummary,
 } from "@/features/accounts/account-types";
-import { AccountGroupsManager } from "@/features/accounts/components/account-groups-manager";
 import type { AccountGroup } from "@/features/accounts/components/account-groups-manager";
-import { BatchActionBar } from "@/features/accounts/components/batch-action-bar";
 import { ExportJsonDialog } from "@/features/accounts/components/export-json-dialog";
 import { LocalImportDialog } from "@/features/accounts/components/local-import-dialog";
 import type { DetectedLocalAccount } from "@/features/accounts/components/local-import-dialog";
