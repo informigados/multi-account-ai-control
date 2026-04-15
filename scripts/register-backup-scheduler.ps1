@@ -123,7 +123,7 @@ function Test-MaacServerHost {
     # IPv4 with octet range validation.
     if ($HostValue -match '^\d{1,3}(\.\d{1,3}){3}$') {
         $octets = $HostValue.Split('.')
-        return ($octets | Where-Object { [int]$_ -lt 0 -or [int]$_ -gt 255 }).Count -eq 0
+        return ($octets | Where-Object { [int]$_ -ge 0 -and [int]$_ -le 255 }).Count -eq 4
     }
 
     # DNS hostname (labels 1-63 chars, alnum/hyphen, no leading/trailing hyphen).
@@ -187,7 +187,7 @@ try {
         `$token = `$token.Trim()
         # Allow common bearer-token chars only, disallow control chars/whitespace.
         # Also enforce a minimum length to reduce malformed header usage.
-        if (`$token -match '^[A-Za-z0-9\-._~+/=]{16,8192}`$') {
+        if (`$token -match '^[A-Za-z0-9._~+/=-]{16,8192}`$') {
             `$headers['Authorization'] = "Bearer `$token"
         } else {
             Write-EventLog -LogName Application -Source '$EventSource' -EntryType Warning -EventId 1003 -Message "Invalid MAAC_BACKUP_TOKEN format detected; sending backup request without authentication header." -ErrorAction SilentlyContinue
@@ -244,7 +244,7 @@ try {
     # This script runs via a scheduled task with elevated privileges.
     $acl = Get-Acl -Path $TaskScriptPath
     $acl.SetAccessRuleProtection($true, $false) # disable inheritance, remove inherited rules
-    foreach ($rule in @($acl.Access)) {
+    foreach ($rule in $acl.Access) {
         [void]$acl.RemoveAccessRule($rule)
     }
 
@@ -286,10 +286,25 @@ $Trigger = New-ScheduledTaskTrigger -Daily -At "${Hour}:00"
 # ExecutionTimeLimit is a hard runtime cap enforced by Task Scheduler.
 # If this limit is exceeded, the running process is terminated.
 # Set this above worst-case backup duration to reduce interruption risk.
+# Require network only when target host is remote. For localhost/loopback/local
+# machine names, forcing network availability can skip valid runs when adapters
+# are transiently down.
+$localHosts = @(
+    "localhost",
+    "127.0.0.1",
+    "::1",
+    "[::1]",
+    $env:COMPUTERNAME,
+    "$($env:COMPUTERNAME).$($env:USERDNSDOMAIN)"
+) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+ForEach-Object { $_.ToLowerInvariant() }
+
+$requireNetwork = -not ($localHosts -contains $ServerHost.ToLowerInvariant())
+
 $Settings = New-ScheduledTaskSettingsSet `
     -ExecutionTimeLimit (New-TimeSpan -Minutes $ExecutionTimeLimitMinutes) `
     -StartWhenAvailable `
-    -RunOnlyIfNetworkAvailable:$true `
+    -RunOnlyIfNetworkAvailable:$requireNetwork `
     -MultipleInstances IgnoreNew
 
 # S4U (Service For User): runs without storing the user's password in Task Scheduler.

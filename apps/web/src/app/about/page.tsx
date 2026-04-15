@@ -138,10 +138,10 @@ export default async function AboutPage() {
 		),
 		authors: text("Autores", "Authors", "Autores", "作者"),
 		developmentCompany: text(
-			"Empresa Desenvolvedora",
-			"Development Company",
-			"Empresa desarrolladora",
-			"开发公司",
+			"Empresa Mantenedora",
+			"Maintaining Company",
+			"Empresa mantenedora",
+			"维护公司",
 		),
 		professionalDeveloper: text(
 			"Profissional Desenvolvedor",
