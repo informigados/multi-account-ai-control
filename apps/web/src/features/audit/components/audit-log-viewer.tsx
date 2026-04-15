@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { PaginationBar } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { type AppLocale, pickLocaleText } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/utils";
@@ -204,7 +205,12 @@ export function AuditLogViewer({
 	const [dateFrom, setDateFrom] = useState("");
 	const [dateTo, setDateTo] = useState("");
 	const [limit, setLimit] = useState(100);
-	const [nextCursor, setNextCursor] = useState<string | null>(null);
+
+	// Pagination: cursor stack — index N holds the cursor to fetch page N+1
+	const [page, setPage] = useState(1);
+	const [cursorStack, setCursorStack] = useState<Array<string | null>>([null]);
+	const [hasNext, setHasNext] = useState(false);
+	const currentCursor = cursorStack[page - 1] ?? null;
 
 	const applyPeriodPreset = useCallback(
 		(preset: "24h" | "7d" | "30d" | "clear") => {
@@ -259,15 +265,21 @@ export function AuditLogViewer({
 						await parseApiErrorResponse(response, ui.failedLoadLogs),
 					);
 				}
-
 				const payload = (await response.json()) as {
 					logs: ActivityLog[];
 					page?: { nextCursor: string | null };
 				};
-				setLogs((previous) =>
-					cursor ? [...previous, ...payload.logs] : payload.logs,
-				);
-				setNextCursor(payload.page?.nextCursor ?? null);
+				setLogs(payload.logs);
+				const nc = payload.page?.nextCursor ?? null;
+				setHasNext(Boolean(nc));
+				// Push cursor for next page if not already stored
+				if (nc) {
+					setCursorStack((prev) => {
+						const next = [...prev];
+						if (next.length <= page) next.push(nc);
+						return next;
+					});
+				}
 			} catch (error) {
 				setFeedback({
 					type: "error",
@@ -277,14 +289,35 @@ export function AuditLogViewer({
 				setIsLoading(false);
 			}
 		},
-		[buildQuery, ui.failedLoadLogs],
+		[buildQuery, page, ui.failedLoadLogs],
 	);
 
+	// Reset to page 1 whenever filters change
 	useEffect(() => {
-		setLogs([]);
-		setNextCursor(null);
-		void loadLogs(null);
-	}, [loadLogs]);
+		setPage(1);
+		setCursorStack([null]);
+		setHasNext(false);
+	}, [search, eventType, entityType, dateFrom, dateTo, limit]);
+
+	// Fetch whenever page or cursor changes
+	useEffect(() => {
+		void loadLogs(currentCursor);
+	}, [loadLogs, currentCursor]);
+
+	function goNext() {
+		setPage((p) => p + 1);
+	}
+	function goPrev() {
+		if (page > 1) setPage((p) => p - 1);
+	}
+	function goToPage(p: number) {
+		if (p >= 1 && p <= cursorStack.length) setPage(p);
+	}
+	function resetAll() {
+		setPage(1);
+		setCursorStack([null]);
+		setHasNext(false);
+	}
 
 	return (
 		<section className={compact ? "space-y-3" : "space-y-4"}>
@@ -474,7 +507,7 @@ export function AuditLogViewer({
 								if (!initialEntityType) {
 									setEntityType("");
 								}
-								setNextCursor(null);
+								resetAll();
 							}}
 						>
 							{ui.clearFilters}
@@ -560,17 +593,22 @@ export function AuditLogViewer({
 					</table>
 				</div>
 			)}
-			{!isLoading && logs.length > 0 && nextCursor ? (
-				<div className="flex justify-end">
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => void loadLogs(nextCursor)}
-					>
-						{ui.loadMoreLogs}
-					</Button>
-				</div>
-			) : null}
+			{/* Pagination bar */}
+			{!isLoading && logs.length > 0 && (
+				<PaginationBar
+					page={page}
+					hasPrev={page > 1}
+					hasNext={hasNext}
+					isLoading={isLoading}
+					totalPagesSeen={cursorStack.length}
+					onPrev={goPrev}
+					onNext={() => goNext()}
+					onGoToPage={goToPage}
+					labelPrev={text("Anterior", "Previous", "Anterior", "上一页")}
+					labelNext={text("Próxima", "Next", "Siguiente", "下一页")}
+					labelPage={text("Página", "Page", "Página", "页")}
+				/>
+			)}
 		</section>
 	);
 }

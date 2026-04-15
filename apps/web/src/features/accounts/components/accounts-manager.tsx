@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { PaginationBar } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import type {
 	AccountStatus,
@@ -554,9 +555,11 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 	const [pendingDeleteAccount, setPendingDeleteAccount] =
 		useState<AccountView | null>(null);
 	const [isDeleting, setIsDeleting] = useState(false);
-	const [requestCursor, setRequestCursor] = useState<string | null>(null);
-	const [nextCursor, setNextCursor] = useState<string | null>(null);
-	const [hasMore, setHasMore] = useState(false);
+	// Pagination: cursor stack per page
+	const [page, setPage] = useState(1);
+	const [cursorStack, setCursorStack] = useState<Array<string | null>>([null]);
+	const [hasNext, setHasNext] = useState(false);
+	const currentCursor = cursorStack[page - 1] ?? null;
 	const [reloadToken, setReloadToken] = useState(0);
 	const [activeAccountMap, setActiveAccountMap] = useState<
 		Record<string, string>
@@ -644,29 +647,35 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 
 	const queryString = useMemo(() => {
 		const query = new URLSearchParams(baseQueryString);
-		if (requestCursor) query.set("cursor", requestCursor);
+		if (currentCursor) query.set("cursor", currentCursor);
 		return query.toString();
-	}, [baseQueryString, requestCursor]);
+	}, [baseQueryString, currentCursor]);
+
+	function resetPagination() {
+		setPage(1);
+		setCursorStack([null]);
+		setHasNext(false);
+	}
 
 	const loadAccounts = useCallback(async () => {
 		setIsLoading(true);
 		setFeedback(null);
-
 		try {
 			const response = await fetch(
 				`/api/accounts${queryString ? `?${queryString}` : ""}`,
 			);
-			if (!response.ok) {
-				throw new Error(ui.failedLoadAccounts);
-			}
-
+			if (!response.ok) throw new Error(ui.failedLoadAccounts);
 			const payload = (await response.json()) as AccountsPageResponse;
-			const isPaginating = requestCursor !== null;
-			setHasMore(Boolean(payload.page.nextCursor));
-			setNextCursor(payload.page.nextCursor);
-			setAccounts((previous) =>
-				isPaginating ? [...previous, ...payload.accounts] : payload.accounts,
-			);
+			const nc = payload.page.nextCursor;
+			setHasNext(Boolean(nc));
+			setAccounts(payload.accounts);
+			if (nc) {
+				setCursorStack((prev) => {
+					const next = [...prev];
+					if (next.length <= page) next.push(nc);
+					return next;
+				});
+			}
 		} catch (error) {
 			setFeedback({
 				tone: "error",
@@ -675,7 +684,7 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 		} finally {
 			setIsLoading(false);
 		}
-	}, [queryString, requestCursor, ui.failedLoadAccounts]);
+	}, [page, queryString, ui.failedLoadAccounts]);
 
 	useEffect(() => {
 		void loadProviders().catch(() =>
@@ -722,9 +731,7 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: selection.clearAll is stable (useCallback with no deps)
 	useEffect(() => {
 		void baseQueryString;
-		setRequestCursor(null);
-		setNextCursor(null);
-		setHasMore(false);
+		resetPagination();
 		setAccounts([]);
 		selection.clearAll();
 	}, [baseQueryString]);
@@ -904,9 +911,7 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 				message: editingId ? ui.accountUpdated : ui.accountCreated,
 			});
 			resetForm();
-			setRequestCursor(null);
-			setNextCursor(null);
-			setHasMore(false);
+			resetPagination();
 			setAccounts([]);
 			setReloadToken((value) => value + 1);
 		} catch (error) {
@@ -931,9 +936,7 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 				tone: "success",
 				message: ui.accountArchived(account.displayName),
 			});
-			setRequestCursor(null);
-			setNextCursor(null);
-			setHasMore(false);
+			resetPagination();
 			setAccounts([]);
 			setReloadToken((value) => value + 1);
 		} catch (error) {
@@ -960,9 +963,7 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 				message: ui.accountDeleted(account.displayName),
 			});
 			setPendingDeleteAccount(null);
-			setRequestCursor(null);
-			setNextCursor(null);
-			setHasMore(false);
+			resetPagination();
 			setAccounts([]);
 			setReloadToken((value) => value + 1);
 		} catch (error) {
@@ -1026,9 +1027,7 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 			});
 			if (!res.ok) throw new Error("Falha na operação em lote.");
 			selection.clearAll();
-			setRequestCursor(null);
-			setNextCursor(null);
-			setHasMore(false);
+			resetPagination();
 			setAccounts([]);
 			setReloadToken((v) => v + 1);
 			setFeedback({
@@ -1227,9 +1226,7 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 				tone: "success",
 				message: `Conta "${account.displayName}" restaurada.`,
 			});
-			setRequestCursor(null);
-			setNextCursor(null);
-			setHasMore(false);
+			resetPagination();
 			setAccounts([]);
 			setReloadToken((v) => v + 1);
 		} catch (error) {
@@ -1287,9 +1284,7 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 							locale={locale}
 							providers={providers}
 							onSuccess={() => {
-								setRequestCursor(null);
-								setNextCursor(null);
-								setHasMore(false);
+								resetPagination();
 								setAccounts([]);
 								setReloadToken((value) => value + 1);
 							}}
@@ -2278,22 +2273,24 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 							</table>
 						</div>
 					)}
-					{!isLoading && hasMore ? (
-						<div className="mt-3 flex justify-end">
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => {
-									if (nextCursor) {
-										setRequestCursor(nextCursor);
-										setReloadToken((value) => value + 1);
-									}
-								}}
-							>
-								{ui.loadMore}
-							</Button>
-						</div>
-					) : null}
+					{/* Pagination */}
+					{!isLoading && accounts.length > 0 && (
+						<PaginationBar
+							page={page}
+							hasPrev={page > 1}
+							hasNext={hasNext}
+							isLoading={isLoading}
+							totalPagesSeen={cursorStack.length}
+							onPrev={() => setPage((p) => p - 1)}
+							onNext={() => setPage((p) => p + 1)}
+							onGoToPage={(p) => {
+								if (p >= 1 && p <= cursorStack.length) setPage(p);
+							}}
+							labelPrev={text("Anterior", "Previous", "Anterior", "上一页")}
+							labelNext={text("Próxima", "Next", "Siguiente", "下一页")}
+							labelPage={text("Página", "Page", "Página", "页")}
+						/>
+					)}
 				</article>
 			</div>
 			<ConfirmDialog

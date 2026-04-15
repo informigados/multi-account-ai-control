@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { PaginationBar } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProviderBrand } from "@/features/providers/components/provider-brand";
 import { PROVIDER_CATALOG } from "@/features/providers/provider-catalog";
@@ -334,15 +335,16 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 	const [providers, setProviders] = useState<Provider[]>([]);
 	const [form, setForm] = useState<ProviderFormState>(initialForm);
 	const [isLoading, setIsLoading] = useState(true);
-	const [isLoadingMore, setIsLoadingMore] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
 	const [feedback, setFeedback] = useState<FeedbackState | null>(null);
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [pendingDelete, setPendingDelete] = useState<Provider | null>(null);
 	const [isDeleting, setIsDeleting] = useState(false);
-	const [requestCursor, setRequestCursor] = useState<string | null>(null);
-	const [nextCursor, setNextCursor] = useState<string | null>(null);
-	const [hasMore, setHasMore] = useState(false);
+	// Pagination
+	const [page, setPage] = useState(1);
+	const [cursorStack, setCursorStack] = useState<Array<string | null>>([null]);
+	const [hasNext, setHasNext] = useState(false);
+	const currentCursor = cursorStack[page - 1] ?? null;
 	const [reloadToken, setReloadToken] = useState(0);
 	const [sensitiveConfirmPhrase, setSensitiveConfirmPhrase] = useState("");
 	const [editingOriginalConnector, setEditingOriginalConnector] =
@@ -368,47 +370,43 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 
 	const loadProviders = useCallback(async () => {
 		void reloadToken;
-		const isPaginating = requestCursor !== null;
-		if (isPaginating) {
-			setIsLoadingMore(true);
-		} else {
-			setIsLoading(true);
-		}
+		setIsLoading(true);
 		setFeedback(null);
-
 		try {
 			const query = new URLSearchParams();
 			query.set("limit", "20");
-			if (requestCursor) query.set("cursor", requestCursor);
+			if (currentCursor) query.set("cursor", currentCursor);
 			const response = await fetch(`/api/providers?${query}`, {
 				method: "GET",
 			});
-			if (!response.ok) {
-				throw new Error(ui.failedFetch);
-			}
-
+			if (!response.ok) throw new Error(ui.failedFetch);
 			const payload = (await response.json()) as ProvidersPageResponse;
-			const pageNextCursor = payload.page?.nextCursor ?? null;
-
-			setNextCursor(pageNextCursor);
-			setHasMore(Boolean(pageNextCursor));
-			setProviders((previous) =>
-				isPaginating ? [...previous, ...payload.providers] : payload.providers,
-			);
+			const nc = payload.page?.nextCursor ?? null;
+			setProviders(payload.providers);
+			setHasNext(Boolean(nc));
+			if (nc) {
+				setCursorStack((prev) => {
+					const next = [...prev];
+					if (next.length <= page) next.push(nc);
+					return next;
+				});
+			}
 		} catch {
 			setFeedback({ tone: "error", message: ui.failedFetch });
 		} finally {
-			if (isPaginating) {
-				setIsLoadingMore(false);
-			} else {
-				setIsLoading(false);
-			}
+			setIsLoading(false);
 		}
-	}, [requestCursor, reloadToken, ui.failedFetch]);
+	}, [currentCursor, page, reloadToken, ui.failedFetch]);
 
 	useEffect(() => {
 		void loadProviders();
 	}, [loadProviders]);
+
+	function resetPagination() {
+		setPage(1);
+		setCursorStack([null]);
+		setHasNext(false);
+	}
 
 	function updateForm(
 		key: keyof ProviderFormState,
@@ -490,9 +488,7 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 			setEditingId(null);
 			setSensitiveConfirmPhrase("");
 			setEditingOriginalConnector(null);
-			setRequestCursor(null);
-			setNextCursor(null);
-			setHasMore(false);
+			resetPagination();
 			setProviders([]);
 			setReloadToken((value) => value + 1);
 		} catch (error) {
@@ -555,9 +551,7 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 
 			setFeedback({ tone: "success", message: ui.providerRemoved });
 			setPendingDelete(null);
-			setRequestCursor(null);
-			setNextCursor(null);
-			setHasMore(false);
+			resetPagination();
 			setProviders([]);
 			setReloadToken((value) => value + 1);
 		} catch (error) {
@@ -1023,23 +1017,22 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 								</tbody>
 							</table>
 						</div>
-						{hasMore ? (
-							<div className="flex justify-end">
-								<Button
-									variant="outline"
-									size="sm"
-									disabled={isLoadingMore}
-									onClick={() => {
-										if (nextCursor) {
-											setRequestCursor(nextCursor);
-											setReloadToken((value) => value + 1);
-										}
-									}}
-								>
-									{isLoadingMore ? ui.loadingMore : ui.loadMore}
-								</Button>
-							</div>
-						) : null}
+						{/* Pagination */}
+						<PaginationBar
+							page={page}
+							hasPrev={page > 1}
+							hasNext={hasNext}
+							isLoading={isLoading}
+							totalPagesSeen={cursorStack.length}
+							onPrev={() => setPage((p) => p - 1)}
+							onNext={() => setPage((p) => p + 1)}
+							onGoToPage={(p) => {
+								if (p >= 1 && p <= cursorStack.length) setPage(p);
+							}}
+							labelPrev={text("Anterior", "Previous", "Anterior", "上一页")}
+							labelNext={text("Próxima", "Next", "Siguiente", "下一页")}
+							labelPage={text("Página", "Page", "Página", "页")}
+						/>
 					</div>
 				)}
 			</article>
