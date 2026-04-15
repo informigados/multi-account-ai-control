@@ -40,6 +40,10 @@ backups/*.enc
 # ide / editor
 .vscode/
 .idea/
+.editorconfig
+.markdownlint.json
+.markdownlintrc
+.markdownlintrc.*
 
 # misc
 dist/
