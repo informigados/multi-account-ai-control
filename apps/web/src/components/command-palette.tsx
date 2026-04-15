@@ -75,7 +75,13 @@ export function CommandPalette({ locale }: CommandPaletteProps) {
 	const [activeIdx, setActiveIdx] = useState(0);
 	const [isClient, setIsClient] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
-	const listRef = useRef<HTMLUListElement>(null);
+	const listRef = useRef<HTMLUListElement | HTMLDivElement>(null);
+	const dialogRef = useRef<HTMLDialogElement>(null);
+
+	// Drag state — offset from viewport center in px
+	const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+	const isDragging = useRef(false);
+	const dragStart = useRef({ mx: 0, my: 0, ox: 0, oy: 0 });
 
 	useEffect(() => setIsClient(true), []);
 
@@ -273,6 +279,7 @@ export function CommandPalette({ locale }: CommandPaletteProps) {
 		setIsOpen(true);
 		setQuery("");
 		setActiveIdx(0);
+		setDragOffset({ x: 0, y: 0 }); // reset to center on each open
 		setTimeout(() => inputRef.current?.focus(), 50);
 	}, []);
 
@@ -342,21 +349,72 @@ export function CommandPalette({ locale }: CommandPaletteProps) {
 	useEffect(() => setActiveIdx(0), [query]);
 
 	if (!isClient) return null;
-
 	if (!isOpen) return null;
+
+	// Drag handlers
+	function handleDragStart(e: React.MouseEvent) {
+		e.preventDefault();
+		isDragging.current = true;
+		dragStart.current = {
+			mx: e.clientX,
+			my: e.clientY,
+			ox: dragOffset.x,
+			oy: dragOffset.y,
+		};
+		function onMove(ev: MouseEvent) {
+			if (!isDragging.current) return;
+			setDragOffset({
+				x: dragStart.current.ox + ev.clientX - dragStart.current.mx,
+				y: dragStart.current.oy + ev.clientY - dragStart.current.my,
+			});
+		}
+		function onUp() {
+			isDragging.current = false;
+			window.removeEventListener("mousemove", onMove);
+			window.removeEventListener("mouseup", onUp);
+		}
+		window.addEventListener("mousemove", onMove);
+		window.addEventListener("mouseup", onUp);
+	}
 
 	return createPortal(
 		// biome-ignore lint/a11y/useKeyWithClickEvents: backdrop handled by keydown on window
 		// biome-ignore lint/a11y/useSemanticElements: backdrop overlay requires div not article/section
 		<div
-			className="fixed inset-0 z-[200] flex items-start justify-center pt-[12vh] bg-black/60 backdrop-blur-sm"
+			className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm"
 			onClick={close}
 		>
+			{/* biome-ignore lint/a11y/useKeyWithClickEvents: stops backdrop propagation only, keyboard handled globally */}
 			<dialog
+				ref={dialogRef}
 				open
 				aria-label={isPt ? "Paleta de comandos" : "Command palette"}
-				className="m-0 w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card p-0 shadow-2xl animate-[command-in_0.15s_ease-out]"
+				onClick={(e) => e.stopPropagation()}
+				style={{
+					position: "fixed",
+					top: "50%",
+					left: "50%",
+					transform: `translate(calc(-50% + ${dragOffset.x}px), calc(-50% + ${dragOffset.y}px))`,
+					margin: 0,
+					padding: 0,
+					width: "min(calc(100vw - 2rem), 32rem)",
+					maxHeight: "min(80vh, 560px)",
+					display: "flex",
+					flexDirection: "column",
+				}}
+				className="overflow-hidden rounded-2xl border border-border bg-card shadow-2xl animate-[command-in_0.15s_ease-out]"
 			>
+				{/* ── Drag handle bar ─────────────────────────────────────── */}
+				<div
+					onMouseDown={handleDragStart}
+					className="flex cursor-grab items-center justify-center gap-1 border-b border-border/30 py-1.5 active:cursor-grabbing select-none"
+					aria-hidden="true"
+					title={isPt ? "Arraste para mover" : "Drag to move"}
+				>
+					<span className="h-1 w-8 rounded-full bg-muted-foreground/25 transition-colors group-hover:bg-muted-foreground/40" />
+				</div>
+				{/* ─────────────────────────────────────────────────────────── */}
+
 				{/* Search input */}
 				<div className="flex items-center gap-3 border-b border-border px-4 py-3">
 					<svg
