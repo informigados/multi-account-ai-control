@@ -2,6 +2,13 @@ import { AppShellHeader } from "@/components/app-shell-header";
 import { PageGuide } from "@/components/page-guide";
 import { getServerSessionUser } from "@/lib/auth/require-auth";
 import { getDictionary, pickLocaleText } from "@/lib/i18n";
+import {
+	ExternalLink,
+	LayoutGrid,
+	PackageCheck,
+	ShieldCheck,
+	Zap,
+} from "lucide-react";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 
@@ -188,20 +195,23 @@ export default async function AboutPage() {
 					</p>
 
 					<div className="mt-4 grid gap-3 md:grid-cols-3">
-						<article className="rounded-lg border border-border bg-background/60 p-4">
-							<h3 className="font-medium">{ui.privacy}</h3>
+						<article className="card-hover rounded-lg border border-border bg-background/60 p-4">
+							<ShieldCheck className="mb-2 h-6 w-6 text-success" />
+							<h3 className="font-semibold">{ui.privacy}</h3>
 							<p className="mt-1 text-sm text-muted-foreground">
 								{ui.privacyDescription}
 							</p>
 						</article>
-						<article className="rounded-lg border border-border bg-background/60 p-4">
-							<h3 className="font-medium">{ui.productivity}</h3>
+						<article className="card-hover rounded-lg border border-border bg-background/60 p-4">
+							<Zap className="mb-2 h-6 w-6 text-warning" />
+							<h3 className="font-semibold">{ui.productivity}</h3>
 							<p className="mt-1 text-sm text-muted-foreground">
 								{ui.productivityDescription}
 							</p>
 						</article>
-						<article className="rounded-lg border border-border bg-background/60 p-4">
-							<h3 className="font-medium">{ui.scalability}</h3>
+						<article className="card-hover rounded-lg border border-border bg-background/60 p-4">
+							<LayoutGrid className="mb-2 h-6 w-6 text-info" />
+							<h3 className="font-semibold">{ui.scalability}</h3>
 							<p className="mt-1 text-sm text-muted-foreground">
 								{ui.scalabilityDescription}
 							</p>
@@ -217,8 +227,9 @@ export default async function AboutPage() {
 								{ui.systemUpdatesDescription}
 							</p>
 						</div>
-						<div className="flex items-center gap-2">
-							<span className="rounded-md border border-success/40 bg-success/10 px-3 py-1 text-sm text-success">
+						<div className="flex flex-wrap items-center gap-2">
+							<span className="flex items-center gap-1.5 rounded-md border border-success/40 bg-success/10 px-3 py-1 text-sm text-success">
+								<PackageCheck className="h-3.5 w-3.5" />
 								{ui.upToDate}
 							</span>
 							<button
@@ -261,7 +272,7 @@ export default async function AboutPage() {
 				<section className="rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
 					<h2 className="text-xl font-semibold">{ui.authors}</h2>
 					<div className="mt-3 grid gap-3 md:grid-cols-2">
-						<article className="rounded-lg border border-border bg-background/60 p-4">
+						<article className="card-hover rounded-lg border border-border bg-background/60 p-4">
 							<div className="flex items-center gap-3">
 								<Image
 									src="/authors/informigados.webp"
@@ -294,7 +305,7 @@ export default async function AboutPage() {
 								informigados.github.io
 							</a>
 						</article>
-						<article className="rounded-lg border border-border bg-background/60 p-4">
+						<article className="card-hover rounded-lg border border-border bg-background/60 p-4">
 							<div className="flex items-center gap-3">
 								<Image
 									src="/authors/alex-brito-dev.webp"
@@ -337,9 +348,10 @@ export default async function AboutPage() {
 							href="https://github.com/informigados/multi-account-ai-control/"
 							target="_blank"
 							rel="noreferrer"
-							className="mt-3 inline-flex h-9 items-center justify-center rounded-md border border-border bg-card px-4 text-sm transition hover:bg-muted"
+							className="mt-3 inline-flex h-9 items-center justify-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-5 text-sm font-medium text-primary transition-all hover:bg-primary/20"
 						>
 							{ui.viewRepository}
+							<ExternalLink className="h-3.5 w-3.5" />
 						</a>
 					</article>
 				</section>
