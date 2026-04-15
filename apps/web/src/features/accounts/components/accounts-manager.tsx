@@ -27,6 +27,16 @@ import { formatDateTime } from "@/lib/utils";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+/** Scroll a ref element into view and flash-highlight to signal form is ready */
+function scrollToForm(ref: React.RefObject<HTMLElement | null>) {
+	if (!ref.current) return;
+	ref.current.scrollIntoView({ behavior: "smooth", block: "start" });
+	ref.current.classList.add("ring-2", "ring-primary/60", "transition");
+	window.setTimeout(() => {
+		ref.current?.classList.remove("ring-2", "ring-primary/60");
+	}, 1200);
+}
+
 type AccountForm = {
 	providerId: string;
 	displayName: string;
@@ -565,6 +575,8 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 	>({});
 	const sensitiveDetailsRef = useRef<HTMLDetailsElement>(null);
 	const passwordOrTokenInputRef = useRef<HTMLInputElement>(null);
+	/** Ref to the form panel — used to scroll-to + highlight on edit */
+	const formPanelRef = useRef<HTMLElement>(null);
 
 	// Fase F — sort, quota config, selection, groups
 	const [sortConfig, setSortConfig] = useState<SortConfig>(loadSortFromStorage);
@@ -798,6 +810,8 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 			secretNotes: "",
 			clearSecret: false,
 		});
+		// Scroll the form panel into view and flash-highlight it
+		window.setTimeout(() => scrollToForm(formPanelRef), 60);
 	}
 
 	async function saveAccount(event: React.FormEvent<HTMLFormElement>) {
@@ -1057,6 +1071,31 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 		});
 	}, [accounts, sortConfig, filters.groupId, groups]);
 
+	async function unarchiveAccount(account: AccountView) {
+		try {
+			const response = await fetch(`/api/accounts/${account.id}`, {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ status: "active" }),
+			});
+			if (!response.ok) throw new Error("Falha ao desarquivar.");
+			setFeedback({
+				tone: "success",
+				message: `Conta "${account.displayName}" restaurada.`,
+			});
+			setRequestCursor(null);
+			setNextCursor(null);
+			setHasMore(false);
+			setAccounts([]);
+			setReloadToken((v) => v + 1);
+		} catch (error) {
+			setFeedback({
+				tone: "error",
+				message: error instanceof Error ? error.message : "Erro desconhecido.",
+			});
+		}
+	}
+
 	async function setActiveAccount(account: AccountView) {
 		try {
 			const response = await fetch("/api/settings/active-account-map", {
@@ -1217,24 +1256,38 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 							</option>
 						))}
 					</select>
-					<label className="flex h-10 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm text-muted-foreground">
-						<input
-							type="checkbox"
-							checked={filters.includeArchived}
-							onChange={(event) =>
-								setFilters((previous) => ({
-									...previous,
-									includeArchived: event.target.checked,
-								}))
-							}
-						/>
-						{ui.includeArchived}
-					</label>
+					{/* Archived filter — styled toggle button for discoverability */}
+					<button
+						type="button"
+						onClick={() =>
+							setFilters((previous) => ({
+								...previous,
+								includeArchived: !previous.includeArchived,
+							}))
+						}
+						className={`h-10 rounded-md border px-3 text-sm font-medium transition ${
+							filters.includeArchived
+								? "border-primary/50 bg-primary/10 text-primary"
+								: "border-border bg-card text-muted-foreground hover:bg-muted"
+						}`}
+						title={
+							filters.includeArchived
+								? "Ocultar arquivadas"
+								: "Ver arquivadas (ocultas por default)"
+						}
+						aria-pressed={filters.includeArchived}
+					>
+						📦 {ui.includeArchived}
+					</button>
 				</div>
 			</article>
 
 			<div className="grid gap-5 lg:grid-cols-[minmax(300px,370px),1fr]">
-				<article className="h-fit rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
+				{/* biome-ignore lint/suspicious/noExplicitAny: article ref requires compatible type */}
+				<article
+					ref={formPanelRef as React.RefObject<HTMLElement>}
+					className="h-fit rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur transition-[box-shadow]"
+				>
 					<div className="mb-4 flex items-center justify-between">
 						<h2 className="text-lg font-semibold">
 							{editingId ? ui.editAccount : ui.createAccount}
@@ -1640,6 +1693,21 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 										{ui.nextReset}: {formatDateTime(account.nextResetAt)}
 									</div>
 
+									{/* Archived notice + restore button */}
+									{account.status === "archived" && (
+										<div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-muted bg-muted/50 px-3 py-2">
+											<span className="text-xs text-muted-foreground">
+												📦 Arquivada — não aparece nas operações ativas.
+											</span>
+											<button
+												type="button"
+												onClick={() => void unarchiveAccount(account)}
+												className="ml-auto shrink-0 rounded border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary transition hover:bg-primary/20"
+											>
+												↩ Desarquivar
+											</button>
+										</div>
+									)}
 									<div className="mt-3 space-y-1">
 										<div className="flex items-center justify-between text-xs text-muted-foreground">
 											<span>{ui.usage}</span>
@@ -1722,14 +1790,17 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 										/>
 
 										{/* Quick usage update (icon-only) */}
-										<QuickUsageUpdate
-											accountId={account.id}
-											locale={locale}
-											iconOnly
-											onSaved={(snapshot) =>
-												applySnapshotToAccount(account.id, snapshot)
-											}
-										/>
+										{/* Quick usage update — manual entry required (no provider API yet) */}
+										<span title="Atualizar cota manualmente (informe total e usado)">
+											<QuickUsageUpdate
+												accountId={account.id}
+												locale={locale}
+												iconOnly
+												onSaved={(snapshot) =>
+													applySnapshotToAccount(account.id, snapshot)
+												}
+											/>
+										</span>
 
 										{/* Export JSON */}
 										<ExportJsonDialog account={account} locale={locale} />
