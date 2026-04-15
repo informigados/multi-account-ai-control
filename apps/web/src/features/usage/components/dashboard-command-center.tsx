@@ -506,6 +506,7 @@ export function DashboardCommandCenter({
 						{highRiskAccounts.length === 0 ? (
 							<p className="mt-3 text-sm text-success">{ui.noHighRisk}</p>
 						) : (
+						<>
 							<ul className="mt-3 space-y-2">
 								{highRiskAccounts.slice(0, MAX_HIGH_RISK_ACCOUNTS_DISPLAY).map((account) => {
 									const pct = usagePercent(account);
@@ -540,7 +541,13 @@ export function DashboardCommandCenter({
 									);
 								})}
 							</ul>
-						)}
+							{highRiskAccounts.length > MAX_HIGH_RISK_ACCOUNTS_DISPLAY ? (
+								<p className="mt-2 text-center text-xs text-muted-foreground">
+									{`Exibindo ${MAX_HIGH_RISK_ACCOUNTS_DISPLAY} de ${highRiskAccounts.length} contas em risco`}
+								</p>
+							) : null}
+							</>
+					)}
 					</article>
 
 					<article className="rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
@@ -561,7 +568,9 @@ export function DashboardCommandCenter({
 										</p>
 										<p className="text-xs text-muted-foreground">
 											<span className="font-medium text-foreground">
-												{snapshot.usedPercent?.toFixed(1) ?? "-"}%
+												{snapshot.usedPercent != null
+													? `${snapshot.usedPercent.toFixed(1)}%`
+													: "-"}
 											</span>{" "}
 											• {formatDateTime(snapshot.measuredAt)}
 										</p>
