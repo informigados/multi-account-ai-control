@@ -187,7 +187,7 @@ try {
         `$token = `$token.Trim()
         # Allow common bearer-token chars only, disallow control chars/whitespace.
         # Also enforce a minimum length to reduce malformed header usage.
-        if (`$token -match '^[A-Za-z0-9\-._~+/=]{16,4096}`$') {
+        if (`$token -match '^[A-Za-z0-9\-._~+/=]{16,8192}`$') {
             `$headers['Authorization'] = "Bearer `$token"
         } else {
             Write-EventLog -LogName Application -Source '$EventSource' -EntryType Warning -EventId 1003 -Message "Invalid MAAC_BACKUP_TOKEN format detected; sending backup request without authentication header." -ErrorAction SilentlyContinue
@@ -238,6 +238,43 @@ try {
 
 Set-Content -Path $TaskScriptPath -Value $ScriptBlock -Encoding UTF8
 Write-Host "  [OK] Task runtime script written to: $TaskScriptPath" -ForegroundColor Green
+
+try {
+    # Restrict task script permissions to prevent unauthorized read/modify.
+    # This script runs via a scheduled task with elevated privileges.
+    $acl = Get-Acl -Path $TaskScriptPath
+    $acl.SetAccessRuleProtection($true, $false) # disable inheritance, remove inherited rules
+    foreach ($rule in @($acl.Access)) {
+        [void]$acl.RemoveAccessRule($rule)
+    }
+
+    $inheritanceFlags = [System.Security.AccessControl.InheritanceFlags]::None
+    $propagationFlags = [System.Security.AccessControl.PropagationFlags]::None
+    $allowType = [System.Security.AccessControl.AccessControlType]::Allow
+
+    $adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+        "BUILTIN\Administrators",
+        [System.Security.AccessControl.FileSystemRights]::FullControl,
+        $inheritanceFlags,
+        $propagationFlags,
+        $allowType
+    )
+    $systemRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+        "NT AUTHORITY\SYSTEM",
+        [System.Security.AccessControl.FileSystemRights]::FullControl,
+        $inheritanceFlags,
+        $propagationFlags,
+        $allowType
+    )
+
+    $acl.AddAccessRule($adminRule)
+    $acl.AddAccessRule($systemRule)
+    Set-Acl -Path $TaskScriptPath -AclObject $acl
+    Write-Host "  [OK] Restricted task runtime script permissions (Administrators + SYSTEM)." -ForegroundColor Green
+} catch {
+    Write-Error "Failed to set secure permissions on task runtime script '$TaskScriptPath': $_"
+    exit 1
+}
 
 # ── Create the scheduled task ──────────────────────────────────────────────────
 $Action  = New-ScheduledTaskAction `
