@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import type { AccountView } from "@/features/accounts/account-types";
 import { ProviderBrand } from "@/features/providers/components/provider-brand";
@@ -6,6 +6,16 @@ import { QuickUsageUpdate } from "@/features/usage/components/quick-usage-update
 import type { UsageSnapshotView } from "@/features/usage/usage-types";
 import { type AppLocale, pickLocaleText } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/utils";
+import {
+	AlertOctagon,
+	AlertTriangle,
+	CheckCircle2,
+	Cpu,
+	type LucideIcon,
+	Timer,
+	Users,
+	XCircle,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type SummaryMetrics = {
@@ -63,7 +73,7 @@ function resetCountdown(value: string | null) {
 	return `${minutes}m`;
 }
 
-const widgetOrder: Array<{
+type WidgetItem = {
 	key: keyof SummaryMetrics;
 	labelKey:
 		| "totalAccounts"
@@ -74,15 +84,79 @@ const widgetOrder: Array<{
 		| "nearReset"
 		| "error";
 	tone: "info" | "success" | "warning" | "danger";
-}> = [
-	{ key: "totalAccounts", labelKey: "totalAccounts", tone: "info" },
-	{ key: "activeAccounts", labelKey: "active", tone: "success" },
-	{ key: "warningAccounts", labelKey: "warning", tone: "warning" },
-	{ key: "exhaustedAccounts", labelKey: "exhausted", tone: "danger" },
-	{ key: "providersCount", labelKey: "providers", tone: "info" },
-	{ key: "nearResetCount", labelKey: "nearReset", tone: "warning" },
-	{ key: "errorAccounts", labelKey: "error", tone: "danger" },
+	icon: LucideIcon;
+};
+
+const widgetOrder: WidgetItem[] = [
+	{
+		key: "totalAccounts",
+		labelKey: "totalAccounts",
+		tone: "info",
+		icon: Users,
+	},
+	{
+		key: "activeAccounts",
+		labelKey: "active",
+		tone: "success",
+		icon: CheckCircle2,
+	},
+	{
+		key: "warningAccounts",
+		labelKey: "warning",
+		tone: "warning",
+		icon: AlertTriangle,
+	},
+	{
+		key: "exhaustedAccounts",
+		labelKey: "exhausted",
+		tone: "danger",
+		icon: XCircle,
+	},
+	{ key: "providersCount", labelKey: "providers", tone: "info", icon: Cpu },
+	{
+		key: "nearResetCount",
+		labelKey: "nearReset",
+		tone: "warning",
+		icon: Timer,
+	},
+	{
+		key: "errorAccounts",
+		labelKey: "error",
+		tone: "danger",
+		icon: AlertOctagon,
+	},
 ];
+
+const toneClasses = {
+	info: {
+		text: "text-info",
+		bg: "bg-info/10",
+		border: "border-info/20",
+		icon: "text-info",
+		bar: "bg-info",
+	},
+	success: {
+		text: "text-success",
+		bg: "bg-success/10",
+		border: "border-success/20",
+		icon: "text-success",
+		bar: "bg-success",
+	},
+	warning: {
+		text: "text-warning",
+		bg: "bg-warning/10",
+		border: "border-warning/20",
+		icon: "text-warning",
+		bar: "bg-warning",
+	},
+	danger: {
+		text: "text-danger",
+		bg: "bg-danger/10",
+		border: "border-danger/20",
+		icon: "text-danger",
+		bar: "bg-danger",
+	},
+};
 
 export function DashboardCommandCenter({
 	summary,
@@ -254,39 +328,51 @@ export function DashboardCommandCenter({
 		return ui.statusArchived;
 	}
 
+	function statusTone(status: AccountView["status"]) {
+		if (status === "active") return "success";
+		if (status === "warning" || status === "limited") return "warning";
+		return "danger";
+	}
+
 	return (
 		<section className="space-y-5 page-enter">
+			{/* Metric widgets — 7 items: 4 cols on xl, 2 on sm */}
 			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-				{widgetOrder.map((item) => (
-					<article
-						key={item.key}
-						className="rounded-xl border border-border bg-card/80 p-4 shadow-sm backdrop-blur"
-					>
-						<p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-							{ui[item.labelKey]}
-						</p>
-						<p
-							className={`mt-2 text-2xl font-semibold ${
-								item.tone === "success"
-									? "text-success"
-									: item.tone === "warning"
-										? "text-warning"
-										: item.tone === "danger"
-											? "text-danger"
-											: "text-info"
-							}`}
+				{widgetOrder.map((item) => {
+					const Icon = item.icon;
+					const tone = toneClasses[item.tone];
+					return (
+						<article
+							key={item.key}
+							className={`card-hover relative overflow-hidden rounded-xl border bg-card/80 p-4 shadow-sm backdrop-blur ${tone.border}`}
 						>
-							{summary[item.key]}
-						</p>
-					</article>
-				))}
+							{/* Colored top accent bar */}
+							<div className={`absolute inset-x-0 top-0 h-0.5 ${tone.bar}`} />
+							<div className="flex items-start justify-between gap-2">
+								<div>
+									<p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+										{ui[item.labelKey]}
+									</p>
+									<p
+										className={`mt-2 text-2xl font-bold tabular-nums ${tone.text}`}
+									>
+										{summary[item.key]}
+									</p>
+								</div>
+								<div className={`rounded-lg p-2 ${tone.bg}`}>
+									<Icon className={`h-5 w-5 ${tone.icon}`} />
+								</div>
+							</div>
+						</article>
+					);
+				})}
 			</div>
 
 			<div className="grid gap-5 xl:grid-cols-[2fr,1fr]">
 				<article className="rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
 					<div className="mb-3 flex items-center justify-between">
 						<h2 className="text-lg font-semibold">{ui.accountCards}</h2>
-						<span className="text-sm text-muted-foreground">
+						<span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
 							{accountCards.length} {ui.accountCountSuffix}
 						</span>
 					</div>
@@ -295,129 +381,150 @@ export function DashboardCommandCenter({
 						<p className="text-sm text-muted-foreground">{ui.noAccounts}</p>
 					) : (
 						<div className="grid gap-3 md:grid-cols-2">
-							{accountCards.map((account) => (
-								<article
-									key={account.id}
-									className="card-hover rounded-xl border border-border bg-background/40 p-4"
-								>
-									<div className="flex items-start justify-between gap-3">
-										<div>
-											<h3 className="text-base font-semibold">
-												{account.displayName}
-											</h3>
-											<p className="text-sm text-muted-foreground">
-												{account.identifier}
-											</p>
-											<div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-												<ProviderBrand
-													name={account.provider?.name ?? ui.unknownProvider}
-													icon={account.provider?.icon}
-													color={account.provider?.color}
-													size="sm"
-												/>
-												<span aria-hidden>•</span>
-												<span className="truncate">
-													{account.planName ?? ui.noPlan}
+							{accountCards.map((account) => {
+								const pct = usagePercent(account);
+								const tone = statusTone(account.status);
+								const toneC = toneClasses[tone];
+								return (
+									<article
+										key={account.id}
+										className="card-hover rounded-xl border border-border bg-background/40 p-4"
+									>
+										<div className="flex items-start justify-between gap-3">
+											<div className="min-w-0">
+												<h3 className="truncate text-base font-semibold">
+													{account.displayName}
+												</h3>
+												<p className="truncate text-sm text-muted-foreground">
+													{account.identifier}
+												</p>
+												<div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+													<ProviderBrand
+														name={account.provider?.name ?? ui.unknownProvider}
+														icon={account.provider?.icon}
+														color={account.provider?.color}
+														size="sm"
+													/>
+													<span aria-hidden>•</span>
+													<span className="truncate">
+														{account.planName ?? ui.noPlan}
+													</span>
+												</div>
+											</div>
+											<span
+												className={`shrink-0 rounded-md px-2 py-1 text-xs font-medium ${
+													tone === "success"
+														? "bg-success/15 text-success"
+														: tone === "warning"
+															? "bg-warning/15 text-warning"
+															: "badge-critical bg-danger/15 text-danger"
+												}`}
+											>
+												{statusLabel(account.status)}
+											</span>
+										</div>
+
+										<div className="mt-3 space-y-1">
+											<div className="flex items-center justify-between text-xs text-muted-foreground">
+												<span>{ui.usage}</span>
+												<span className={`font-medium ${toneC.text}`}>
+													{pct.toFixed(1)}%
 												</span>
 											</div>
+											<div className="h-1.5 overflow-hidden rounded-full bg-muted">
+												<div
+													className={`progress-fill h-full rounded-full ${toneC.bar}`}
+													style={{
+														width: `${Math.min(100, Math.max(0, pct))}%`,
+													}}
+												/>
+											</div>
 										</div>
-										<span
-											className={`rounded-md px-2 py-1 text-xs font-medium ${
-												account.status === "active"
-													? "bg-success/15 text-success"
-													: account.status === "warning" ||
-															account.status === "limited"
-														? "bg-warning/15 text-warning"
-														: "badge-critical bg-danger/15 text-danger"
-											}`}
-										>
-											{statusLabel(account.status)}
-										</span>
-									</div>
 
-									<div className="mt-3 space-y-1">
-										<div className="flex items-center justify-between text-xs text-muted-foreground">
-											<span>{ui.usage}</span>
-											<span>{usagePercent(account).toFixed(1)}%</span>
+										<div className="mt-3 space-y-0.5 text-xs text-muted-foreground">
+											<p>
+												{ui.resetIn}:{" "}
+												<span className="font-medium text-foreground">
+													{resetCountdownByAccountId[account.id] ===
+													"no-reset-window"
+														? ui.noResetWindow
+														: resetCountdownByAccountId[account.id] ===
+																"reset-window-reached"
+															? ui.resetReached
+															: resetCountdownByAccountId[account.id]}
+												</span>
+											</p>
+											<p>
+												{ui.lastMeasure}:{" "}
+												{formatDateTime(
+													account.latestUsage?.measuredAt ?? null,
+												)}
+											</p>
 										</div>
-										<div className="h-2 overflow-hidden rounded-full bg-muted">
-											<div
-												className={`progress-fill h-full rounded-full ${
-													usagePercent(account) >= 90
-														? "bg-danger"
-														: usagePercent(account) >= 70
-															? "bg-warning"
-															: "bg-success"
-												}`}
-												style={{
-													width: `${Math.min(100, Math.max(0, usagePercent(account)))}%`,
-												}}
+
+										<div className="mt-4">
+											<QuickUsageUpdate
+												accountId={account.id}
+												locale={locale}
+												onSaved={(snapshot) =>
+													updateAccountUsage(account.id, snapshot)
+												}
 											/>
 										</div>
-									</div>
-
-									<div className="mt-3 space-y-1 text-xs text-muted-foreground">
-										<p>
-											{ui.resetIn}:{" "}
-											{resetCountdownByAccountId[account.id] ===
-											"no-reset-window"
-												? ui.noResetWindow
-												: resetCountdownByAccountId[account.id] ===
-														"reset-window-reached"
-													? ui.resetReached
-													: resetCountdownByAccountId[account.id]}
-										</p>
-										<p>
-											{ui.lastMeasure}:{" "}
-											{formatDateTime(account.latestUsage?.measuredAt ?? null)}
-										</p>
-									</div>
-
-									<div className="mt-4">
-										<QuickUsageUpdate
-											accountId={account.id}
-											locale={locale}
-											onSaved={(snapshot) =>
-												updateAccountUsage(account.id, snapshot)
-											}
-										/>
-									</div>
-								</article>
-							))}
+									</article>
+								);
+							})}
 						</div>
 					)}
 				</article>
 
 				<div className="space-y-5">
 					<article className="rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
-						<h2 className="text-lg font-semibold">{ui.riskQueue}</h2>
-						<p className="mt-1 text-sm text-muted-foreground">
+						<div className="flex items-center gap-2">
+							<AlertOctagon className="h-4 w-4 text-danger" />
+							<h2 className="text-base font-semibold">{ui.riskQueue}</h2>
+						</div>
+						<p className="mt-1 text-xs text-muted-foreground">
 							{ui.riskSubtitle}
 						</p>
 						{highRiskAccounts.length === 0 ? (
-							<p className="mt-3 text-sm text-muted-foreground">
-								{ui.noHighRisk}
-							</p>
+							<p className="mt-3 text-sm text-success">{ui.noHighRisk}</p>
 						) : (
 							<ul className="mt-3 space-y-2">
-								{highRiskAccounts.slice(0, 8).map((account) => (
-									<li
-										key={account.id}
-										className="rounded-md border border-border bg-muted/30 px-3 py-2"
-									>
-										<p className="text-sm font-medium">{account.displayName}</p>
-										<p className="text-xs text-muted-foreground">
-											{statusLabel(account.status)} •{" "}
-											{usagePercent(account).toFixed(1)}%
-										</p>
-									</li>
-								))}
+								{highRiskAccounts.slice(0, 8).map((account) => {
+									const pct = usagePercent(account);
+									return (
+										<li
+											key={account.id}
+											className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2"
+										>
+											<div className="min-w-0 flex-1">
+												<p className="truncate text-sm font-medium">
+													{account.displayName}
+												</p>
+												<p className="text-xs text-muted-foreground">
+													{statusLabel(account.status)} • {pct.toFixed(1)}%
+												</p>
+											</div>
+											<div
+												className={
+													"h-2 w-12 shrink-0 overflow-hidden rounded-full bg-muted"
+												}
+											>
+												<div
+													className={`progress-fill h-full rounded-full ${pct >= 90 ? "bg-danger" : "bg-warning"}`}
+													style={{ width: `${Math.min(100, pct)}%` }}
+												/>
+											</div>
+										</li>
+									);
+								})}
 							</ul>
 						)}
 					</article>
 
 					<article className="rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
-						<h2 className="text-lg font-semibold">{ui.recentMeasurements}</h2>
+						<h2 className="text-base font-semibold">{ui.recentMeasurements}</h2>
 						{recentSnapshots.length === 0 ? (
 							<p className="mt-2 text-sm text-muted-foreground">
 								{ui.noSnapshots}
@@ -429,12 +536,14 @@ export function DashboardCommandCenter({
 										key={snapshot.id}
 										className="rounded-md border border-border bg-muted/30 px-3 py-2"
 									>
-										<p className="text-sm font-medium">
+										<p className="truncate text-sm font-medium">
 											{snapshot.account?.displayName ?? ui.unknownAccount}
 										</p>
 										<p className="text-xs text-muted-foreground">
-											{snapshot.usedPercent?.toFixed(1) ?? "-"}% •{" "}
-											{formatDateTime(snapshot.measuredAt)}
+											<span className="font-medium text-foreground">
+												{snapshot.usedPercent?.toFixed(1) ?? "-"}%
+											</span>{" "}
+											• {formatDateTime(snapshot.measuredAt)}
 										</p>
 									</li>
 								))}

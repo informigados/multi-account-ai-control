@@ -15,8 +15,8 @@ export default async function AboutPage() {
 	const text = (pt: string, en: string, es?: string, zhCN?: string) =>
 		pickLocaleText(user.locale, { pt, en, es, zhCN });
 
-	const version = "1.0.0";
-	const lastReview = "2026-04-12";
+	const version = process.env.npm_package_version ?? "1.1.0";
+	const lastReview = "2026-04-15";
 
 	const ui = {
 		platformGuideTitle: text(

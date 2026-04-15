@@ -159,29 +159,33 @@ export function AppShellHeader({
 
 	return (
 		<>
-			<header className="sticky top-0 z-40 rounded-xl border border-border bg-card/80 p-4 shadow-sm backdrop-blur">
-				<div className="flex items-start justify-between gap-3">
-					<div className="min-w-0 space-y-1">
-						<div className="flex items-center gap-2">
-							<img
-								src="/favicon.svg"
-								alt="Multi Account AI Control"
-								className="h-6 w-6 shrink-0"
-							/>
-							<p className="truncate text-xs uppercase tracking-[0.22em] text-muted-foreground">
+			<header className="sticky top-0 z-40 rounded-xl border border-border bg-card/90 shadow-sm backdrop-blur-md">
+				{/* Top row: logo + user + actions */}
+				<div className="flex items-center justify-between gap-3 px-4 pt-3">
+					<div className="flex items-center gap-2.5">
+						<img
+							src="/favicon.svg"
+							alt="Multi Account AI Control"
+							className="h-6 w-6 shrink-0"
+						/>
+						<div className="hidden sm:block">
+							<p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/80">
 								{t.shell.productName}
 							</p>
 						</div>
-						<p className="truncate text-sm text-muted-foreground">
-							{t.shell.loggedInAs} {username}
-						</p>
 					</div>
 
+					{/* Desktop: user chip + actions */}
 					<div className="hidden items-center gap-2 md:flex">
+						<span className="rounded-md border border-border bg-muted/60 px-3 py-1 text-xs font-medium text-muted-foreground">
+							{t.shell.loggedInAs}{" "}
+							<span className="font-semibold text-foreground">{username}</span>
+						</span>
 						<ThemeToggle />
 						<LogoutButton label={t.shell.actions.logout} />
 					</div>
 
+					{/* Mobile: theme + hamburger */}
 					<div className="flex items-center gap-2 md:hidden">
 						<ThemeToggle />
 						<button
@@ -216,24 +220,31 @@ export function AppShellHeader({
 					</div>
 				</div>
 
-				<nav className="mt-3 hidden flex-wrap gap-2 md:flex">
+				{/* Desktop nav — underline style */}
+				<nav
+					className="mt-1 hidden gap-0.5 px-3 pb-0 md:flex"
+					aria-label="Main navigation"
+				>
 					{navItems.map((item) => {
 						const Icon = item.icon;
+						const isActive = currentPath === item.href;
 						return (
 							<Link
 								key={item.href}
 								href={item.href}
 								className={cn(
-									"whitespace-nowrap rounded-md px-3 py-2 text-sm transition",
-									currentPath === item.href
-										? "bg-primary text-primary-foreground"
-										: "bg-muted text-foreground hover:bg-muted/80",
+									"relative flex items-center gap-1.5 whitespace-nowrap px-3 py-2.5 text-sm font-medium transition-colors",
+									isActive
+										? "text-primary"
+										: "text-muted-foreground hover:text-foreground",
 								)}
 							>
-								<span className="inline-flex items-center gap-1.5">
-									<Icon className="h-3.5 w-3.5" />
-									{t.shell.nav[item.labelKey]}
-								</span>
+								<Icon className="h-3.5 w-3.5 shrink-0" />
+								{t.shell.nav[item.labelKey]}
+								{/* Animated bottom indicator */}
+								{isActive && (
+									<span className="absolute inset-x-1 bottom-0 h-0.5 rounded-full bg-primary" />
+								)}
 							</Link>
 						);
 					})}

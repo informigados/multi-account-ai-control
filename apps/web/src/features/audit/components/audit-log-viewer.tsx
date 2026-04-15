@@ -432,46 +432,78 @@ export function AuditLogViewer({
 			) : (
 				<div className="overflow-x-auto rounded-lg border border-border">
 					<table className="min-w-full text-sm">
-						<thead className="bg-muted/70 text-left text-muted-foreground">
-							<tr>
-								<th className="px-3 py-2">{ui.thWhen}</th>
-								<th className="px-3 py-2">{ui.thEvent}</th>
-								<th className="px-3 py-2">{ui.thEntity}</th>
-								<th className="px-3 py-2">{ui.thActor}</th>
-								<th className="px-3 py-2">{ui.thMessage}</th>
+						<thead>
+							<tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+								<th className="px-3 py-2.5">{ui.thWhen}</th>
+								<th className="px-3 py-2.5">{ui.thEvent}</th>
+								<th className="px-3 py-2.5">{ui.thEntity}</th>
+								<th className="px-3 py-2.5">{ui.thActor}</th>
+								<th className="px-3 py-2.5">{ui.thMessage}</th>
 							</tr>
 						</thead>
 						<tbody>
-							{logs.map((log) => (
-								<tr key={log.id} className="border-t border-border/80">
-									<td className="px-3 py-2 text-xs text-muted-foreground">
-										{formatDateTime(log.createdAt)}
-									</td>
-									<td className="px-3 py-2">{log.eventType}</td>
-									<td className="px-3 py-2 text-xs text-muted-foreground">
-										{log.entityType}
-										{log.entityId ? `:${log.entityId.slice(0, 8)}` : ""}
-									</td>
-									<td className="px-3 py-2 text-xs text-muted-foreground">
-										{log.actor?.username ?? ui.system}
-									</td>
-									<td className="px-3 py-2">
-										<div className="space-y-1">
-											<p>{log.message}</p>
-											{log.metadata ? (
-												<details>
-													<summary className="cursor-pointer text-xs text-muted-foreground">
-														{ui.metadata}
-													</summary>
-													<pre className="mt-1 overflow-x-auto rounded bg-muted p-2 text-xs">
-														{JSON.stringify(log.metadata, null, 2)}
-													</pre>
-												</details>
-											) : null}
-										</div>
-									</td>
-								</tr>
-							))}
+							{logs.map((log, idx) => {
+								const evt = log.eventType.toLowerCase();
+								const isSuccess =
+									evt.includes("success") ||
+									evt.includes("created") ||
+									evt.includes("updated");
+								const isFailure =
+									evt.includes("fail") ||
+									evt.includes("error") ||
+									evt.includes("invalid");
+								const isLogout = evt === "logout";
+								const badgeCls = isFailure
+									? "badge-critical bg-danger/15 text-danger"
+									: isSuccess
+										? "bg-success/15 text-success"
+										: isLogout
+											? "bg-muted text-muted-foreground"
+											: "bg-info/15 text-info";
+								return (
+									<tr
+										key={log.id}
+										className={`border-t border-border/50 transition-colors hover:bg-muted/30 ${idx % 2 === 1 ? "bg-muted/10" : ""}`}
+									>
+										<td className="px-3 py-2 text-xs tabular-nums text-muted-foreground">
+											{formatDateTime(log.createdAt)}
+										</td>
+										<td className="px-3 py-2">
+											<span
+												className={`rounded px-1.5 py-0.5 text-xs font-medium ${badgeCls}`}
+											>
+												{log.eventType}
+											</span>
+										</td>
+										<td className="px-3 py-2 text-xs text-muted-foreground">
+											<span
+												title={`${log.entityType}${log.entityId ? `:${log.entityId}` : ""}`}
+											>
+												{log.entityType}
+												{log.entityId ? `:${log.entityId.slice(0, 8)}` : ""}
+											</span>
+										</td>
+										<td className="px-3 py-2 text-xs font-medium text-muted-foreground">
+											{log.actor?.username ?? ui.system}
+										</td>
+										<td className="px-3 py-2">
+											<div className="space-y-1">
+												<p>{log.message}</p>
+												{log.metadata ? (
+													<details>
+														<summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+															{ui.metadata}
+														</summary>
+														<pre className="mt-1 overflow-x-auto rounded bg-muted p-2 text-xs">
+															{JSON.stringify(log.metadata, null, 2)}
+														</pre>
+													</details>
+												) : null}
+											</div>
+										</td>
+									</tr>
+								);
+							})}
 						</tbody>
 					</table>
 				</div>
