@@ -1426,6 +1426,7 @@ function QuotaConfigSection({ isPortuguese }: QuotaConfigSectionProps) {
 	loadErrorRef.current = ui.loadError;
 
 	// intentionally runs once on mount; loadErrorRef.current is always current
+	// biome-ignore lint/correctness/useExhaustiveDependencies: loadErrorRef is a ref (escape-hatch), not a reactive dep
 	useEffect(() => {
 		async function load() {
 			setIsLoading(true);
