@@ -583,6 +583,8 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 	const [quotaConfig, setQuotaConfig] =
 		useState<QuotaConfig>(DEFAULT_QUOTA_CONFIG);
 	const [groups, setGroups] = useState<AccountGroup[]>([]);
+	/** Group the account currently belongs to (populated on startEdit) */
+	const [editingGroupId, setEditingGroupId] = useState<string>("");
 	const [isBulkLoading, setIsBulkLoading] = useState(false);
 	const [pendingBulkAction, setPendingBulkAction] = useState<
 		"archive" | "delete" | null
@@ -810,6 +812,9 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 			secretNotes: "",
 			clearSecret: false,
 		});
+		// Pre-select the group this account currently belongs to
+		const currentGroup = groups.find((g) => g.accountIds.includes(account.id));
+		setEditingGroupId(currentGroup?.id ?? "");
 		// Scroll the form panel into view and flash-highlight it
 		window.setTimeout(() => scrollToForm(formPanelRef), 60);
 	}
@@ -860,6 +865,51 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 				const errorPayload = (await response.json()) as { message?: string };
 				throw new Error(errorPayload.message ?? ui.failedSaveAccount);
 			}
+
+			// ── Assign to group (if editing and a group was selected/changed) ───────────
+			if (editingId) {
+				const currentGroup = groups.find((g) =>
+					g.accountIds.includes(editingId),
+				);
+				const targetGroupId = editingGroupId || "";
+
+				if (currentGroup && currentGroup.id !== targetGroupId) {
+					// Remove from old group
+					await fetch(`/api/settings/account-groups/${currentGroup.id}`, {
+						method: "PATCH",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							accountIds: currentGroup.accountIds.filter(
+								(id) => id !== editingId,
+							),
+						}),
+					});
+				}
+
+				if (targetGroupId && targetGroupId !== currentGroup?.id) {
+					// Add to new group
+					const targetGroup = groups.find((g) => g.id === targetGroupId);
+					if (targetGroup) {
+						const nextIds = Array.from(
+							new Set([...targetGroup.accountIds, editingId]),
+						);
+						await fetch(`/api/settings/account-groups/${targetGroup.id}`, {
+							method: "PATCH",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ accountIds: nextIds }),
+						});
+					}
+				}
+				// Refresh groups silently after group change
+				const gRes = await fetch("/api/settings/account-groups");
+				if (gRes.ok) {
+					const gData = (await gRes.json()) as {
+						groups?: AccountGroup[];
+					};
+					if (gData.groups) setGroups(gData.groups);
+				}
+			}
+			// ──────────────────────────────────────────────────────────────────
 
 			setFeedback({
 				tone: "success",
@@ -1386,6 +1436,34 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 							placeholder={ui.tagsCsv}
 							className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm outline-none ring-primary transition focus:ring-2"
 						/>
+						{/* Group assignment — only shown when editing an existing account */}
+						{editingId && groups.length > 0 && (
+							<div className="space-y-1">
+								<label
+									htmlFor="account-group-select"
+									className="text-xs text-muted-foreground"
+								>
+									{locale === "pt_BR" || locale === "pt_PT" ? "Grupo" : "Group"}
+								</label>
+								<select
+									id="account-group-select"
+									value={editingGroupId}
+									onChange={(e) => setEditingGroupId(e.target.value)}
+									className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm outline-none ring-primary transition focus:ring-2"
+								>
+									<option value="">
+										{locale === "pt_BR" || locale === "pt_PT"
+											? "Sem grupo"
+											: "No group"}
+									</option>
+									{groups.map((g) => (
+										<option key={g.id} value={g.id}>
+											{g.name}
+										</option>
+									))}
+								</select>
+							</div>
+						)}
 						<textarea
 							aria-label={ui.operationalNotes}
 							value={form.notesText}

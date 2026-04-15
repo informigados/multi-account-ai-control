@@ -476,7 +476,7 @@ Criterios de aceite:
 - [x] v3/Fase B: instalador Windows (`.msi`/`.exe`) com pipeline de release
 - [x] v3/Fase C: novos idiomas (`pt_PT`, `es`, `zh_CN`) com validacao automatizada
 - [x] v3/Fase D: hardening extra (redacao de segredos, integridade de backup, gates sensiveis)
-- [ ] v3/Fase E: modernizacao visual responsiva e acessibilidade final
+- [x] v3/Fase E: modernizacao visual responsiva e acessibilidade final (design tokens parcial)
 - [x] v4/Fase F: importacao local de sessao + conectores Rust (desktop)
 - [ ] v4/Fase F: alertas nativos do SO (tauri-plugin-notification)
 - [ ] v4/Fase F: backup agendado automatico
@@ -498,7 +498,7 @@ Criterios de aceite:
 - [x] Cursor: placeholder quando feature sqlite nao ativada (evita falha silenciosa)
 - [ ] Conector GitHub Copilot (safe-storage criptografado, complexidade alta)
 - [ ] Conector Windsurf (similar a Cursor, requer analise do path exato)
-- [ ] Feature `sqlite` ativada no Cargo.toml para Cursor leitura real do vscdb
+- [x] Feature `sqlite` ativada no Cargo.toml para Cursor leitura real do vscdb
 - [ ] Leitura de multiplas contas por provedor (ex: varios perfis Zed)
 - [ ] Persistir token detectado de forma segura (criptografado no banco)
 
@@ -508,7 +508,7 @@ Criterios de aceite:
 - [x] Intervalo configuravel via `AppSetting` (`quota-config`)
 - [x] Indicador de `ultima atualizacao` nos cards
 - [x] API `GET/POST /api/settings/quota-config`
-- [ ] Pagina de Settings com UI para configurar intervalo de refresh
+- [x] Pagina de Settings com UI para configurar intervalo de refresh e limiar de alerta
 - [ ] Chamada real de API por provedor (cada provedor tem endpoint diferente)
   - Gemini: `https://generativelanguage.googleapis.com/` (autenticacao OAuth)
   - Codex / OpenAI: nao tem endpoint de quota oficial publico
@@ -540,7 +540,7 @@ Criterios de aceite:
 - [x] Componente `AccountGroupsManager`
 - [x] Filtro por grupo na listagem principal
 - [x] Persistencia em `AppSetting` com JSON
-- [ ] Mover contas entre grupos via UI (arrastar ou dropdown)
+- [x] Mover contas entre grupos via UI (dropdown no form de edicao da conta)
 - [ ] Limite de grupos configuravel (evitar proliferacao infinita)
 
 ### F.6 - Backup Manager (agendador)
@@ -565,17 +565,17 @@ Criterios de aceite:
 
 ### Prioridade ALTA (bloqueia experiencia completa)
 
-1. **Settings UI para quota-config** — o usuario nao consegue mudar o intervalo de refresh ou o limiar de alerta sem acesso direto ao banco. Criar UI em `/settings` para configurar `refreshIntervalMinutes` e `alertThresholdPercent`.
+1. ~~**Settings UI para quota-config**~~ — ✅ Implementado. UI em `/settings` para configurar `refreshIntervalMinutes` e `alertThresholdPercent`.
 
-2. **Feature sqlite no Cargo.toml** — sem isso, a importacao do Cursor exibe apenas um placeholder. Habilitar `cargo tauri build --features sqlite` para ativar leitura real do `state.vscdb`.
+2. ~~**Feature sqlite no Cargo.toml**~~ — ✅ Implementado. `default = ["sqlite"]` ativa leitura real do `state.vscdb`.
 
-3. **Fase E: modernizacao visual final** — a identidade visual ainda usa classes ad-hoc. Consolidar `design tokens` (cores, tipografia, sombras) em CSS variables centralizadas e revisar responsividade em mobile/tablet/desktop.
+3. **Fase E: modernizacao visual final** — 🔄 Parcial. Design tokens (sombras, duracoes, escala tipografica, z-index) adicionados em `globals.css`. Falta consolidar componentes para usar as variaveis.
 
 4. **Providers em `/settings`** — a tela de Settings ainda nao tem secao para configurar quota-config por provedor individualmente.
 
 ### Prioridade MEDIA (melhora funcionalidade)
 
-5. **Mover contas entre grupos via UI** — hoje o usuario cria grupos mas nao consegue mover contas para eles pela interface (so via edicao de conta).
+5. ~~**Mover contas entre grupos via UI**~~ — ✅ Implementado. Dropdown `Grupo` aparece no form de edicao da conta.
 
 6. **Unarchive via API dedicada** — o botao `Desarquivar` usa `/api/accounts/:id` com `PUT { status: "active" }`. Validar que o endpoint aceita esse payload (pode precisar de tratamento especial para contas arquivadas).
 

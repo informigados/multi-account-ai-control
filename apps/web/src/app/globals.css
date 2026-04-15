@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 :root {
+	/* ── Cores ─────────────────────────────────────────────────────── */
 	--background: 210 40% 98%;
 	--foreground: 224 29% 12%;
 	--card: 0 0% 100%;
@@ -17,6 +18,45 @@
 	--danger: 0 74% 50%;
 	--info: 209 80% 52%;
 	--radius: 0.9rem;
+
+	/* ── Fase E: Design Tokens ───────────────────────────────────────  */
+	/* Sombras */
+	--shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+	--shadow-sm: 0 2px 4px -1px rgb(0 0 0 / 0.07), 0 1px 2px -1px
+		rgb(0 0 0 / 0.05);
+	--shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.1), 0 2px 4px -2px
+		rgb(0 0 0 / 0.06);
+	--shadow-lg: 0 8px 30px -4px rgb(0 0 0 / 0.12), 0 4px 8px -4px
+		rgb(0 0 0 / 0.08);
+	--shadow-glow: 0 0 0 3px hsl(var(--primary) / 0.15);
+
+	/* Transições */
+	--duration-fast: 120ms;
+	--duration-normal: 200ms;
+	--duration-slow: 350ms;
+	--ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+	--ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+
+	/* Escala de tipo */
+	--text-xs: 0.75rem; /* 12px */
+	--text-sm: 0.875rem; /* 14px */
+	--text-base: 1rem; /* 16px */
+	--text-lg: 1.125rem; /* 18px */
+	--text-xl: 1.25rem; /* 20px */
+	--text-2xl: 1.5rem; /* 24px */
+
+	/* Z-index escala */
+	--z-base: 0;
+	--z-raised: 10;
+	--z-dropdown: 100;
+	--z-sticky: 200;
+	--z-overlay: 300;
+	--z-modal: 400;
+	--z-toast: 500;
+
+	/* Ring */
+	--ring-width: 2px;
+	--ring-offset: 2px;
 }
 
 .dark {
@@ -33,6 +73,44 @@
 	--warning: 39 95% 53%;
 	--danger: 0 79% 62%;
 	--info: 199 89% 60%;
+
+	/* Dark-mode shadow overrides (less harsh) */
+	--shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+	--shadow-sm: 0 2px 4px -1px rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+	--shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.45), 0 2px 4px -2px
+		rgb(0 0 0 / 0.3);
+	--shadow-lg: 0 8px 30px -4px rgb(0 0 0 / 0.5), 0 4px 8px -4px
+		rgb(0 0 0 / 0.35);
+}
+
+/* ── Design token utilities ─────────────────────────────────────────── */
+.shadow-token-sm {
+	box-shadow: var(--shadow-sm);
+}
+.shadow-token-md {
+	box-shadow: var(--shadow-md);
+}
+.shadow-token-lg {
+	box-shadow: var(--shadow-lg);
+}
+.shadow-token-glow {
+	box-shadow: var(--shadow-glow);
+}
+
+/* Input baseline — replaces repetitive Tailwind class strings */
+.input-base {
+	height: 2.5rem;
+	width: 100%;
+	border-radius: calc(var(--radius) * 0.6);
+	border: 1px solid hsl(var(--border));
+	background: hsl(var(--card));
+	padding: 0 0.75rem;
+	font-size: var(--text-sm);
+	outline: none;
+	transition: box-shadow var(--duration-normal) var(--ease-standard);
+}
+.input-base:focus {
+	box-shadow: 0 0 0 var(--ring-width) hsl(var(--primary) / 0.35);
 }
 
 * {

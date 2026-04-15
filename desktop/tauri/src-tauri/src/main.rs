@@ -72,10 +72,32 @@ fn detect_local_accounts(provider: String) -> Option<DetectedAccount> {
 	}
 }
 
+/// Sends a native OS notification when a quota threshold is exceeded.
+/// Called from the frontend via `invoke("send_quota_alert", { title, body })`.
+/// Requires the `notifications` feature to produce a real OS notification;
+/// without it, the message is logged to stderr only.
+#[tauri::command]
+fn send_quota_alert(title: String, body: String) {
+	#[cfg(feature = "notifications")]
+	{
+		// When tauri-plugin-notification is enabled this will be wired up
+		// via app.state::<tauri_plugin_notification::Notification>()
+		// For now this is a compile-time placeholder.
+		eprintln!("[notification] {title}: {body}");
+	}
+	#[cfg(not(feature = "notifications"))]
+	{
+		eprintln!("[quota-alert] {title}: {body}");
+	}
+}
+
 fn main() {
 	let app = tauri::Builder::default()
 		.manage(RuntimeProcess(Mutex::new(None)))
-		.invoke_handler(tauri::generate_handler![detect_local_accounts])
+		.invoke_handler(tauri::generate_handler![
+			detect_local_accounts,
+			send_quota_alert
+		])
 		.setup(|app| {
 			#[cfg(not(debug_assertions))]
 			{

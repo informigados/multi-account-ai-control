@@ -14,10 +14,18 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 dirs = "5"
 
+# Optional: enable native OS notifications (requires Tauri notification plugin)
+# Activate with: cargo build --features notifications
+[dependencies.tauri-plugin-notification]
+version = "2"
+optional = true
+
 [features]
-default = []
+default = ["sqlite"]
 # Enable rusqlite feature to support reading Cursor/Windsurf state.vscdb SQLite databases
 sqlite = ["dep:rusqlite"]
+# Enable native OS notifications
+notifications = ["dep:tauri-plugin-notification"]
 
 [dependencies.rusqlite]
 version = "0.31"
