@@ -4,7 +4,7 @@
 ![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=000)
 ![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?logo=prisma&logoColor=white)
-[![Release](https://img.shields.io/badge/release-1.1.0-blue)](https://github.com/informigados/multi-account-ai-control/releases)
+[![Release](https://img.shields.io/badge/release-1.2.0-blue)](https://github.com/informigados/multi-account-ai-control/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/informigados/multi-account-ai-control)
 
@@ -236,7 +236,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the full history.
 - **Local import (desktop):** Tauri `detect_local_accounts` command implemented in Rust for Gemini CLI, Codex, Zed, and Cursor; graceful web fallback with download prompt
 - **UX fixes:** Edit button now scrolls-to and highlights the form panel; archived accounts show an inline banner with a one-click Unarchive button; the archived filter is now a visible toggle button; JSON import has smart provider matching by slug/name
 
-### v1.1.0 — 2026-04-15 (Hardening & Premium UX)
+### v1.1.0 — 2026-04-14 (Hardening & Premium UX)
 
 - **Security:** Fixed edge-layer route protection (proxy.ts convention), removed sensitive fields from login response, added HSTS header, improved cookie security, hardened decryptSecret, fixed tag filter to prevent pagination corruption, fixed public paths for password reset
 - **UX:** Mobile menu close button now accessible, sticky header, full i18n for idle lock screen, login auto-detects Accept-Language, proper loading skeletons for all routes

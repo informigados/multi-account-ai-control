@@ -8,7 +8,7 @@ type SiteFooterProps = {
 export function SiteFooter({ locale }: SiteFooterProps) {
 	const t = getDictionary(locale);
 	const year = new Date().getFullYear();
-	const version = "1.1.0";
+	const version = "1.2.0";
 
 	return (
 		<footer className="mt-8 border-t border-border/50 bg-card/40 px-6 py-6 backdrop-blur-sm">

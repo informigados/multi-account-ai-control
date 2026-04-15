@@ -30,7 +30,7 @@ import { db } from "@/lib/db";
 import { type NextRequest, NextResponse } from "next/server";
 
 const START_TIME = Date.now();
-const VERSION = process.env.npm_package_version ?? "1.1.0";
+const VERSION = process.env.npm_package_version ?? "1.2.0";
 
 export async function GET(request: NextRequest) {
 	const timestamp = new Date().toISOString();
