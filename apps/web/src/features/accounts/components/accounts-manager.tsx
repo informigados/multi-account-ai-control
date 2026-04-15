@@ -1283,7 +1283,6 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 			</article>
 
 			<div className="grid gap-5 lg:grid-cols-[minmax(300px,370px),1fr]">
-				{/* biome-ignore lint/suspicious/noExplicitAny: article ref requires compatible type */}
 				<article
 					ref={formPanelRef as React.RefObject<HTMLElement>}
 					className="h-fit rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur transition-[box-shadow]"

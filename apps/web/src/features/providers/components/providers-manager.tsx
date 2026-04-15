@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProviderBrand } from "@/features/providers/components/provider-brand";
+import { PROVIDER_CATALOG } from "@/features/providers/provider-catalog";
 import { type AppLocale, pickLocaleText } from "@/lib/i18n";
 import {
 	HIGH_RISK_CONNECTOR_CONFIRMATION_PHRASE,
 	SENSITIVE_CONNECTOR_CONFIRMATION_HEADER,
 } from "@/lib/security/connector-gate";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type ConnectorType =
 	| "manual"
@@ -356,6 +357,13 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 		isHighRiskConnector &&
 		(editingId === null || editingOriginalConnector !== form.connectorType);
 
+	/** Set of canonical slugs — memoised, never changes at runtime */
+	const canonicalSlugs = useMemo(
+		() => new Set(PROVIDER_CATALOG.map((e) => e.slug)),
+		[],
+	);
+	const isCanonical = (slug: string) => canonicalSlugs.has(slug);
+
 	const loadProviders = useCallback(async () => {
 		void reloadToken;
 		const isPaginating = requestCursor !== null;
@@ -492,6 +500,39 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 			});
 		} finally {
 			setIsSaving(false);
+		}
+	}
+
+	async function quickToggleActive(provider: Provider) {
+		setFeedback(null);
+		const nextActive = !provider.isActive;
+		try {
+			const response = await fetch(`/api/providers/${provider.id}`, {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ isActive: nextActive }),
+			});
+			if (!response.ok) {
+				const errorPayload = (await response.json()) as { message?: string };
+				throw new Error(errorPayload.message ?? ui.failedSave);
+			}
+			// Optimistic update in list
+			setProviders((prev) =>
+				prev.map((p) =>
+					p.id === provider.id ? { ...p, isActive: nextActive } : p,
+				),
+			);
+			setFeedback({
+				tone: "success",
+				message: nextActive
+					? `"${provider.name}" ativado.`
+					: `"${provider.name}" desativado.`,
+			});
+		} catch (error) {
+			setFeedback({
+				tone: "error",
+				message: error instanceof Error ? error.message : ui.failedSave,
+			});
 		}
 	}
 
@@ -875,11 +916,18 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 									{providers.map((provider) => (
 										<tr key={provider.id} className="border-t border-border/80">
 											<td className="px-3 py-2 font-medium">
-												<ProviderBrand
-													name={provider.name}
-													icon={provider.icon}
-													color={provider.color}
-												/>
+												<div className="flex flex-col gap-0.5">
+													<ProviderBrand
+														name={provider.name}
+														icon={provider.icon}
+														color={provider.color}
+													/>
+													{isCanonical(provider.slug) && (
+														<span className="ml-7 rounded-sm bg-primary/10 px-1 py-0.5 text-[10px] font-medium text-primary">
+															Catálogo
+														</span>
+													)}
+												</div>
 											</td>
 											<td className="px-3 py-2 text-muted-foreground">
 												{provider.slug}
@@ -909,19 +957,48 @@ export function ProvidersManager({ locale }: ProvidersManagerProps) {
 													>
 														{ui.edit}
 													</Button>
+													{/* Toggle Activate/Deactivate — always available */}
 													<Button
 														variant="ghost"
 														size="sm"
-														aria-label={text(
-															`Excluir provedor ${provider.name}`,
-															`Delete provider ${provider.name}`,
-															`Eliminar proveedor ${provider.name}`,
-															`删除服务商 ${provider.name}`,
-														)}
-														onClick={() => setPendingDelete(provider)}
+														aria-label={
+															provider.isActive
+																? `Desativar ${provider.name}`
+																: `Ativar ${provider.name}`
+														}
+														title={
+															provider.isActive
+																? isCanonical(provider.slug)
+																	? "Desativar (provedor do catálogo — não pode ser excluído)"
+																	: "Desativar"
+																: "Ativar"
+														}
+														className={`text-xs ${
+															provider.isActive
+																? "text-warning hover:text-warning"
+																: "text-success hover:text-success"
+														}`}
+														onClick={() => void quickToggleActive(provider)}
 													>
-														{ui.delete}
+														{provider.isActive ? "Desativar" : "Ativar"}
 													</Button>
+													{/* Delete — only for non-canonical providers */}
+													{!isCanonical(provider.slug) && (
+														<Button
+															variant="ghost"
+															size="sm"
+															aria-label={text(
+																`Excluir provedor ${provider.name}`,
+																`Delete provider ${provider.name}`,
+																`Eliminar proveedor ${provider.name}`,
+																`删除服务商 ${provider.name}`,
+															)}
+															onClick={() => setPendingDelete(provider)}
+															className="text-danger hover:text-danger"
+														>
+															{ui.delete}
+														</Button>
+													)}
 												</div>
 											</td>
 										</tr>

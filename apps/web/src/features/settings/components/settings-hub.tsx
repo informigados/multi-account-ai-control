@@ -11,7 +11,7 @@ import {
 	UserCog,
 	Users,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Role = "admin" | "operator";
 type Locale = AppLocale;
@@ -1348,6 +1348,224 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 					) : null}
 				</article>
 			) : null}
+
+			{/* ── Quota Monitoring settings (admin only) ──────────────────── */}
+			{isAdmin ? (
+				<QuotaConfigSection locale={locale} isPortuguese={isPortuguese} />
+			) : null}
 		</section>
+	);
+}
+
+/* ─── Quota Config Section ─────────────────────────────────────────────────── */
+type QuotaConfigSectionProps = {
+	locale: AppLocale;
+	isPortuguese: boolean;
+};
+
+function QuotaConfigSection({ isPortuguese }: QuotaConfigSectionProps) {
+	const REFRESH_OPTIONS = [5, 10, 15, 30, 60] as const;
+	type RefreshInterval = (typeof REFRESH_OPTIONS)[number];
+
+	const [refreshInterval, setRefreshInterval] = useState<RefreshInterval>(10);
+	const [alertThreshold, setAlertThreshold] = useState(80);
+	const [isLoading, setIsLoading] = useState(true);
+	const [isSaving, setIsSaving] = useState(false);
+	const [feedback, setFeedback] = useState<string | null>(null);
+	const [error, setError] = useState<string | null>(null);
+
+	const ui = {
+		title: isPortuguese ? "Monitoramento de Cotas" : "Quota Monitoring",
+		description: isPortuguese
+			? "Configure o intervalo de atualização automática e o limiar de alerta de uso."
+			: "Configure the auto-refresh interval and usage alert threshold.",
+		refreshLabel: isPortuguese
+			? "Intervalo de atualização"
+			: "Refresh interval",
+		refreshHint: isPortuguese
+			? "Com que frequência o sistema verifica o uso das contas em background."
+			: "How often the system polls account usage in the background.",
+		thresholdLabel: isPortuguese
+			? "Limiar de alerta de cota (%)"
+			: "Quota alert threshold (%)",
+		thresholdHint: isPortuguese
+			? "O banner de alerta aparece quando qualquer conta ultrapassa este percentual."
+			: "The alert banner appears when any account exceeds this usage percentage.",
+		save: isPortuguese ? "Salvar configuração" : "Save configuration",
+		saving: isPortuguese ? "Salvando..." : "Saving...",
+		saved: isPortuguese ? "Configuração salva." : "Configuration saved.",
+		loadError: isPortuguese
+			? "Falha ao carregar configuração de cotas."
+			: "Failed to load quota configuration.",
+		saveError: isPortuguese
+			? "Falha ao salvar configuração de cotas."
+			: "Failed to save quota configuration.",
+		minutesSuffix: isPortuguese ? "min" : "min",
+	};
+
+	const loadErrorRef = useRef(ui.loadError);
+	loadErrorRef.current = ui.loadError;
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally runs once on mount; loadErrorRef.current is always current
+	useEffect(() => {
+		async function load() {
+			setIsLoading(true);
+			setError(null);
+			try {
+				const res = await fetch("/api/settings/quota-config");
+				if (!res.ok) throw new Error(loadErrorRef.current);
+				const payload = (await res.json()) as {
+					config?: {
+						refreshIntervalMinutes?: number;
+						alertThresholdPercent?: number;
+					};
+				};
+				const cfg = payload.config ?? {};
+				const normalized = REFRESH_OPTIONS.includes(
+					cfg.refreshIntervalMinutes as RefreshInterval,
+				)
+					? (cfg.refreshIntervalMinutes as RefreshInterval)
+					: 10;
+				setRefreshInterval(normalized);
+				setAlertThreshold(
+					typeof cfg.alertThresholdPercent === "number"
+						? Math.min(100, Math.max(0, cfg.alertThresholdPercent))
+						: 80,
+				);
+			} catch {
+				setError(loadErrorRef.current);
+			} finally {
+				setIsLoading(false);
+			}
+		}
+		void load();
+	}, []);
+
+	async function handleSave(e: React.FormEvent) {
+		e.preventDefault();
+		setIsSaving(true);
+		setFeedback(null);
+		setError(null);
+		try {
+			const res = await fetch("/api/settings/quota-config", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					refreshIntervalMinutes: refreshInterval,
+					alertThresholdPercent: alertThreshold,
+				}),
+			});
+			if (!res.ok) throw new Error(ui.saveError);
+			setFeedback(ui.saved);
+		} catch {
+			setError(ui.saveError);
+		} finally {
+			setIsSaving(false);
+		}
+	}
+
+	return (
+		<article className="min-w-0 rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
+			<h2 className="inline-flex items-center gap-2 text-lg font-semibold">
+				<span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth={2}
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						className="h-4 w-4"
+						aria-hidden="true"
+					>
+						<title>Quota monitoring icon</title>
+						<path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+					</svg>
+				</span>
+				{ui.title}
+			</h2>
+			<p className="mt-1 text-sm text-muted-foreground">{ui.description}</p>
+
+			{isLoading ? (
+				<p className="mt-4 text-sm text-muted-foreground">
+					{isPortuguese ? "Carregando..." : "Loading..."}
+				</p>
+			) : (
+				<form className="mt-4 space-y-4" onSubmit={handleSave}>
+					{/* Refresh interval */}
+					<div className="space-y-1.5">
+						<label
+							htmlFor="quota-refresh-interval"
+							className="text-sm text-muted-foreground"
+						>
+							{ui.refreshLabel}
+						</label>
+						<select
+							id="quota-refresh-interval"
+							value={refreshInterval}
+							onChange={(e) =>
+								setRefreshInterval(Number(e.target.value) as RefreshInterval)
+							}
+							disabled={isSaving}
+							className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm outline-none ring-primary transition focus:ring-2 disabled:opacity-70"
+						>
+							{REFRESH_OPTIONS.map((opt) => (
+								<option key={opt} value={opt}>
+									{opt} {ui.minutesSuffix}
+								</option>
+							))}
+						</select>
+						<p className="text-xs text-muted-foreground">{ui.refreshHint}</p>
+					</div>
+
+					{/* Alert threshold */}
+					<div className="space-y-1.5">
+						<label
+							htmlFor="quota-alert-threshold"
+							className="flex items-center justify-between text-sm text-muted-foreground"
+						>
+							<span>{ui.thresholdLabel}</span>
+							<span className="font-mono text-foreground">
+								{alertThreshold}%
+							</span>
+						</label>
+						<input
+							id="quota-alert-threshold"
+							type="range"
+							min={50}
+							max={100}
+							step={5}
+							value={alertThreshold}
+							onChange={(e) => setAlertThreshold(Number(e.target.value))}
+							disabled={isSaving}
+							className="h-2 w-full cursor-pointer accent-primary disabled:cursor-not-allowed disabled:opacity-70"
+						/>
+						<div className="flex justify-between text-[10px] text-muted-foreground">
+							<span>50%</span>
+							<span>75%</span>
+							<span>90%</span>
+							<span>100%</span>
+						</div>
+						<p className="text-xs text-muted-foreground">{ui.thresholdHint}</p>
+					</div>
+
+					<Button type="submit" disabled={isSaving}>
+						{isSaving ? ui.saving : ui.save}
+					</Button>
+				</form>
+			)}
+
+			{feedback ? (
+				<p className="mt-3 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
+					{feedback}
+				</p>
+			) : null}
+			{error ? (
+				<p className="mt-3 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
+					{error}
+				</p>
+			) : null}
+		</article>
 	);
 }

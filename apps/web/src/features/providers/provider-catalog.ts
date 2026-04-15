@@ -257,6 +257,12 @@ export function findProviderCatalogEntryBySlug(
 	return getProviderCatalogBySlug().get(slug) ?? null;
 }
 
+/** Returns true if the given slug belongs to the canonical provider catalog */
+export function isCanonicalProvider(slug: string | null | undefined): boolean {
+	if (!slug) return false;
+	return getProviderCatalogBySlug().has(slug);
+}
+
 export function resolveProviderCatalogDefaults(
 	slug: string | null | undefined,
 ) {

@@ -1,4 +1,7 @@
-import { resolveProviderCatalogDefaults } from "@/features/providers/provider-catalog";
+import {
+	isCanonicalProvider,
+	resolveProviderCatalogDefaults,
+} from "@/features/providers/provider-catalog";
 import { writeActivityLog } from "@/lib/audit/log";
 import { requireApiUser } from "@/lib/auth/require-auth";
 import { db } from "@/lib/db";
@@ -213,7 +216,12 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
 	const provider = await db.provider.findUnique({
 		where: { id: parsedParams.data.id },
-		select: { id: true, name: true },
+		select: {
+			id: true,
+			name: true,
+			slug: true,
+			_count: { select: { accounts: true } },
+		},
 	});
 
 	if (!provider) {
@@ -223,11 +231,19 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 		);
 	}
 
-	const accountsCount = await db.account.count({
-		where: { providerId: provider.id },
-	});
+	// ── Canonical providers cannot be deleted — only deactivated ────────────
+	if (isCanonicalProvider(provider.slug)) {
+		return NextResponse.json(
+			{
+				message: `O provedor "${provider.name}" faz parte do catálogo canônico e não pode ser excluído. Use a opção Desativar para ocultá-lo das operações.`,
+				code: "CANONICAL_PROVIDER",
+			},
+			{ status: 409 },
+		);
+	}
+	// ────────────────────────────────────────────────────────────────────────
 
-	if (accountsCount > 0) {
+	if (provider._count.accounts > 0) {
 		return NextResponse.json(
 			{ message: "Provider has linked accounts and cannot be removed." },
 			{ status: 409 },
