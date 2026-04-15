@@ -519,19 +519,20 @@ Criterios de aceite:
 
 - [x] Componente `QuotaAlertBanner` in-app com limiar configuravel
 - [x] Limiar salvo em `AppSetting` (`quota-config.alertThresholdPercent`)
-- [ ] Notificacao nativa do SO via `tauri-plugin-notification`
-- [ ] Registro do evento `quota_alert` no `activity_log`
+- [x] Registro do evento `quota_alert` no `activity_log` via `POST /api/usage/quota-alert`
+- [ ] Notificacao nativa do SO via `tauri-plugin-notification` (requer Tauri desktop)
 - [ ] Config de alerta por provedor individual (nao apenas global)
 
 ### F.4 - Operacoes em lote
 
 - [x] Checkbox de selecao multi-conta nos cards
-- [x] `BatchActionBar` flutuante com acoes: Arquivar, Excluir, Exportar
+- [x] Checkbox de selecao multi-conta na tabela
+- [x] `BulkActionToolbar` flutuante com acoes: Arquivar, Excluir, Exportar, Mover para grupo
 - [x] API `POST /api/accounts/bulk` (archive + delete)
 - [x] Confirmacao explicita para acoes destrutivas
 - [x] Exportar selecionados como JSON (`exportSelectedAsJson`)
-- [ ] Operacao em lote: Mover entre grupos
-- [ ] Operacao em lote em modo tabela (alem dos cards)
+- [x] Operacao em lote: Mover entre grupos (`executeBulkMoveToGroup`)
+- [x] Operacao em lote em modo tabela (toolbar flutuante aparece em cards E tabela)
 
 ### F.5 - Grupos de contas
 
@@ -541,23 +542,29 @@ Criterios de aceite:
 - [x] Filtro por grupo na listagem principal
 - [x] Persistencia em `AppSetting` com JSON
 - [x] Mover contas entre grupos via UI (dropdown no form de edicao da conta)
-- [ ] Limite de grupos configuravel (evitar proliferacao infinita)
+- [x] Limite de grupos configuravel via `GET/POST /api/settings/groups-config` + UI em Settings
 
 ### F.6 - Backup Manager (agendador)
 
-- [ ] Background job agendado (1 backup/dia)
-- [ ] Retencao configuravel (7/14/30 dias)
-- [ ] Listagem de backups com data/tamanho no painel `/data`
-- [ ] Botao de restore e exclusao de backup agendado
-- Nota: requer Tauri para rodar como daemon (nao funciona em modo web)
+- [x] `GET/POST/DELETE /api/export/backup/schedule` — lista, salva e remove backups em AppSetting
+- [x] Componente `BackupManager` premium integrado no painel `/data`
+- [x] Listagem de backups com data/tamanho/checksum + badge LATEST
+- [x] Botao de download e exclusao por entrada
+- [ ] Background job agendado (1 backup/dia) — requer Tauri daemon
+- [ ] Retencao configuravel (7/14/30 dias) com expurgo automatico
+- [ ] Botao de restore a partir de backup salvo (carregar payload no campo de restauracao)
+- Nota: agendamento automatico requer Tauri para rodar como daemon (nao funciona em modo web)
 
 ### F.7 - 2FA / TOTP Manager
 
-- [ ] Armazenar segredos TOTP (Base32) com AES-256-GCM
-- [ ] Gerar codigos OTP de 6 digitos com countdown de 30s
-- [ ] Interface: lista, favoritos, copiar codigo
-- [ ] Importar/Exportar como JSON criptografado
-- Nota: esta fase pode funcionar em modo web (nao requer Tauri)
+- [x] API `GET/POST /api/totp` — lista e cria entradas TOTP
+- [x] API `PATCH/DELETE /api/totp/[id]` — editar/remover entrada
+- [x] API `GET /api/totp/[id]/code` — gerar codigo OTP atual + remainingSeconds
+- [x] Geracao RFC 6238 (HMAC-SHA1) sem biblioteca externa via Web Crypto API
+- [x] Armazenamento Base32 normalizado (segredo via `encryptSecret`)
+- [x] Interface premium: countdown ring SVG, formato `123 456`, copy-with-feedback, favoritos, busca, skeleton
+- [ ] Importar/Exportar registros TOTP como JSON criptografado (fase futura)
+- Nota: esta fase funciona em modo web (nao requer Tauri)
 
 ---
 

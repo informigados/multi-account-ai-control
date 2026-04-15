@@ -42,6 +42,11 @@ export function BackupManager({ locale }: BackupManagerProps) {
 	const [isLoading, setIsLoading] = useState(true);
 	const [isSaving, setIsSaving] = useState(false);
 	const [deletingId, setDeletingId] = useState<string | null>(null);
+	const [restoringId, setRestoringId] = useState<string | null>(null);
+	const [retentionDays, setRetentionDays] = useState<7 | 14 | 30>(30);
+	const [onRestoreLoad, setOnRestoreLoad] = useState<
+		((payload: string) => void) | null
+	>(null);
 	const [feedback, setFeedback] = useState<{
 		type: "success" | "error";
 		msg: string;
@@ -128,7 +133,55 @@ export function BackupManager({ locale }: BackupManagerProps) {
 		}
 	}
 
+	/** Prune entries older than retentionDays, keeping at least 1 */
+	async function pruneOldEntries(list: BackupMeta[], days: number) {
+		const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+		const toDelete = list
+			.slice(1)
+			.filter((e) => new Date(e.createdAt).getTime() < cutoff);
+		await Promise.all(
+			toDelete.map((e) =>
+				fetch(`/api/export/backup/schedule?id=${e.id}`, { method: "DELETE" }),
+			),
+		);
+		if (toDelete.length > 0) void load();
+	}
+
+	/** Load a saved backup payload into the restore textarea (parent form) */
+	async function handleRestoreFromSaved(id: string, label: string) {
+		setRestoringId(id);
+		try {
+			const res = await fetch(
+				`/api/export/backup/schedule?id=${id}&download=1`,
+			);
+			if (!res.ok) throw new Error();
+			const data = (await res.json()) as { payload?: string };
+			if (!data.payload) throw new Error();
+			// Copy to clipboard so user can paste into the restore textarea
+			await navigator.clipboard.writeText(data.payload);
+			setFeedback({
+				type: "success",
+				msg: text(
+					`Payload do backup "${label}" copiado para a área de transferência. Cole no campo de Restaurar Backup abaixo.`,
+					`Backup "${label}" payload copied to clipboard. Paste it into the Restore Backup field below.`,
+				),
+			});
+		} catch {
+			setFeedback({
+				type: "error",
+				msg: text(
+					"Falha ao carregar payload do backup.",
+					"Failed to load backup payload.",
+				),
+			});
+		} finally {
+			setRestoringId(null);
+		}
+	}
+
 	const totalSize = entries.reduce((acc, e) => acc + e.sizeBytes, 0);
+	// Void unused ref for now
+	void onRestoreLoad;
 
 	return (
 		<section className="space-y-4">
@@ -163,7 +216,25 @@ export function BackupManager({ locale }: BackupManagerProps) {
 					</p>
 				</div>
 
-				<div className="flex items-center gap-2">
+				<div className="flex items-center gap-2 flex-wrap">
+					{/* Retention control */}
+					<label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+						<span>{text("Reter por", "Keep for")}</span>
+						<select
+							value={retentionDays}
+							onChange={(e) => {
+								const val = Number(e.target.value) as 7 | 14 | 30;
+								setRetentionDays(val);
+								void pruneOldEntries(entries, val);
+							}}
+							className="h-7 rounded-md border border-border bg-card px-1.5 text-xs outline-none ring-primary transition focus:ring-2"
+						>
+							<option value={7}>7 {text("dias", "days")}</option>
+							<option value={14}>14 {text("dias", "days")}</option>
+							<option value={30}>30 {text("dias", "days")}</option>
+						</select>
+					</label>
+
 					{entries.length > 0 && (
 						<span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
 							{formatBytes(totalSize)} {text("total", "total")}
@@ -300,6 +371,34 @@ export function BackupManager({ locale }: BackupManagerProps) {
 									</td>
 									<td className="px-4 py-3">
 										<div className="flex items-center justify-end gap-1.5">
+											{/* Restore from saved */}
+											<button
+												type="button"
+												onClick={() =>
+													void handleRestoreFromSaved(entry.id, entry.label)
+												}
+												disabled={restoringId === entry.id}
+												aria-label={`${isPt ? "Carregar para restaurar" : "Load to restore"} ${entry.label}`}
+												title={
+													isPt
+														? "Copiar payload para restauração"
+														: "Copy payload to restore"
+												}
+												className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:border-success/40 hover:text-success disabled:opacity-50"
+											>
+												<svg
+													viewBox="0 0 20 20"
+													fill="currentColor"
+													className="h-3.5 w-3.5"
+													aria-hidden="true"
+												>
+													<path
+														fillRule="evenodd"
+														d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
+														clipRule="evenodd"
+													/>
+												</svg>
+											</button>
 											{/* Download */}
 											<button
 												type="button"

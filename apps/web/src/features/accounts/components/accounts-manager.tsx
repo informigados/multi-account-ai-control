@@ -2118,6 +2118,26 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 							<table className="min-w-[760px] text-sm">
 								<thead className="bg-muted/70 text-left text-muted-foreground">
 									<tr>
+										<th className="w-8 pl-3 pr-1 py-2">
+											<input
+												type="checkbox"
+												aria-label="Selecionar todos"
+												checked={
+													sortedAccounts.length > 0 &&
+													sortedAccounts.every((a) =>
+														selection.isSelected(a.id),
+													)
+												}
+												onChange={(e) => {
+													if (e.target.checked)
+														selection.selectAll(
+															sortedAccounts.map((a) => a.id),
+														);
+													else selection.clearAll();
+												}}
+												className="h-4 w-4 accent-primary"
+											/>
+										</th>
 										<th className="px-3 py-2">{ui.thName}</th>
 										<th className="px-3 py-2">{ui.thProvider}</th>
 										<th className="px-3 py-2">{ui.thStatus}</th>
@@ -2130,7 +2150,24 @@ export function AccountsManager({ locale }: AccountsManagerProps) {
 								</thead>
 								<tbody>
 									{accounts.map((account) => (
-										<tr key={account.id} className="border-t border-border/80">
+										<tr
+											key={account.id}
+											className={`border-t border-border/80 transition-colors ${
+												selection.isSelected(account.id)
+													? "bg-primary/5"
+													: "hover:bg-muted/20"
+											}`}
+										>
+											{/* Row selection checkbox */}
+											<td className="w-8 pl-3 pr-1 py-2">
+												<input
+													type="checkbox"
+													checked={selection.isSelected(account.id)}
+													onChange={() => selection.toggle(account.id)}
+													aria-label={`Selecionar ${account.displayName}`}
+													className="h-4 w-4 accent-primary"
+												/>
+											</td>
 											<td className="px-3 py-2">
 												<p className="font-medium">
 													<Link

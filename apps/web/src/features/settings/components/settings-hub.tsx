@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { TotpManager } from "@/features/auth/components/totp-manager";
+import { ProviderAlertsSection } from "@/features/settings/components/provider-alerts-section";
 import { type AppLocale, getDictionary } from "@/lib/i18n";
 import {
 	BellRing,
@@ -1353,6 +1354,15 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 			{/* ── Quota Monitoring settings (admin only) ──────────────────── */}
 			{isAdmin ? (
 				<QuotaConfigSection locale={locale} isPortuguese={isPortuguese} />
+			) : null}
+
+			{/* ── Per-provider alert thresholds (admin only) ─────────────── */}
+			{isAdmin ? (
+				<ProviderAlertsSection
+					locale={locale}
+					isPortuguese={isPortuguese}
+					globalThreshold={80}
+				/>
 			) : null}
 
 			{/* ── 2FA / TOTP Manager (all users) ──────────────────────────── */}
