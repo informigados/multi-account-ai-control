@@ -10,6 +10,7 @@ type QuickUsageUpdateProps = {
 	onSaved?: (snapshot: UsageSnapshotView) => void;
 	buttonLabel?: string;
 	locale?: AppLocale;
+	iconOnly?: boolean;
 };
 
 type FeedbackState = {
@@ -31,6 +32,7 @@ export function QuickUsageUpdate({
 	onSaved,
 	buttonLabel,
 	locale = "pt_BR",
+	iconOnly = false,
 }: QuickUsageUpdateProps) {
 	const text = (pt: string, en: string, es?: string, zhCN?: string) =>
 		pickLocaleText(locale, { pt, en, es, zhCN });
@@ -162,14 +164,43 @@ export function QuickUsageUpdate({
 
 	return (
 		<div className="space-y-2">
-			<Button
-				type="button"
-				variant="outline"
-				size="sm"
-				onClick={() => setIsOpen((current) => !current)}
-			>
-				{buttonLabel ?? ui.defaultButton}
-			</Button>
+			{iconOnly ? (
+				<button
+					type="button"
+					onClick={() => setIsOpen((current) => !current)}
+					aria-label={ui.defaultButton}
+					title={ui.defaultButton}
+					className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition hover:bg-muted hover:text-foreground"
+				>
+					{/* RefreshCw icon */}
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth={2}
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						className="h-4 w-4"
+						role="img"
+						aria-label={ui.defaultButton}
+					>
+						<title>{ui.defaultButton}</title>
+						<polyline points="23 4 23 10 17 10" />
+						<polyline points="1 20 1 14 7 14" />
+						<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+					</svg>
+				</button>
+			) : (
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					onClick={() => setIsOpen((current) => !current)}
+				>
+					{buttonLabel ?? ui.defaultButton}
+				</Button>
+			)}
 
 			{isOpen ? (
 				<form
