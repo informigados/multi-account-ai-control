@@ -1,8 +1,9 @@
 "use client";
 
 import type { AccountView } from "@/features/accounts/account-types";
+import { useQuotaNotification } from "@/features/usage/hooks/use-quota-notification";
 import { type AppLocale, pickLocaleText } from "@/lib/i18n";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type QuotaAlertBannerProps = {
 	accounts: AccountView[];
@@ -16,6 +17,9 @@ export function QuotaAlertBanner({
 	locale = "pt_BR",
 }: QuotaAlertBannerProps) {
 	const [dismissed, setDismissed] = useState(false);
+	const { notify } = useQuotaNotification();
+	// Track which account IDs we've already notified to avoid duplicate toasts per session
+	const notifiedRef = useRef<Set<string>>(new Set());
 
 	const text = (pt: string, en: string) => pickLocaleText(locale, { pt, en });
 
@@ -24,6 +28,19 @@ export function QuotaAlertBanner({
 			a.status !== "archived" &&
 			(a.latestUsage?.usedPercent ?? 0) >= thresholdPercent,
 	);
+
+	// Fire a notification for each newly critical account (once per browser session)
+	useEffect(() => {
+		for (const account of criticalAccounts) {
+			if (notifiedRef.current.has(account.id)) continue;
+			notifiedRef.current.add(account.id);
+			void notify({
+				accountId: account.id,
+				accountName: account.displayName,
+				percent: account.latestUsage?.usedPercent ?? 0,
+			});
+		}
+	}, [criticalAccounts, notify]);
 
 	if (criticalAccounts.length === 0 || dismissed) return null;
 

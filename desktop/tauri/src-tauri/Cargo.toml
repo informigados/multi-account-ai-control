@@ -21,7 +21,7 @@ version = "2"
 optional = true
 
 [features]
-default = ["sqlite"]
+default = ["sqlite", "notifications"]
 # Enable rusqlite feature to support reading Cursor/Windsurf state.vscdb SQLite databases
 sqlite = ["dep:rusqlite"]
 # Enable native OS notifications

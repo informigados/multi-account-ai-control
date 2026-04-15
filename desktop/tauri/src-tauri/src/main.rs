@@ -90,20 +90,24 @@ fn detect_multiple_local_accounts(provider: String) -> Vec<DetectedAccount> {
 }
 
 /// Sends a native OS notification when a quota threshold is exceeded.
+/// In desktop mode with the `notifications` feature enabled, this produces
+/// a real OS toast. In web/fallback mode it logs to stderr.
 /// Called from the frontend via `invoke("send_quota_alert", { title, body })`.
-/// Requires the `notifications` feature to produce a real OS notification;
-/// without it, the message is logged to stderr only.
 #[tauri::command]
-fn send_quota_alert(title: String, body: String) {
+fn send_quota_alert(app: tauri::AppHandle, title: String, body: String) {
 	#[cfg(feature = "notifications")]
 	{
-		// When tauri-plugin-notification is enabled this will be wired up
-		// via app.state::<tauri_plugin_notification::Notification>()
-		// For now this is a compile-time placeholder.
-		eprintln!("[notification] {title}: {body}");
+		use tauri_plugin_notification::NotificationExt;
+		let _ = app
+			.notification()
+			.builder()
+			.title(&title)
+			.body(&body)
+			.show();
 	}
 	#[cfg(not(feature = "notifications"))]
 	{
+		let _ = &app; // suppress unused warning
 		eprintln!("[quota-alert] {title}: {body}");
 	}
 }
@@ -116,7 +120,10 @@ fn main() {
 			detect_multiple_local_accounts,
 			send_quota_alert
 		])
+		// Register the native notification plugin when the feature is enabled
 		.setup(|app| {
+			#[cfg(feature = "notifications")]
+			app.handle().plugin(tauri_plugin_notification::init())?;
 			#[cfg(not(debug_assertions))]
 			{
 				match start_local_runtime(app.handle()) {

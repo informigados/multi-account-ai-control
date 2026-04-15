@@ -478,7 +478,7 @@ Criterios de aceite:
 - [x] v3/Fase D: hardening extra (redacao de segredos, integridade de backup, gates sensiveis)
 - [x] v3/Fase E: modernizacao visual responsiva e acessibilidade final (design tokens parcial)
 - [x] v4/Fase F: importacao local de sessao + conectores Rust (desktop)
-- [ ] v4/Fase F: alertas nativos do SO (tauri-plugin-notification)
+- [x] v4/Fase F: alertas nativos do SO (tauri-plugin-notification ativado em default features + Web Notification API fallback)
 - [ ] v4/Fase F: backup agendado automatico
 - [x] v4/Fase F: TOTP / 2FA Manager (incluindo Export/Import JSON)
 
@@ -520,7 +520,8 @@ Criterios de aceite:
 - [x] Componente `QuotaAlertBanner` in-app com limiar configuravel
 - [x] Limiar salvo em `AppSetting` (`quota-config.alertThresholdPercent`)
 - [x] Registro do evento `quota_alert` no `activity_log` via `POST /api/usage/quota-alert`
-- [ ] Notificacao nativa do SO via `tauri-plugin-notification` (requer Tauri desktop)
+- [x] Notificacao nativa do SO via `tauri-plugin-notification` (ativado em `default = ["sqlite", "notifications"]` + wiring em `send_quota_alert`)
+- [x] Web Notifications API como fallback quando nao em Tauri (hook `useQuotaNotification` + request de permissao automatico)
 - [x] Config de alerta por provedor individual via `GET/POST/DELETE /api/settings/provider-alerts` + `ProviderAlertsSection` no SettingsHub
 
 ### F.4 - Operacoes em lote
