@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { TotpManager } from "@/features/auth/components/totp-manager";
 import { type AppLocale, getDictionary } from "@/lib/i18n";
 import {
 	BellRing,
@@ -1353,6 +1354,11 @@ export function SettingsHub({ currentUser, locale }: SettingsHubProps) {
 			{isAdmin ? (
 				<QuotaConfigSection locale={locale} isPortuguese={isPortuguese} />
 			) : null}
+
+			{/* ── 2FA / TOTP Manager (all users) ──────────────────────────── */}
+			<article className="min-w-0 rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
+				<TotpManager locale={locale} />
+			</article>
 		</section>
 	);
 }

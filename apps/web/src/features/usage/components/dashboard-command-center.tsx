@@ -7,11 +7,13 @@ import type { UsageSnapshotView } from "@/features/usage/usage-types";
 import { type AppLocale, pickLocaleText } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/utils";
 import {
+	Activity,
 	AlertOctagon,
 	AlertTriangle,
 	CheckCircle2,
 	Cpu,
 	type LucideIcon,
+	ShieldAlert,
 	Timer,
 	Users,
 	XCircle,
@@ -170,6 +172,96 @@ const toneClasses = {
 	},
 };
 
+/** Animated counter hook — counts up from 0 to target on mount with ease-out. */
+function useCountUp(target: number, durationMs = 700) {
+	const [value, setValue] = useState(0);
+	const frameRef = useRef<number | null>(null);
+	const startRef = useRef<number | null>(null);
+
+	useEffect(() => {
+		if (target === 0) {
+			setValue(0);
+			return;
+		}
+		startRef.current = null;
+		const animate = (now: number) => {
+			if (startRef.current === null) startRef.current = now;
+			const progress = Math.min((now - startRef.current) / durationMs, 1);
+			const eased = 1 - (1 - progress) ** 3; // ease-out cubic
+			setValue(Math.round(eased * target));
+			if (progress < 1) frameRef.current = requestAnimationFrame(animate);
+		};
+		frameRef.current = requestAnimationFrame(animate);
+		return () => {
+			if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+		};
+	}, [target, durationMs]);
+
+	return value;
+}
+
+/** Health score 0-100 from account status distribution. */
+function computeHealthScore(s: SummaryMetrics): number {
+	if (s.totalAccounts === 0) return 100;
+	return Math.round(
+		((s.activeAccounts + s.warningAccounts * 0.5) / s.totalAccounts) * 100,
+	);
+}
+
+/** SVG health ring. */
+function HealthRing({ score }: { score: number }) {
+	const size = 72;
+	const stroke = 6;
+	const r = (size - stroke * 2) / 2;
+	const circ = 2 * Math.PI * r;
+	const dash = circ * (score / 100);
+	const color =
+		score >= 80
+			? "hsl(var(--success))"
+			: score >= 50
+				? "hsl(var(--warning))"
+				: "hsl(var(--danger))";
+	return (
+		<svg
+			width={size}
+			height={size}
+			viewBox={`0 0 ${size} ${size}`}
+			aria-hidden="true"
+			className="rotate-[-90deg]"
+		>
+			<title>Health score</title>
+			<circle
+				cx={size / 2}
+				cy={size / 2}
+				r={r}
+				fill="none"
+				stroke="hsl(var(--muted))"
+				strokeWidth={stroke}
+			/>
+			<circle
+				cx={size / 2}
+				cy={size / 2}
+				r={r}
+				fill="none"
+				stroke={color}
+				strokeWidth={stroke}
+				strokeDasharray={`${dash} ${circ}`}
+				strokeLinecap="round"
+				style={{ transition: "stroke-dasharray 1s cubic-bezier(0.4,0,0.2,1)" }}
+			/>
+		</svg>
+	);
+}
+
+/** Inline animated count display */
+function AnimatedCount({
+	target,
+	className,
+}: { target: number; className?: string }) {
+	const v = useCountUp(target);
+	return <p className={className}>{v}</p>;
+}
+
 export function DashboardCommandCenter({
 	summary,
 	accounts,
@@ -286,12 +378,21 @@ export function DashboardCommandCenter({
 		statusDisabled: text("Desativada", "Disabled", "Desactivada", "已禁用"),
 		statusError: text("Erro", "Error", "Error", "错误"),
 		statusArchived: text("Arquivada", "Archived", "Archivada", "已归档"),
+		healthScore: text(
+			"Score de Saúde",
+			"Health Score",
+			"Puntuación de salud",
+			"健康分",
+		),
+		lastUpdated: text(
+			"Atualizado agora",
+			"Updated now",
+			"Actualizado ahora",
+			"刚刚更新",
+		),
 	};
 
 	const [accountCards, setAccountCards] = useState(accounts);
-	// Tick every 60 seconds to refresh reset countdown values in real time.
-	// The first tuple element is intentionally unused — calling setTick forces
-	// a periodic re-render so reset countdowns stay up-to-date without a prop change.
 	const [, setTick] = useState(0);
 	const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 	useEffect(() => {
@@ -305,48 +406,60 @@ export function DashboardCommandCenter({
 		accountId: string,
 		snapshot: NonNullable<AccountView["latestUsage"]>,
 	) {
-		setAccountCards((previous) =>
-			previous.map((account) => {
-				if (account.id !== accountId) return account;
-				return {
-					...account,
-					latestUsage: snapshot,
-					lastSyncAt: snapshot.measuredAt,
-					nextResetAt: snapshot.resetAt ?? account.nextResetAt,
-				};
-			}),
+		setAccountCards((prev) =>
+			prev.map((a) =>
+				a.id !== accountId
+					? a
+					: {
+							...a,
+							latestUsage: snapshot,
+							lastSyncAt: snapshot.measuredAt,
+							nextResetAt: snapshot.resetAt ?? a.nextResetAt,
+						},
+			),
 		);
 	}
 
 	const highRiskAccounts = useMemo(
 		() =>
 			accountCards.filter(
-				(account) =>
-					account.status === "warning" ||
-					account.status === "exhausted" ||
-					account.status === "error" ||
-					usagePercent(account) >= 85,
+				(a) =>
+					a.status === "warning" ||
+					a.status === "exhausted" ||
+					a.status === "error" ||
+					usagePercent(a) >= 85,
 			),
 		[accountCards],
 	);
 
-	const resetCountdownByAccountId = useMemo(() => {
-		return Object.fromEntries(
-			accountCards.map((account) => [
-				account.id,
-				resetCountdown(account.nextResetAt),
-			]),
-		);
-	}, [accountCards]);
+	const resetCountdownByAccountId = useMemo(
+		() =>
+			Object.fromEntries(
+				accountCards.map((a) => [a.id, resetCountdown(a.nextResetAt)]),
+			),
+		[accountCards],
+	);
+
+	const healthScore = useMemo(() => computeHealthScore(summary), [summary]);
+	const animatedHealth = useCountUp(healthScore, 900);
+	const healthColor =
+		healthScore >= 80
+			? "text-success"
+			: healthScore >= 50
+				? "text-warning"
+				: "text-danger";
 
 	function statusLabel(status: AccountView["status"]) {
-		if (status === "active") return ui.statusActive;
-		if (status === "warning") return ui.statusWarning;
-		if (status === "limited") return ui.statusLimited;
-		if (status === "exhausted") return ui.statusExhausted;
-		if (status === "disabled") return ui.statusDisabled;
-		if (status === "error") return ui.statusError;
-		return ui.statusArchived;
+		const map: Record<AccountView["status"], string> = {
+			active: ui.statusActive,
+			warning: ui.statusWarning,
+			limited: ui.statusLimited,
+			exhausted: ui.statusExhausted,
+			disabled: ui.statusDisabled,
+			error: ui.statusError,
+			archived: ui.statusArchived,
+		};
+		return map[status] ?? ui.statusArchived;
 	}
 
 	function statusTone(status: AccountView["status"]) {
@@ -357,28 +470,56 @@ export function DashboardCommandCenter({
 
 	return (
 		<section className="space-y-5 page-enter">
-			{/* Metric widgets — 7 items: 4 cols on xl, 2 on sm */}
+			{/* Health Score Banner */}
+			<div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-gradient-to-r from-card/90 to-card/60 px-5 py-3.5 shadow-token-sm backdrop-blur">
+				<div className="flex items-center gap-4">
+					<div className="relative flex items-center justify-center">
+						<HealthRing score={animatedHealth} />
+						<span
+							className={`absolute text-sm font-bold tabular-nums ${healthColor}`}
+						>
+							{animatedHealth}
+						</span>
+					</div>
+					<div>
+						<p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+							{ui.healthScore}
+						</p>
+						<p className="mt-0.5 text-lg font-bold tabular-nums">
+							{summary.activeAccounts}/{summary.totalAccounts}{" "}
+							<span className="text-sm font-normal text-muted-foreground">
+								{ui.active}
+							</span>
+						</p>
+					</div>
+				</div>
+				<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+					<Activity className="h-3.5 w-3.5 animate-pulse text-success" />
+					{ui.lastUpdated}
+				</div>
+			</div>
+
+			{/* Metric widgets */}
 			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-				{widgetOrder.map((item) => {
+				{widgetOrder.map((item, i) => {
 					const Icon = item.icon;
 					const tone = toneClasses[item.tone];
 					return (
 						<article
 							key={item.key}
-							className={`card-hover relative overflow-hidden rounded-xl border bg-card/80 p-4 shadow-sm backdrop-blur ${tone.border}`}
+							className={`card-hover relative overflow-hidden rounded-xl border bg-card/80 p-4 shadow-token-sm backdrop-blur ${tone.border}`}
+							style={{ animationDelay: `${i * 55}ms` } as CSSProperties}
 						>
-							{/* Colored top accent bar */}
 							<div className={`absolute inset-x-0 top-0 h-0.5 ${tone.bar}`} />
 							<div className="flex items-start justify-between gap-2">
 								<div>
 									<p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
 										{ui[item.labelKey]}
 									</p>
-									<p
+									<AnimatedCount
+										target={summary[item.key]}
 										className={`mt-2 text-2xl font-bold tabular-nums ${tone.text}`}
-									>
-										{summary[item.key]}
-									</p>
+									/>
 								</div>
 								<div className={`rounded-lg p-2 ${tone.bg}`}>
 									<Icon className={`h-5 w-5 ${tone.icon}`} />
@@ -390,14 +531,14 @@ export function DashboardCommandCenter({
 			</div>
 
 			<div className="grid gap-5 xl:grid-cols-[2fr,1fr]">
-				<article className="rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
+				{/* Account cards */}
+				<article className="rounded-xl border border-border bg-card/80 p-5 shadow-token-sm backdrop-blur">
 					<div className="mb-3 flex items-center justify-between">
 						<h2 className="text-lg font-semibold">{ui.accountCards}</h2>
 						<span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
 							{accountCards.length} {ui.accountCountSuffix}
 						</span>
 					</div>
-
 					{accountCards.length === 0 ? (
 						<p className="text-sm text-muted-foreground">{ui.noAccounts}</p>
 					) : (
@@ -433,18 +574,11 @@ export function DashboardCommandCenter({
 												</div>
 											</div>
 											<span
-												className={`shrink-0 rounded-md px-2 py-1 text-xs font-medium ${
-													tone === "success"
-														? "bg-success/15 text-success"
-														: tone === "warning"
-															? "bg-warning/15 text-warning"
-															: "badge-critical bg-danger/15 text-danger"
-												}`}
+												className={`shrink-0 rounded-md px-2 py-1 text-xs font-medium ${tone === "success" ? "bg-success/15 text-success" : tone === "warning" ? "bg-warning/15 text-warning" : "badge-critical bg-danger/15 text-danger"}`}
 											>
 												{statusLabel(account.status)}
 											</span>
 										</div>
-
 										<div className="mt-3 space-y-1">
 											<div className="flex items-center justify-between text-xs text-muted-foreground">
 												<span>{ui.usage}</span>
@@ -463,7 +597,6 @@ export function DashboardCommandCenter({
 												/>
 											</div>
 										</div>
-
 										<div className="mt-3 space-y-0.5 text-xs text-muted-foreground">
 											<p>
 												{ui.resetIn}:{" "}
@@ -484,7 +617,6 @@ export function DashboardCommandCenter({
 												)}
 											</p>
 										</div>
-
 										<div className="mt-4">
 											<QuickUsageUpdate
 												accountId={account.id}
@@ -502,9 +634,10 @@ export function DashboardCommandCenter({
 				</article>
 
 				<div className="space-y-5">
-					<article className="rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
+					{/* Risk Queue */}
+					<article className="rounded-xl border border-border bg-card/80 p-5 shadow-token-sm backdrop-blur">
 						<div className="flex items-center gap-2">
-							<AlertOctagon className="h-4 w-4 text-danger" />
+							<ShieldAlert className="h-4 w-4 text-danger" />
 							<h2 className="text-base font-semibold">{ui.riskQueue}</h2>
 						</div>
 						<p className="mt-1 text-xs text-muted-foreground">
@@ -534,9 +667,7 @@ export function DashboardCommandCenter({
 													</div>
 													<div className="h-2 w-12 shrink-0 overflow-hidden rounded-full bg-muted">
 														<div
-															className={`progress-fill progress-dynamic h-full rounded-full ${
-																pct >= 90 ? "bg-danger" : "bg-warning"
-															}`}
+															className={`progress-fill progress-dynamic h-full rounded-full ${pct >= 90 ? "bg-danger" : "bg-warning"}`}
 															style={
 																{
 																	"--pw": `${Math.min(MAX_PERCENT, Math.max(MIN_PERCENT, pct))}%`,
@@ -548,19 +679,20 @@ export function DashboardCommandCenter({
 											);
 										})}
 								</ul>
-								{highRiskAccounts.length > MAX_HIGH_RISK_ACCOUNTS_DISPLAY ? (
+								{highRiskAccounts.length > MAX_HIGH_RISK_ACCOUNTS_DISPLAY && (
 									<p className="mt-2 text-center text-xs text-muted-foreground">
 										{ui.riskQueueOverflow(
 											MAX_HIGH_RISK_ACCOUNTS_DISPLAY,
 											highRiskAccounts.length,
 										)}
 									</p>
-								) : null}
+								)}
 							</>
 						)}
 					</article>
 
-					<article className="rounded-xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur">
+					{/* Recent Measurements */}
+					<article className="rounded-xl border border-border bg-card/80 p-5 shadow-token-sm backdrop-blur">
 						<h2 className="text-base font-semibold">{ui.recentMeasurements}</h2>
 						{recentSnapshots.length === 0 ? (
 							<p className="mt-2 text-sm text-muted-foreground">
@@ -573,16 +705,28 @@ export function DashboardCommandCenter({
 										key={snapshot.id}
 										className="rounded-md border border-border bg-muted/30 px-3 py-2"
 									>
-										<p className="truncate text-sm font-medium">
-											{snapshot.account?.displayName ?? ui.unknownAccount}
-										</p>
-										<p className="text-xs text-muted-foreground">
-											<span className="font-medium text-foreground">
+										<div className="flex items-center gap-2">
+											{snapshot.account?.provider && (
+												<ProviderBrand
+													name={snapshot.account.provider.name}
+													icon={snapshot.account.provider.icon}
+													color={snapshot.account.provider.color}
+													size="sm"
+												/>
+											)}
+											<p className="min-w-0 flex-1 truncate text-sm font-medium">
+												{snapshot.account?.displayName ?? ui.unknownAccount}
+											</p>
+											<span
+												className={`shrink-0 text-xs font-semibold tabular-nums ${(snapshot.usedPercent ?? 0) >= 90 ? "text-danger" : (snapshot.usedPercent ?? 0) >= 70 ? "text-warning" : "text-success"}`}
+											>
 												{snapshot.usedPercent != null
 													? `${snapshot.usedPercent.toFixed(1)}%`
 													: "-"}
-											</span>{" "}
-											• {formatDateTime(snapshot.measuredAt)}
+											</span>
+										</div>
+										<p className="mt-0.5 text-xs text-muted-foreground">
+											{formatDateTime(snapshot.measuredAt)}
 										</p>
 									</li>
 								))}
