@@ -187,7 +187,7 @@ try {
         `$token = `$token.Trim()
         # Allow common bearer-token chars only, disallow control chars/whitespace.
         # Also enforce a minimum length to reduce malformed header usage.
-        if (`$token -match '^[A-Za-z0-9._~+/-]{16,2048}={0,2}`$') {
+        if (`$token -match '^[A-Za-z0-9._~+/-]{16,4096}={0,2}`$') {
             `$headers['Authorization'] = "Bearer `$token"
         } else {
             Write-EventLog -LogName Application -Source '$EventSource' -EntryType Warning -EventId 1003 -Message "Invalid MAAC_BACKUP_TOKEN format detected; sending backup request without authentication header." -ErrorAction SilentlyContinue
@@ -211,17 +211,14 @@ try {
             `$stream = `$ex.Response.GetResponseStream()
             if (`$stream) {
                 try {
-                    `$reader = `$null
+                    `$reader = New-Object System.IO.StreamReader(`$stream)
                     try {
-                        `$reader = New-Object System.IO.StreamReader(`$stream)
                         `$responseBody = `$reader.ReadToEnd()
                         if (`$responseBody) {
                             `$msg += " | Response: `$responseBody"
                         }
                     } finally {
-                        if (`$reader) {
-                            `$reader.Dispose()
-                        }
+                        `$reader.Dispose()
                     }
                 } finally {
                     `$stream.Dispose()
@@ -298,17 +295,22 @@ $Trigger = New-ScheduledTaskTrigger -Daily -At "${Hour}:00"
 # Require network only when target host is remote. For localhost/loopback/local
 # machine names, forcing network availability can skip valid runs when adapters
 # are transiently down.
+$computerFqdn = if (
+    -not [string]::IsNullOrWhiteSpace($env:COMPUTERNAME) -and
+    -not [string]::IsNullOrWhiteSpace($env:USERDNSDOMAIN)
+) {
+    "$($env:COMPUTERNAME).$($env:USERDNSDOMAIN)"
+} else {
+    $null
+}
+
 $localHosts = @(
     "localhost",
     "127.0.0.1",
     "::1",
     "[::1]",
     $env:COMPUTERNAME,
-    $(if (-not [string]::IsNullOrWhiteSpace($env:COMPUTERNAME) -and -not [string]::IsNullOrWhiteSpace($env:USERDNSDOMAIN)) {
-        "$($env:COMPUTERNAME).$($env:USERDNSDOMAIN)"
-    } else {
-        $null
-    })
+    $computerFqdn
 ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
 ForEach-Object { $_.ToLowerInvariant() }
 
