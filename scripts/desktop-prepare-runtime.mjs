@@ -11,9 +11,12 @@ const nextOutputRoot = path.join(webRoot, ".next");
 const standaloneRoot = path.join(nextOutputRoot, "standalone");
 const staticRoot = path.join(nextOutputRoot, "static");
 const publicRoot = path.join(webRoot, "public");
-const desktopTauriRoot = path.join(repoRoot, "desktop", "tauri");
-const runtimeRoot = path.join(desktopTauriRoot, "next-runtime");
-const launcherDistRoot = path.join(desktopTauriRoot, "launcher-dist");
+// src-tauri paths — these are the locations that Tauri bundles into the installer.
+// tauri.conf.json has: frontendDist="launcher-dist" and resources=["next-runtime"],
+// both resolved relative to src-tauri/, so we must write there.
+const srcTauriRoot = path.join(repoRoot, "desktop", "tauri", "src-tauri");
+const runtimeRoot = path.join(srcTauriRoot, "next-runtime");
+const launcherDistRoot = path.join(srcTauriRoot, "launcher-dist");
 const launcherIndexPath = path.join(launcherDistRoot, "index.html");
 const runtimeEntrypointPath = path.join(runtimeRoot, "start-runtime.cjs");
 
@@ -51,50 +54,66 @@ async function prepareLauncherDist() {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Multi Account AI Control</title>
     <style>
-      :root {
-        color-scheme: light dark;
-        font-family: "Segoe UI", system-ui, sans-serif;
-      }
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      :root { color-scheme: dark; font-family: "Segoe UI", system-ui, sans-serif; }
       body {
-        margin: 0;
         min-height: 100vh;
         display: grid;
         place-items: center;
-        background: radial-gradient(circle at top right, #1f2937, #0b1220 55%);
-        color: #f8fafc;
+        background: radial-gradient(ellipse at 70% 20%, #0f2744 0%, #0b1220 55%, #061018 100%);
+        color: #f0f4f8;
+        overflow: hidden;
       }
-      .panel {
-        width: min(92vw, 520px);
-        border: 1px solid rgba(148, 163, 184, 0.3);
-        border-radius: 16px;
-        padding: 24px;
-        background: rgba(15, 23, 42, 0.75);
-        backdrop-filter: blur(8px);
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      .card {
+        width: min(90vw, 480px);
+        padding: 36px 32px;
+        background: rgba(15, 25, 50, 0.8);
+        border: 1px solid rgba(100, 160, 255, 0.15);
+        border-radius: 20px;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(100,160,255,0.05) inset;
+        backdrop-filter: blur(16px);
+        animation: fadeIn 0.4s ease;
       }
-      h1 {
-        margin: 0 0 10px;
-        font-size: 1.15rem;
-        letter-spacing: 0.02em;
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+      .logo {
+        width: 44px; height: 44px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #3b82f6, #6366f1);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 22px; font-weight: 700; color: #fff;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 16px rgba(99,102,241,0.4);
       }
-      p {
-        margin: 0;
-        line-height: 1.55;
-        color: rgba(226, 232, 240, 0.92);
+      h1 { font-size: 1.1rem; font-weight: 600; color: #e2e8f0; margin-bottom: 8px; }
+      .sub { font-size: 0.85rem; color: #94a3b8; line-height: 1.5; margin-bottom: 28px; }
+      .track {
+        height: 3px; background: rgba(255,255,255,0.08);
+        border-radius: 4px; overflow: hidden; margin-bottom: 14px;
       }
-      .status {
-        margin-top: 16px;
-        font-size: 0.9rem;
-        color: #38bdf8;
+      .bar {
+        height: 100%; width: 30%;
+        background: linear-gradient(90deg, #3b82f6, #818cf8);
+        border-radius: 4px;
+        animation: slide 1.6s ease-in-out infinite;
       }
+      @keyframes slide {
+        0%   { transform: translateX(-100%); }
+        50%  { transform: translateX(233%); }
+        100% { transform: translateX(233%); }
+      }
+      .status { font-size: 0.78rem; color: #64748b; }
     </style>
   </head>
   <body>
-    <main class="panel">
+    <div class="card">
+      <div class="logo">M</div>
       <h1>Starting Multi Account AI Control</h1>
-      <p>The desktop runtime is initializing the local workspace service. This window will continue automatically.</p>
-      <p class="status">Initializing secure local server...</p>
-    </main>
+      <p class="sub">Initializing the local workspace service. The application will open automatically.</p>
+      <div class="track"><div class="bar"></div></div>
+      <p class="status">Starting secure local server…</p>
+    </div>
+    <!-- Navigation is handled by Rust: TCP polling + window.eval(). -->
+    <!-- fetch() no-cors in WebView2 resolves even when port is closed. -->
   </body>
 </html>
 `;
@@ -133,6 +152,86 @@ async function prepareRuntime() {
 
 	const launcher = `const path = require("node:path");
 const fs = require("node:fs");
+const crypto = require("node:crypto");
+const os = require("node:os");
+
+// ── Desktop environment bootstrap ─────────────────────────────────────────────
+// Resolves the correct data directory regardless of whether the app was
+// launched from the source tree or from an installed NSIS/MSI bundle.
+// Priority: APPDATA env (set by Tauri) → parent of __dirname → os.homedir fallback
+function resolveDataRoot() {
+  // When bundled, Tauri sets APPDATA to the app-specific AppData folder.
+  // We look for the "next-runtime" sibling that contains prisma/local.db.
+  const candidates = [
+    // Installed: __dirname IS the "next-runtime" folder inside AppData
+    path.resolve(__dirname),
+    // Source tree (dev): two levels up from scripts/
+    path.resolve(__dirname, "..", ".."),
+  ];
+  for (const dir of candidates) {
+    if (fs.existsSync(path.join(dir, "prisma", "local.db"))) {
+      return dir;
+    }
+  }
+  return path.resolve(__dirname);
+}
+
+function ensureDesktopEnv() {
+  const dataRoot = resolveDataRoot();
+  const secretsPath = path.join(dataRoot, "secrets.json");
+  const dbPath = path.join(dataRoot, "prisma", "local.db");
+
+  // Load or generate persistent secrets
+  let secrets = {};
+  if (fs.existsSync(secretsPath)) {
+    try {
+      secrets = JSON.parse(fs.readFileSync(secretsPath, "utf8"));
+    } catch (_) {
+      secrets = {};
+    }
+  }
+
+  let changed = false;
+
+  if (!secrets.APP_MASTER_KEY) {
+    // Generate a 32-byte key encoded as 64-char hex (accepted by env.ts)
+    secrets.APP_MASTER_KEY = crypto.randomBytes(32).toString("hex");
+    changed = true;
+  }
+
+  if (!secrets.SESSION_SECRET) {
+    // Must be at least 32 chars; use 48 bytes → 96-char hex for safety
+    secrets.SESSION_SECRET = crypto.randomBytes(48).toString("hex");
+    changed = true;
+  }
+
+  if (changed) {
+    try {
+      fs.mkdirSync(path.dirname(secretsPath), { recursive: true });
+      fs.writeFileSync(secretsPath, JSON.stringify(secrets, null, 2), {
+        encoding: "utf8",
+        mode: 0o600,
+      });
+    } catch (err) {
+      console.error("[desktop-bootstrap] Failed to persist secrets:", err.message);
+    }
+  }
+
+  // Inject into process.env only when not already set (env vars from parent process win)
+  if (!process.env.DATABASE_URL) {
+    const normalizedDbPath = dbPath.replace(/\\\\/g, "/");
+    process.env.DATABASE_URL = \`file:\${normalizedDbPath}\`;
+  }
+  if (!process.env.APP_MASTER_KEY) {
+    process.env.APP_MASTER_KEY = secrets.APP_MASTER_KEY;
+  }
+  if (!process.env.SESSION_SECRET) {
+    process.env.SESSION_SECRET = secrets.SESSION_SECRET;
+  }
+}
+
+ensureDesktopEnv();
+// ── End of desktop environment bootstrap ──────────────────────────────────────
 
 const runtimeRoot = __dirname;
 const candidates = [

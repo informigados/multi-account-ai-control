@@ -5,49 +5,65 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Multi Account AI Control</title>
     <style>
-      :root {
-        color-scheme: light dark;
-        font-family: "Segoe UI", system-ui, sans-serif;
-      }
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      :root { color-scheme: dark; font-family: "Segoe UI", system-ui, sans-serif; }
       body {
-        margin: 0;
         min-height: 100vh;
         display: grid;
         place-items: center;
-        background: radial-gradient(circle at top right, #1f2937, #0b1220 55%);
-        color: #f8fafc;
+        background: radial-gradient(ellipse at 70% 20%, #0f2744 0%, #0b1220 55%, #061018 100%);
+        color: #f0f4f8;
+        overflow: hidden;
       }
-      .panel {
-        width: min(92vw, 520px);
-        border: 1px solid rgba(148, 163, 184, 0.3);
-        border-radius: 16px;
-        padding: 24px;
-        background: rgba(15, 23, 42, 0.75);
-        backdrop-filter: blur(8px);
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      .card {
+        width: min(90vw, 480px);
+        padding: 36px 32px;
+        background: rgba(15, 25, 50, 0.8);
+        border: 1px solid rgba(100, 160, 255, 0.15);
+        border-radius: 20px;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(100,160,255,0.05) inset;
+        backdrop-filter: blur(16px);
+        animation: fadeIn 0.4s ease;
       }
-      h1 {
-        margin: 0 0 10px;
-        font-size: 1.15rem;
-        letter-spacing: 0.02em;
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+      .logo {
+        width: 44px; height: 44px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #3b82f6, #6366f1);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 22px; font-weight: 700; color: #fff;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 16px rgba(99,102,241,0.4);
       }
-      p {
-        margin: 0;
-        line-height: 1.55;
-        color: rgba(226, 232, 240, 0.92);
+      h1 { font-size: 1.1rem; font-weight: 600; color: #e2e8f0; margin-bottom: 8px; }
+      .sub { font-size: 0.85rem; color: #94a3b8; line-height: 1.5; margin-bottom: 28px; }
+      .track {
+        height: 3px; background: rgba(255,255,255,0.08);
+        border-radius: 4px; overflow: hidden; margin-bottom: 14px;
       }
-      .status {
-        margin-top: 16px;
-        font-size: 0.9rem;
-        color: #38bdf8;
+      .bar {
+        height: 100%; width: 30%;
+        background: linear-gradient(90deg, #3b82f6, #818cf8);
+        border-radius: 4px;
+        animation: slide 1.6s ease-in-out infinite;
       }
+      @keyframes slide {
+        0%   { transform: translateX(-100%); }
+        50%  { transform: translateX(233%); }
+        100% { transform: translateX(233%); }
+      }
+      .status { font-size: 0.78rem; color: #64748b; }
     </style>
   </head>
   <body>
-    <main class="panel">
+    <div class="card">
+      <div class="logo">M</div>
       <h1>Starting Multi Account AI Control</h1>
-      <p>The desktop runtime is initializing the local workspace service. This window will continue automatically.</p>
-      <p class="status">Initializing secure local server...</p>
-    </main>
+      <p class="sub">Initializing the local workspace service. The application will open automatically.</p>
+      <div class="track"><div class="bar"></div></div>
+      <p class="status">Starting secure local server…</p>
+    </div>
+    <!-- Navigation is handled by Rust: TCP polling + window.eval(). -->
+    <!-- fetch() no-cors in WebView2 resolves even when port is closed. -->
   </body>
 </html>
