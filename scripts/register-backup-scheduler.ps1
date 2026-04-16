@@ -115,7 +115,8 @@ function Test-MaacServerHost {
     }
 
     # Bracketed IPv6 is required when used with :port in a URI.
-    if ($HostValue -match '^\[[0-9A-Fa-f:]+\]$') {
+    # Use TryParse for actual IPv6 validation to avoid permissive regex pre-checks.
+    if ($HostValue.StartsWith('[') -and $HostValue.EndsWith(']')) {
         $ipv6 = $HostValue.TrimStart('[').TrimEnd(']')
         $parsedIp = $null
         return [Net.IPAddress]::TryParse($ipv6, [ref]$parsedIp) -and $parsedIp.AddressFamily -eq [Net.Sockets.AddressFamily]::InterNetworkV6
@@ -127,8 +128,12 @@ function Test-MaacServerHost {
         return ($octets | Where-Object { [int]$_ -ge 0 -and [int]$_ -le 255 }).Count -eq 4
     }
 
-    # DNS hostname (labels 1-63 chars, alnum/hyphen, no leading/trailing hyphen).
-    if ($HostValue -match '^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])$') {
+    # DNS hostname validation:
+    # - total length 1-253 chars
+    # - each label length 1-63 chars
+    # - labels may contain alnum/hyphen, but cannot start/end with hyphen
+    $dnsHostnamePattern = '^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])$'
+    if ($HostValue -match $dnsHostnamePattern) {
         return $true
     }
 
@@ -159,11 +164,6 @@ if ($existing) {
 # ── Build the backup command ───────────────────────────────────────────────────
 if (-not (Test-MaacServerHost -HostValue $ServerHost)) {
     Write-Error "Invalid -ServerHost value '$ServerHost'. Use localhost, a valid IPv4 address, a bracketed IPv6 address (e.g. [::1]), or a valid DNS hostname."
-    exit 1
-}
-
-if ($Port -lt 1 -or $Port -gt 65535) {
-    Write-Error "Invalid -Port value '$Port'. Use an integer between 1 and 65535."
     exit 1
 }
 
