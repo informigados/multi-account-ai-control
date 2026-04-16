@@ -53,6 +53,7 @@ Some features **only work in the installable desktop app** because they require 
 | Account groups / folders | ✅ |
 | Import JSON/CSV (manual paste) | ✅ |
 | Export JSON / encrypted backup | ✅ |
+| Automated backup (Windows Task Scheduler script) | ✅ Manual setup via `scripts/register-backup-scheduler.ps1` |
 | Audit logs, notes, account detail workspace | ✅ |
 | Multi-language UI | ✅ |
 | Password reset by email (requires SMTP config) | ✅ |
@@ -64,12 +65,61 @@ Some features **only work in the installable desktop app** because they require 
 |---|---|---|
 | **Import local session** (Gemini CLI, Zed, Cursor, Codex) | Reads credential files from local disk (e.g. `~/.gemini/oauth_creds.json`, `state.vscdb`) — impossible from a web server which cannot access the user's file system | ✅ Implemented (Rust connectors) |
 | **Native OS quota alerts** (system notifications) | Uses Tauri `notification` plugin to push native OS notifications | 🔜 Planned (F.3) |
-| **Scheduled backup manager** | Background daemon that runs a daily automated backup | 🔜 Planned (F.6) |
 | **Real-time log tail** (app.log viewer) | Tail native log files on disk | 🔜 Planned (F.6+) |
 | **2FA / TOTP Manager** | Generates OTP codes from Base32 secrets stored locally | 🔜 Planned (F.7) |
 | **OAuth browser flow** (silent token capture) | Opens embedded browser + captures redirect locally | 🔜 Future (high complexity) |
 
 > **Important:** When you click "Importar do app local" in web mode, the system shows an informative notice explaining the feature is exclusive to the desktop executable, and guides the user to download the installer.
+
+---
+
+## ♻️ Automatic Backup by Environment (Current System)
+
+The current automatic backup daemon is implemented via **Windows Task Scheduler**:
+
+- Script: `scripts/register-backup-scheduler.ps1`
+- Task name: `\MAAC\MAAC-AutoBackup`
+- Endpoint called by the task: `POST /api/export/backup/schedule`
+- Requires running PowerShell **as Administrator** when registering/removing the task
+
+### Web Mode (Next.js server)
+
+Use this when running with `npm run dev` / `npm run start`:
+
+```powershell
+# Example for local web server on port 3000, daily at 02:00
+.\scripts\register-backup-scheduler.ps1 -Hour 2 -Protocol http -ServerHost localhost -Port 3000
+```
+
+If your web server uses another host/port/protocol, pass those values explicitly.
+
+### Desktop Executable Mode (`.msi` / `.exe`)
+
+Use this when the desktop runtime exposes the local API on the default port:
+
+```powershell
+# Default desktop endpoint: http://localhost:4173
+.\scripts\register-backup-scheduler.ps1
+
+# Custom hour example
+.\scripts\register-backup-scheduler.ps1 -Hour 2
+```
+
+### Remove / Reconfigure
+
+```powershell
+# Remove scheduled task
+.\scripts\register-backup-scheduler.ps1 -Remove
+```
+
+Then register again with the new parameters.
+
+### Notes
+
+- The backup task runs without keeping the desktop window open.
+- The target API must be reachable at execution time, otherwise backup will fail.
+- Optional token auth is supported via `MAAC_BACKUP_TOKEN` environment variable.
+- Security hardening protects the generated task script file on disk; environment variables remain visible to processes in the same user/task context.
 
 ---
 
