@@ -76,6 +76,7 @@ param(
     [ValidateRange(1, 1440)]
     [int]$ExecutionTimeLimitMinutes = 5,
 
+    [ValidateRange(1, 65535)]
     [int]$Port = 4173,
 
     [ValidateSet('http', 'https')]
@@ -161,6 +162,11 @@ if (-not (Test-MaacServerHost -HostValue $ServerHost)) {
     exit 1
 }
 
+if ($Port -lt 1 -or $Port -gt 65535) {
+    Write-Error "Invalid -Port value '$Port'. Use an integer between 1 and 65535."
+    exit 1
+}
+
 $ApiUrl = "${Protocol}://${ServerHost}:$Port/api/export/backup/schedule"
 
 # ── Ensure the Event Log source exists (required before Write-EventLog can work) ─
@@ -185,9 +191,16 @@ try {
     `$headers = @{}
     if (`$token) {
         `$token = `$token.Trim()
-        # Allow common bearer-token chars only, disallow control chars/whitespace.
-        # Also enforce a minimum length to reduce malformed header usage.
-        if (`$token -match '^[A-Za-z0-9._~+/-]{16,4096}={0,2}`$') {
+        # Validate token shape and length to reduce malformed or excessively large headers.
+        # Accept either JWT-like tokens or opaque bearer tokens with safe characters.
+        `$tokenLength = `$token.Length
+        `$isJwtLike = (`$token -match '^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-+/=]*`$')
+        `$isOpaqueLike = (`$token -match '^[A-Za-z0-9._~+/-]+={0,2}`$')
+        `$tokenIsValid = (
+            (`$isJwtLike -and `$tokenLength -ge 16 -and `$tokenLength -le 4096) -or
+            (`$isOpaqueLike -and `$tokenLength -ge 16 -and `$tokenLength -le 2048)
+        )
+        if (`$tokenIsValid) {
             `$headers['Authorization'] = "Bearer `$token"
         } else {
             Write-EventLog -LogName Application -Source '$EventSource' -EntryType Warning -EventId 1003 -Message "Invalid MAAC_BACKUP_TOKEN format detected; sending backup request without authentication header." -ErrorAction SilentlyContinue
@@ -244,6 +257,10 @@ try {
 
     # Restrict task script permissions to prevent unauthorized read/modify.
     # This script runs via a scheduled task with elevated privileges.
+    # NOTE: ACL hardening protects the script file at rest only.
+    # If MAAC_BACKUP_TOKEN is supplied through environment variables at runtime,
+    # the token is not written to this file, but may still be readable by
+    # processes running under the same user/task security context.
     $acl = Get-Acl -Path $TaskScriptPath
     $acl.SetAccessRuleProtection($true, $false) # disable inheritance, remove inherited rules
     $existingRules = @($acl.Access)
@@ -277,6 +294,7 @@ try {
 
     Set-Content -Path $TaskScriptPath -Value $ScriptBlock -Encoding UTF8
     Write-Host "  [OK] Task runtime script written to: $TaskScriptPath" -ForegroundColor Green
+    Write-Warning "Security note: MAAC_BACKUP_TOKEN is not written into the task script file. If provided via environment variables, it remains exposed to processes running under the same user/task context."
 } catch {
     Write-Error "Failed to set secure permissions on task runtime script '$TaskScriptPath': $_"
     exit 1
