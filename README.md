@@ -1,4 +1,6 @@
-# 🚀 Multi Account AI Control
+# 🎛️ Multi Account AI Control
+
+A local-first dashboard for managing AI provider accounts with usage tracking, audit history, and encrypted backup and restore.
 
 ![Node](https://img.shields.io/badge/node-%3E%3D20-339933?logo=node.js&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
@@ -6,9 +8,6 @@
 ![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?logo=prisma&logoColor=white)
 [![Release](https://img.shields.io/badge/release-1.2.0-blue)](https://github.com/informigados/multi-account-ai-control/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/informigados/multi-account-ai-control)
-
-A **local-first** operations panel for managing multiple AI accounts with strong security, traceability, and day-to-day productivity.
 
 ## ✨ Current Capabilities
 
@@ -296,9 +295,9 @@ multi-account-ai-control/
 
 ## 👥 Authors
 
-- INformigados: [github.com/informigados](https://github.com/informigados/)
-- Alex Brito: [github.com/alexbritodev](https://github.com/alexbritodev)
+- [Alex Brito](https://github.com/alexbritodev)
+- [INformigados](https://github.com/informigados)
 
-## 📜 License
+## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the [MIT License](LICENSE).
